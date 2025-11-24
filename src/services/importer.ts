@@ -22,9 +22,30 @@ export async function importActorsService(projectRoot: string, inputStream: Read
     const now = new Date().toISOString();
 
     for await (const record of parser) {
+        const baseFilenameSource: string = record.base_filename || record.display_name || '';
+        const base_filename =
+            record.base_filename ||
+            baseFilenameSource
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '') + '_';
+
         const actor = {
             id: generateId(),
             display_name: record.display_name,
+            base_filename,
+            all_approved: false,
+            provider_settings: {
+                dialogue: {
+                    provider: 'manual',
+                },
+                music: {
+                    provider: 'manual',
+                },
+                sfx: {
+                    provider: 'manual',
+                },
+            },
             aliases: record.aliases ? record.aliases.split(';').map((s: string) => s.trim()) : [],
             notes: record.notes || '',
             created_at: now,
@@ -45,9 +66,9 @@ export async function importActorsService(projectRoot: string, inputStream: Read
     return count;
 }
 
-export async function importDialoguesService(projectRoot: string, inputStream: Readable): Promise<number> {
+export async function importContentService(projectRoot: string, inputStream: Readable): Promise<number> {
     const paths = getProjectPaths(projectRoot);
-    await ensureJsonlFile(paths.catalog.dialogues);
+    await ensureJsonlFile(paths.catalog.content);
 
     const parser = inputStream.pipe(
         parse({
@@ -61,27 +82,29 @@ export async function importDialoguesService(projectRoot: string, inputStream: R
     const now = new Date().toISOString();
 
     for await (const record of parser) {
-        const dialogue = {
+        const tags = record.tags ? record.tags.split(';').map((s: string) => s.trim()) : [];
+
+        const content = {
             id: generateId(),
-            scene: record.scene,
-            line_number: record.line_number,
-            character: record.character,
-            text: record.text,
-            context: record.context || '',
-            direction: record.direction || '',
-            tags: record.tags ? record.tags.split(';').map((s: string) => s.trim()) : [],
+            actor_id: record.actor_id,
+            content_type: record.content_type,
+            item_id: record.item_id,
+            prompt: record.prompt,
+            complete: false,
+            all_approved: false,
+            tags,
             created_at: now,
             updated_at: now,
         };
 
-        const validation = validate('dialogue', dialogue);
+        const validation = validate('content', content);
         if (!validation.valid) {
-            console.error(`Invalid dialogue record: ${JSON.stringify(record)}`);
+            console.error(`Invalid content record: ${JSON.stringify(record)}`);
             console.error(validation.errors);
             continue;
         }
 
-        await appendJsonl(paths.catalog.dialogues, dialogue);
+        await appendJsonl(paths.catalog.content, content);
         count++;
     }
 

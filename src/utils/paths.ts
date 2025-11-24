@@ -16,15 +16,13 @@ export function getProjectPaths(projectRoot: string) {
         projectJson: join(projectRoot, 'project.json'),
         catalog: {
             actors: join(projectRoot, PATHS.CATALOG, 'actors.jsonl'),
-            dialogues: join(projectRoot, PATHS.CATALOG, 'dialogues.jsonl'),
-            pairs: join(projectRoot, PATHS.CATALOG, 'pairs.jsonl'),
+            content: join(projectRoot, PATHS.CATALOG, 'content.jsonl'),
             takes: join(projectRoot, PATHS.CATALOG, 'takes.jsonl'),
-            reviews: join(projectRoot, PATHS.CATALOG, 'reviews.jsonl'),
+            generationJobs: join(projectRoot, PATHS.CATALOG, 'generation-jobs.jsonl'),
             indexes: {
                 dir: join(projectRoot, PATHS.INDEXES),
                 byActor: (id: string) => join(projectRoot, PATHS.INDEXES, `by_actor`, `${id}.json`),
-                byDialogue: (id: string) => join(projectRoot, PATHS.INDEXES, `by_dialogue`, `${id}.json`),
-                byPair: (id: string) => join(projectRoot, PATHS.INDEXES, `by_pair`, `${id}.json`),
+                byContent: (id: string) => join(projectRoot, PATHS.INDEXES, `by_content`, `${id}.json`),
             },
         },
         media: join(projectRoot, PATHS.MEDIA),

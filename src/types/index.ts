@@ -11,7 +11,7 @@ export interface ProjectSettings {
 export interface Project {
     id: string;
     name: string;
-    schema_version: '1.0.0';
+    schema_version: '2.0.0';
     created_at: string;
     updated_at: string;
     settings: ProjectSettings;
@@ -20,67 +20,66 @@ export interface Project {
 export interface Actor {
     id: string;
     display_name: string;
+    base_filename: string;
+    all_approved: boolean;
+    provider_settings: {
+        dialogue?: {
+            provider: 'elevenlabs' | 'manual';
+            voice_id?: string;
+            batch_generate?: number;
+            approval_count_default?: number;
+            stability?: number;
+            similarity_boost?: number;
+        };
+        music?: {
+            provider: 'elevenlabs' | 'manual';
+            batch_generate?: number;
+            approval_count_default?: number;
+        };
+        sfx?: {
+            provider: 'elevenlabs' | 'manual';
+            batch_generate?: number;
+            approval_count_default?: number;
+        };
+    };
     aliases: string[];
     notes: string;
     created_at: string;
     updated_at: string;
 }
 
-export interface Dialogue {
-    id: string;
-    scene: string;
-    line_number: string;
-    character: string;
-    text: string;
-    context: string;
-    direction: string;
-    tags: string[];
-    created_at: string;
-    updated_at: string;
-}
+export type ContentType = 'dialogue' | 'music' | 'sfx';
 
-export type PairState = 'Planned' | 'Recording' | 'Review' | 'OnHold' | 'Done';
-
-export interface Pair {
+export interface Content {
     id: string;
     actor_id: string;
-    dialogue_id: string;
-    state: PairState;
+    content_type: ContentType;
+    item_id: string;
+    prompt: string;
     complete: boolean;
-    notes: string;
-    approved_take_ids: string[];
+    all_approved: boolean;
+    tags: string[];
     created_at: string;
     updated_at: string;
 }
 
 export interface Take {
     id: string;
-    pair_id: string;
+    content_id: string;
+    take_number: number;
+    filename: string;
+    status: 'new' | 'approved' | 'rejected' | 'hidden';
     path: string;
     hash_sha256: string;
     duration_sec: number;
-    format: 'wav' | 'flac' | 'aiff';
+    format: 'wav' | 'flac' | 'aiff' | 'mp3';
     sample_rate: 44100 | 48000;
     bit_depth: 16 | 24;
     channels: 1 | 2;
     lufs_integrated: number;
     peak_dbfs: number;
-    transform_chain: TransformJob[];
+    generated_by: 'elevenlabs' | 'manual' | null;
+    generation_params: Record<string, unknown>;
     created_at: string;
     updated_at: string;
-}
-
-export interface TransformJob {
-    job_id: string;
-    name: string;
-    params: Record<string, unknown>;
-}
-
-export interface Review {
-    id: string;
-    entity: 'take' | 'pair';
-    entity_id: string;
-    action: 'approve_take' | 'reject_take' | 'unapprove_take' | 'mark_complete' | 'unmark_complete' | 'note';
-    note?: string;
-    at: string;
 }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import { join } from 'path';
 import { Readable } from 'stream';
-import { importActorsService, importDialoguesService } from '../src/services/importer.js';
+import { importActorsService, importContentService } from '../src/services/importer.js';
 import { rebuildIndexesService } from '../src/services/indexing.js';
 import { getProjectPaths } from '../src/utils/paths.js';
 
@@ -49,22 +49,24 @@ Bob,,Supporting
         expect(indexData.actor_id).toBe(actor1.id);
     });
 
-    it('should import dialogues from CSV', async () => {
+    it('should import content from CSV (v2 model)', async () => {
         const paths = getProjectPaths(TEST_DIR);
 
-        const csvContent = `scene,line_number,character,text
-1,1,Alice,Hello world
-1,2,Bob,Hi Alice
+        const csvContent = `actor_id,content_type,item_id,prompt,tags
+00000000-0000-0000-0000-000000000001,dialogue,my_line,Hello world,tag1;tag2
+00000000-0000-0000-0000-000000000001,dialogue,my_line_2,Hi Alice,
 `;
         const stream = Readable.from(csvContent);
 
-        const count = await importDialoguesService(TEST_DIR, stream);
+        const count = await importContentService(TEST_DIR, stream);
         expect(count).toBe(2);
 
-        const fileContent = await fs.readFile(paths.catalog.dialogues, 'utf-8');
+        const fileContent = await fs.readFile(paths.catalog.content, 'utf-8');
         const lines = fileContent.trim().split('\n');
         expect(lines.length).toBe(2);
-        const d1 = JSON.parse(lines[0]);
-        expect(d1.text).toBe('Hello world');
+        const c1 = JSON.parse(lines[0]);
+        expect(c1.item_id).toBe('my_line');
+        expect(c1.prompt).toBe('Hello world');
+        expect(c1.tags).toEqual(['tag1', 'tag2']);
     });
 });

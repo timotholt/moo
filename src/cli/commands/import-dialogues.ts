@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import fs from 'fs-extra';
-import { importDialoguesService } from '../../services/importer.js';
+import { importContentService } from '../../services/importer.js';
 
-export const importDialoguesCommand = new Command('dialogues')
-    .description('Import dialogues from a CSV file')
+export const importDialoguesCommand = new Command('content')
+    .description('Import content items from a CSV file (v2 model)')
     .argument('<file>', 'Path to CSV file')
     .action(async (file) => {
         if (!fs.existsSync(file)) {
@@ -15,8 +15,8 @@ export const importDialoguesCommand = new Command('dialogues')
         const inputStream = fs.createReadStream(file);
 
         try {
-            const count = await importDialoguesService(projectRoot, inputStream);
-            console.log(`Imported ${count} dialogues.`);
+            const count = await importContentService(projectRoot, inputStream);
+            console.log(`Imported ${count} content items.`);
         } catch (error) {
             console.error('Import failed:', error);
             process.exit(1);

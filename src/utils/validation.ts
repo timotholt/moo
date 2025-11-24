@@ -20,8 +20,7 @@ const schemaDir = join(__dirname, '../schemas');
 const schemaFiles = [
     'project.json',
     'actor.json',
-    'dialogue.json',
-    'pair.json',
+    'content.json',
     'take.json',
     'review.json',
 ];
