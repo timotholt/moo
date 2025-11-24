@@ -12,7 +12,9 @@
     "test": "vitest run",
     "lint": "eslint src tests",
     "format": "prettier --write .",
-    "verify": "pnpm run lint && pnpm run build && pnpm run test"
+    "verify": "pnpm run lint && pnpm run build && pnpm run test",
+    "dev:api": "tsx src/server.ts",
+    "dev": "pnpm run dev:api"
   },
   "keywords": [],
   "author": "",
