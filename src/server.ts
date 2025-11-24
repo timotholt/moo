@@ -196,39 +196,78 @@ fastify.post('/api/content', async (request, reply) => {
   const body = request.body as {
     actor_id: string;
     content_type: Content['content_type'];
-    item_id?: string;
-    prompt: string;
+    item_id: string;
+    prompt?: string;
     tags?: string[];
   } | null;
 
-  if (!body || !body.actor_id || !body.content_type || !body.prompt) {
+  if (!body || !body.actor_id || !body.content_type || !body.item_id) {
     reply.code(400);
-    return { error: 'actor_id, content_type, and prompt are required' };
+    return { error: 'actor_id, content_type, and item_id are required' };
   }
 
   const now = new Date().toISOString();
 
-  const content: Content = {
-    id: generateId(),
-    actor_id: body.actor_id,
-    content_type: body.content_type,
-    item_id: body.item_id ?? '',
-    prompt: body.prompt,
-    complete: false,
-    all_approved: false,
-    tags: body.tags ?? [],
-    created_at: now,
-    updated_at: now,
-  };
-
-  const validation = validate('content', content);
-  if (!validation.valid) {
+  // Support batch creation by splitting comma-separated item_ids
+  const allItemIds = body.item_id.split(',').map(id => id.trim()).filter(id => id.length > 0);
+  
+  if (allItemIds.length === 0) {
     reply.code(400);
-    return { error: 'Invalid content', details: validation.errors };
+    return { error: 'At least one valid item_id is required' };
   }
 
-  await appendJsonl(paths.catalog.content, content);
-  return { content };
+  // Check for existing content and filter out duplicates
+  const existingContent = await readJsonl<Content>(paths.catalog.content);
+  const existingItemIds = new Set(
+    existingContent
+      .filter(c => c.actor_id === body.actor_id && c.content_type === body.content_type)
+      .map(c => c.item_id)
+  );
+  
+  const itemIds = allItemIds.filter(id => !existingItemIds.has(id));
+  const duplicateIds = allItemIds.filter(id => existingItemIds.has(id));
+  
+  if (itemIds.length === 0) {
+    reply.code(400);
+    return { error: 'All provided item_ids already exist for this actor and content type', duplicates: duplicateIds };
+  }
+
+  const createdContent: Content[] = [];
+
+  for (const itemId of itemIds) {
+    const content: Content = {
+      id: generateId(),
+      actor_id: body.actor_id,
+      content_type: body.content_type,
+      item_id: itemId,
+      prompt: body.prompt || '',
+      complete: false,
+      all_approved: false,
+      tags: body.tags ?? [],
+      created_at: now,
+      updated_at: now,
+    };
+
+    const validation = validate('content', content);
+    if (!validation.valid) {
+      reply.code(400);
+      return { error: `Invalid content for item_id "${itemId}"`, details: validation.errors };
+    }
+
+    await appendJsonl(paths.catalog.content, content);
+    createdContent.push(content);
+  }
+
+  // Return the first item for single creation, or array for batch
+  const result: any = itemIds.length === 1 ? { content: createdContent[0] } : { content: createdContent };
+  
+  // Include information about duplicates if any were skipped
+  if (duplicateIds.length > 0) {
+    result.duplicates_skipped = duplicateIds;
+    result.message = `Created ${itemIds.length} items. Skipped ${duplicateIds.length} duplicates: ${duplicateIds.join(', ')}`;
+  }
+  
+  return result;
 });
 
 fastify.delete('/api/content/:id', async (request, reply) => {
@@ -312,6 +351,7 @@ fastify.post('/api/sections', async (request, reply) => {
   const body = request.body as {
     actor_id: string;
     content_type: 'dialogue' | 'music' | 'sfx';
+    name?: string;
   };
   
   if (!body || !body.actor_id || !body.content_type) {
@@ -324,12 +364,73 @@ fastify.post('/api/sections', async (request, reply) => {
     id: `${body.actor_id}-${body.content_type}`,
     actor_id: body.actor_id,
     content_type: body.content_type,
+    name: body.name,
     created_at: now,
     updated_at: now,
   };
 
   await appendJsonl(paths.catalog.sections, section);
   return { section };
+});
+
+fastify.put('/api/sections/:id', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  
+  const { id } = request.params as { id: string };
+  const body = request.body as Partial<Section>;
+  
+  if (!body) {
+    reply.code(400);
+    return { error: 'Request body is required' };
+  }
+
+  const sections = await readJsonl<Section>(paths.catalog.sections);
+  const sectionIndex = sections.findIndex(s => s.id === id);
+  
+  if (sectionIndex === -1) {
+    reply.code(404);
+    return { error: 'Section not found' };
+  }
+
+  // Check for duplicate section names if name is being updated
+  if (body.name) {
+    const currentSection = sections[sectionIndex];
+    const duplicateSection = sections.find(s => 
+      s.id !== id && 
+      s.actor_id === currentSection.actor_id && 
+      s.name === body.name
+    );
+    
+    if (duplicateSection) {
+      reply.code(400);
+      return { error: `A section with the name "${body.name}" already exists for this actor` };
+    }
+  }
+
+  // Update the section with new data
+  const updatedSection: Section = {
+    ...sections[sectionIndex],
+    ...body,
+    id, // Ensure ID doesn't change
+    updated_at: new Date().toISOString(),
+  };
+
+  // Replace the section in the array
+  sections[sectionIndex] = updatedSection;
+
+  // Write back to file
+  await ensureJsonlFile(paths.catalog.sections);
+  await import('fs-extra').then(async (fsMod) => {
+    const fs = fsMod.default;
+    await fs.writeFile(
+      paths.catalog.sections,
+      sections.map((s) => JSON.stringify(s)).join('\n') + (sections.length ? '\n' : ''),
+      'utf8',
+    );
+  });
+
+  return { section: updatedSection };
 });
 
 fastify.get('/api/jobs', async () => {

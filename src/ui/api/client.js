@@ -97,3 +97,15 @@ export async function createSection(payload) {
   }
   return res.json();
 }
+
+export async function updateSection(id, payload) {
+  const res = await fetch(`/api/sections/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update section: ${await res.text()}`);
+  }
+  return res.json();
+}

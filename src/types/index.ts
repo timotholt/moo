@@ -24,7 +24,7 @@ export interface Actor {
     all_approved: boolean;
     provider_settings: {
         dialogue?: {
-            provider: 'elevenlabs' | 'manual';
+            provider: 'elevenlabs' | 'manual' | 'inherit';
             voice_id?: string;
             batch_generate?: number;
             approval_count_default?: number;
@@ -32,12 +32,12 @@ export interface Actor {
             similarity_boost?: number;
         };
         music?: {
-            provider: 'elevenlabs' | 'manual';
+            provider: 'elevenlabs' | 'manual' | 'inherit';
             batch_generate?: number;
             approval_count_default?: number;
         };
         sfx?: {
-            provider: 'elevenlabs' | 'manual';
+            provider: 'elevenlabs' | 'manual' | 'inherit';
             batch_generate?: number;
             approval_count_default?: number;
         };
@@ -67,6 +67,7 @@ export interface Section {
     id: string;
     actor_id: string;
     content_type: ContentType;
+    name?: string; // Custom section name like "Story Dialog", "Combat Dialog"
     created_at: string;
     updated_at: string;
 }

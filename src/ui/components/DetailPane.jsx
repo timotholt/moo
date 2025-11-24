@@ -14,10 +14,13 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Slider from '@mui/material/Slider';
+import Collapse from '@mui/material/Collapse';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { createActor, createContent, createSection, deleteActor, deleteContent, getVoices, updateActor } from '../api/client.js';
+import { createActor, createContent, createSection, deleteActor, deleteContent, getVoices, updateActor, updateSection } from '../api/client.js';
 
-export default function DetailPane({ actors, content, sections, selectedNode, onActorCreated, onContentCreated, onActorDeleted, onContentDeleted, onSectionCreated, onActorUpdated }) {
+export default function DetailPane({ actors, content, sections, selectedNode, onActorCreated, onContentCreated, onActorDeleted, onContentDeleted, onSectionCreated, onActorUpdated, onSectionUpdated }) {
   const [actorName, setActorName] = useState('');
   const [creatingActor, setCreatingActor] = useState(false);
   const [contentPrompt, setContentPrompt] = useState('');
@@ -37,6 +40,17 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
     music: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
     sfx: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 }
   });
+
+  // Section name editing state
+  const [editingSectionName, setEditingSectionName] = useState(false);
+  const [sectionName, setSectionName] = useState('');
+  
+  // Provider settings collapse state
+  const [providerSettingsExpanded, setProviderSettingsExpanded] = useState(false);
+  
+  // Base filename editing state
+  const [editingBaseFilename, setEditingBaseFilename] = useState(false);
+  const [baseFilename, setBaseFilename] = useState('');
 
   const handleCreateActor = async () => {
     try {
@@ -135,11 +149,21 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
       const result = await createContent({
         actor_id: actorId,
         content_type: contentType,
-        item_id: contentItemId || undefined,
-        prompt: contentPrompt,
+        item_id: contentItemId,
+        prompt: contentPrompt || '',
       });
       if (result && result.content && onContentCreated) {
-        onContentCreated(result.content);
+        // Handle both single and batch creation
+        if (Array.isArray(result.content)) {
+          result.content.forEach(item => onContentCreated(item));
+        } else {
+          onContentCreated(result.content);
+        }
+        
+        // Show message about duplicates if any were skipped
+        if (result.message) {
+          setError(result.message);
+        }
       }
       setContentPrompt('');
       setContentItemId('');
@@ -150,15 +174,21 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
     }
   };
 
-  const handleCreateSection = async (actorId, contentType) => {
+  const handleCreateSection = async (actorId, contentType, customName = null) => {
     try {
       setCreatingContent(true);
       setError(null);
       
-      const result = await createSection({
+      const sectionData = {
         actor_id: actorId,
         content_type: contentType,
-      });
+      };
+      
+      if (customName) {
+        sectionData.name = customName;
+      }
+      
+      const result = await createSection(sectionData);
       
       if (result && result.section && onSectionCreated) {
         onSectionCreated(result.section);
@@ -192,6 +222,32 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
       if (result && result.actor && onActorUpdated) {
         onActorUpdated(result.actor);
       }
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  };
+
+  const updateSectionName = async (sectionId, newName) => {
+    try {
+      const result = await updateSection(sectionId, { name: newName });
+      if (result && result.section && onSectionUpdated) {
+        onSectionUpdated(result.section);
+      }
+      setEditingSectionName(false);
+      setSectionName('');
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  };
+
+  const updateActorBaseFilename = async (actorId, newBaseFilename) => {
+    try {
+      const result = await updateActor(actorId, { base_filename: newBaseFilename });
+      if (result && result.actor && onActorUpdated) {
+        onActorUpdated(result.actor);
+      }
+      setEditingBaseFilename(false);
+      setBaseFilename('');
     } catch (err) {
       setError(err.message || String(err));
     }
@@ -265,7 +321,7 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="h6" gutterBottom sx={{ flexGrow: 1 }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
             {actor.display_name}
           </Typography>
           <IconButton
@@ -278,32 +334,84 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
           </IconButton>
         </Box>
         
-        <Typography variant="body2" gutterBottom>
-          Base filename: {actor.base_filename}
-        </Typography>
-        <Typography variant="body2" gutterBottom>
+        {/* Editable Base Filename */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          {editingBaseFilename ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Base filename:</Typography>
+              <TextField
+                size="small"
+                value={baseFilename}
+                onChange={(e) => setBaseFilename(e.target.value)}
+                placeholder={actor.base_filename}
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    updateActorBaseFilename(actor.id, baseFilename || actor.base_filename);
+                  }
+                }}
+                sx={{ fontSize: '0.8rem' }}
+              />
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => updateActorBaseFilename(actor.id, baseFilename || actor.base_filename)}
+              >
+                Save
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setEditingBaseFilename(false);
+                  setBaseFilename('');
+                }}
+              >
+                Cancel
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                Base filename: {actor.base_filename}
+              </Typography>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  setEditingBaseFilename(true);
+                  setBaseFilename(actor.base_filename);
+                }}
+                sx={{ fontSize: '0.7rem' }}
+              >
+                Edit
+              </Button>
+            </Box>
+          )}
+        </Box>
+        <Typography variant="body2" gutterBottom sx={{ fontSize: '0.8rem' }}>
           Aliases: {actor.aliases && actor.aliases.length ? actor.aliases.join(', ') : '—'}
         </Typography>
 
         {/* Provider Settings */}
         <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.95rem' }}>
             Provider Settings
           </Typography>
           
           {/* Dialogue Provider */}
           <Box sx={{ mb: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <Typography variant="subtitle2" gutterBottom>
+            <Typography variant="body2" gutterBottom sx={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
               Dialogue
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
               Provider: {actor.provider_settings?.dialogue?.provider || 'manual'}
               {actor.provider_settings?.dialogue?.voice_id && (
                 <> • Voice ID: {actor.provider_settings.dialogue.voice_id}</>
               )}
             </Typography>
             {actor.provider_settings?.dialogue?.provider === 'elevenlabs' && (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                 Batch: {actor.provider_settings.dialogue.batch_generate || 1} • 
                 Approval: {actor.provider_settings.dialogue.approval_count_default || 1} • 
                 Stability: {actor.provider_settings.dialogue.stability || 0.5} • 
@@ -314,10 +422,10 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
 
           {/* Music Provider */}
           <Box sx={{ mb: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <Typography variant="subtitle2" gutterBottom>
+            <Typography variant="body2" gutterBottom sx={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
               Music
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
               Provider: {actor.provider_settings?.music?.provider || 'manual'}
               {actor.provider_settings?.music?.provider === 'elevenlabs' && (
                 <> • Batch: {actor.provider_settings.music.batch_generate || 1} • 
@@ -328,10 +436,10 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
 
           {/* SFX Provider */}
           <Box sx={{ mb: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-            <Typography variant="subtitle2" gutterBottom>
+            <Typography variant="body2" gutterBottom sx={{ fontSize: '0.85rem', fontWeight: 'bold' }}>
               SFX
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
               Provider: {actor.provider_settings?.sfx?.provider || 'manual'}
               {actor.provider_settings?.sfx?.provider === 'elevenlabs' && (
                 <> • Batch: {actor.provider_settings.sfx.batch_generate || 1} • 
@@ -343,72 +451,67 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
 
         {/* Content Sections Management */}
         <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.95rem' }}>
             Content Sections
           </Typography>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Add content sections for this actor. Click on a section in the tree to add content.
+          <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: '0.8rem' }}>
+            Create multiple sections for different types of content (e.g., Combat Dialog, Story Music, etc.)
           </Typography>
           
-          <Stack spacing={1} sx={{ mt: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" sx={{ minWidth: 80 }}>
-                Dialogue:
-              </Typography>
-              {hasDialogue ? (
-                <Typography variant="body2" color="success.main">
-                  ✓ Section exists
-                </Typography>
-              ) : (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => handleCreateSection(actor.id, 'dialogue')}
-                  disabled={creatingContent}
-                >
-                  Add Dialogue Section
-                </Button>
-              )}
-            </Box>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            {/* Show existing sections categorized by type */}
+            {['dialogue', 'music', 'sfx'].map(contentType => {
+              const sectionsOfType = sections.filter(s => s.actor_id === actor.id && s.content_type === contentType);
+              if (sectionsOfType.length === 0) return null;
+              
+              return (
+                <Box key={contentType}>
+                  <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: 'bold', mb: 0.5 }}>
+                    {contentType.charAt(0).toUpperCase() + contentType.slice(1)} Sections:
+                  </Typography>
+                  {sectionsOfType.map(section => (
+                    <Box key={section.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 2 }}>
+                      <Typography variant="body2" sx={{ minWidth: 120, fontSize: '0.8rem' }}>
+                        {section.name || section.content_type.toUpperCase()}
+                      </Typography>
+                      <Typography variant="body2" color="success.main" sx={{ fontSize: '0.8rem' }}>
+                        ✓ Section exists
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              );
+            })}
             
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" sx={{ minWidth: 80 }}>
-                Music:
-              </Typography>
-              {hasMusic ? (
-                <Typography variant="body2" color="success.main">
-                  ✓ Section exists
-                </Typography>
-              ) : (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => handleCreateSection(actor.id, 'music')}
-                  disabled={creatingContent}
-                >
-                  Add Music Section
-                </Button>
-              )}
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" sx={{ minWidth: 80 }}>
-                SFX:
-              </Typography>
-              {hasSfx ? (
-                <Typography variant="body2" color="success.main">
-                  ✓ Section exists
-                </Typography>
-              ) : (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => handleCreateSection(actor.id, 'sfx')}
-                  disabled={creatingContent}
-                >
-                  Add SFX Section
-                </Button>
-              )}
+            {/* Add new section buttons */}
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => handleCreateSection(actor.id, 'dialogue')}
+                disabled={creatingContent}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                + Add Dialogue Section
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => handleCreateSection(actor.id, 'music')}
+                disabled={creatingContent}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                + Add Music Section
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => handleCreateSection(actor.id, 'sfx')}
+                disabled={creatingContent}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                + Add SFX Section
+              </Button>
             </Box>
           </Stack>
         </Box>
@@ -761,7 +864,19 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
 
   if (selectedNode.type.endsWith('-section')) {
     const contentType = selectedNode.type.replace('-section', '');
-    const actor = actors.find((a) => a.id === selectedNode.id);
+    
+    // Find the section data using the section ID
+    const sectionData = sections.find(s => s.id === selectedNode.id);
+    if (!sectionData) {
+      return (
+        <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
+          <Typography color="error">Section not found.</Typography>
+        </Box>
+      );
+    }
+    
+    // Find the actor using the section's actor_id
+    const actor = actors.find((a) => a.id === sectionData.actor_id);
     if (!actor) {
       return (
         <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
@@ -771,38 +886,150 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
     }
 
     const providerSettings = actor.provider_settings?.[contentType] || { provider: 'elevenlabs' };
+    const currentSectionName = sectionData?.name || contentType.toUpperCase();
 
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
-        <Typography variant="h6" gutterBottom>
-          {contentType.toUpperCase()} - {actor.display_name}
-        </Typography>
+        {/* Editable Section Name Header */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          {editingSectionName ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TextField
+                size="small"
+                value={sectionName}
+                onChange={(e) => setSectionName(e.target.value)}
+                placeholder={currentSectionName}
+                autoFocus
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    updateSectionName(sectionData?.id || `${actor.id}-${contentType}`, sectionName || currentSectionName);
+                  }
+                }}
+              />
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => updateSectionName(sectionData?.id || `${actor.id}-${contentType}`, sectionName || currentSectionName)}
+              >
+                Save
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setEditingSectionName(false);
+                  setSectionName('');
+                }}
+              >
+                Cancel
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>
+                {currentSectionName} - {actor.display_name}
+              </Typography>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => {
+                  setEditingSectionName(true);
+                  setSectionName(sectionData?.name || '');
+                }}
+              >
+                Edit Name
+              </Button>
+            </Box>
+          )}
+        </Box>
         
-        {/* Editable Provider Settings for this section */}
-        <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Provider Settings
-          </Typography>
+        {/* Collapsible Provider Settings for this section */}
+        <Box sx={{ mt: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          <Box 
+            sx={{ 
+              p: 2, 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              '&:hover': { bgcolor: 'action.hover' }
+            }}
+            onClick={() => setProviderSettingsExpanded(!providerSettingsExpanded)}
+          >
+            <Typography variant="subtitle2" sx={{ fontSize: '0.9rem' }}>
+              Provider Settings
+            </Typography>
+            {providerSettingsExpanded ? <ExpandLess /> : <ExpandMore />}
+          </Box>
           
-          <Stack spacing={2}>
+          <Collapse in={providerSettingsExpanded} timeout="auto" unmountOnExit>
+            <Box sx={{ p: 2, pt: 0 }}>
+              <Stack spacing={2}>
             {/* Provider Selection */}
             <FormControl size="small" fullWidth>
-              <InputLabel>Provider</InputLabel>
+              <InputLabel>Provider Mode</InputLabel>
               <Select
-                value={providerSettings.provider}
-                label="Provider"
+                value={providerSettings.provider === 'elevenlabs' || providerSettings.provider === 'manual' ? 'custom' : 'inherit'}
+                label="Provider Mode"
                 onChange={(e) => {
-                  updateActorProviderSettings(actor.id, contentType, { provider: e.target.value });
-                  // Auto-load voices when switching to elevenlabs
-                  if (e.target.value === 'elevenlabs' && voices.length === 0) {
-                    loadVoices();
+                  if (e.target.value === 'inherit') {
+                    updateActorProviderSettings(actor.id, contentType, { provider: 'inherit' });
+                  } else {
+                    // Switch to custom - populate with defaults
+                    const defaultSettings = {
+                      dialogue: {
+                        provider: 'elevenlabs',
+                        batch_generate: 1,
+                        approval_count_default: 1,
+                        stability: 0.5,
+                        similarity_boost: 0.75,
+                      },
+                      music: {
+                        provider: 'elevenlabs',
+                        batch_generate: 1,
+                        approval_count_default: 1,
+                      },
+                      sfx: {
+                        provider: 'elevenlabs',
+                        batch_generate: 1,
+                        approval_count_default: 1,
+                      }
+                    };
+                    updateActorProviderSettings(actor.id, contentType, defaultSettings[contentType]);
+                    // Auto-load voices when switching to elevenlabs
+                    if (voices.length === 0) {
+                      loadVoices();
+                    }
                   }
                 }}
               >
-                <MenuItem value="manual">Manual</MenuItem>
-                <MenuItem value="elevenlabs">ElevenLabs</MenuItem>
+                <MenuItem value="inherit">Inherit from Defaults</MenuItem>
+                <MenuItem value="custom">Custom Settings</MenuItem>
               </Select>
             </FormControl>
+
+            {/* Show custom settings only when not inheriting */}
+            {providerSettings.provider !== 'inherit' && (
+              <>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Provider</InputLabel>
+                  <Select
+                    value={providerSettings.provider}
+                    label="Provider"
+                    onChange={(e) => {
+                      updateActorProviderSettings(actor.id, contentType, { provider: e.target.value });
+                      // Auto-load voices when switching to elevenlabs
+                      if (e.target.value === 'elevenlabs' && voices.length === 0) {
+                        loadVoices();
+                      }
+                    }}
+                  >
+                    <MenuItem value="manual">Manual</MenuItem>
+                    <MenuItem value="elevenlabs">ElevenLabs</MenuItem>
+                  </Select>
+                </FormControl>
+              </>
+            )}
 
             {/* ElevenLabs Settings */}
             {providerSettings.provider === 'elevenlabs' && (
@@ -913,30 +1140,39 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
                 )}
               </>
             )}
-          </Stack>
+              </Stack>
+            </Box>
+          </Collapse>
         </Box>
 
-        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mt: 3 }}>
+        <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mt: 3, fontSize: '0.8rem' }}>
           Add and manage {contentType} content for this actor.
         </Typography>
 
         <Box sx={{ mt: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.9rem' }}>
             Add New {contentType.charAt(0).toUpperCase() + contentType.slice(1)} Content
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.8rem' }}>
+            Use commas to create multiple items at once: "Hi, Yes, No, My name is, Go away, I'm gonna kill you"
           </Typography>
           <TextField
             fullWidth
             size="small"
-            placeholder="Item ID (optional)"
+            label="Item IDs (required)"
+            placeholder="Hi, Yes, No, My name is, Go away, I'm gonna kill you"
             value={contentItemId}
             onChange={(e) => setContentItemId(e.target.value)}
+            required
             sx={{ mb: 1 }}
+            helperText="Separate multiple items with commas for batch creation"
           />
           <TextField
             fullWidth
             size="small"
             multiline
             rows={3}
+            label={`${contentType.charAt(0).toUpperCase() + contentType.slice(1)} Prompt (optional)`}
             placeholder={`${contentType} prompt or description`}
             value={contentPrompt}
             onChange={(e) => setContentPrompt(e.target.value)}
@@ -945,8 +1181,8 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
           <Button
             variant="contained"
             size="small"
-            disabled={!contentPrompt.trim() || creatingContent}
-            onClick={() => handleCreateContent(actor.id, contentType)}
+            disabled={!contentItemId.trim() || creatingContent}
+            onClick={() => handleCreateContent(sectionData.actor_id, sectionData.content_type)}
           >
             {creatingContent ? 'Creating…' : `Add ${contentType.charAt(0).toUpperCase() + contentType.slice(1)} Content`}
           </Button>

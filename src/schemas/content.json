@@ -20,7 +20,7 @@
         },
         "item_id": {
             "type": "string",
-            "pattern": "^[a-z0-9_]+$"
+            "minLength": 1
         },
         "prompt": {
             "type": "string"
