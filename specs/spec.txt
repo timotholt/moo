@@ -1,7 +1,7 @@
-BEGIN MASTER SPEC v1.0
+BEGIN MASTER SPEC v2.0
 
 # VO Foundry — Master Technical Specification
-Version: 1.1.0 (Refactored for Service Layer)
+Version: 2.0.0 (Actor-Centric Model + ElevenLabs Integration)
 Status: Ratified
 Editors: Lead Software Architect (you), Implementation Team (2–3 engineers)
 Date: 2025-11-23
@@ -12,17 +12,18 @@ License: Internal use only
 =====================================================================
 
 Purpose:
-VO Foundry is a fully local, offline-only voice-over production, review, and approval system. It manages actors, dialogue lines, takes, approval decisions, and exports. The system uses flat JSON files stored on the filesystem. All content must remain human-editable and human-repairable.
+VO Foundry is a fully local voice-over production, review, and approval system with integrated ElevenLabs audio generation. It manages actors, content items (dialogue/music/SFX), takes, approval decisions, and exports. The system uses flat JSON files stored on the filesystem. All content must remain human-editable and human-repairable.
 
 Primary MVP Goals:
-– Manage actor records, dialogue records, and all (actor × dialogue) combinations (called Pairs).
-– Allow unlimited takes per Pair.
-– Allow unlimited approved takes per Pair.
-– A Pair is only marked Complete when a reviewer explicitly toggles it.
-– No auto-regeneration of takes. All generation, re-recording, and re-ingest is manual.
+– Manage actor records with provider settings for audio generation.
+– Manage content items (dialogue, music, SFX) owned by actors.
+– Generate audio via ElevenLabs API in batch mode.
+– Allow unlimited takes per content item.
+– Allow unlimited approved takes per content item.
+– User-controlled completion flags at actor, content-type, and content-item levels.
 – Use JSON, JSONL, and CSV as the only data formats.
 – Provide a deterministic audio pipeline using ffmpeg.
-– Provide a CLI and a simple local web UI.
+– Provide a CLI and a tree-based local web UI.
 – Ensure every written data file validates against a strict JSON Schema.
 – Enforce rigid versioning and change-control rules to eliminate vibe coding.
 
@@ -31,7 +32,6 @@ Non-Goals (MVP):
 – No multi-user servers.
 – No real-time collaboration.
 – No DAW-level audio editing.
-– No automatic TTS unless manually triggered and stored locally.
 – No ML inference models required.
 
 =====================================================================
@@ -41,9 +41,10 @@ Non-Goals (MVP):
 Components:
 – Data Layer: flat JSON, JSONL, and CSV files stored under project_root.
 – Validation Layer: JSON Schema (Draft-07), validated on every write.
-– Service Layer: Core business logic (imports, state changes, audio processing) decoupled from interfaces.
+– Service Layer: Core business logic (imports, generation, audio processing) decoupled from interfaces.
+– Provider Layer: ElevenLabs API client with retry logic and quota tracking.
 – CLI Layer: Thin wrapper around Service Layer; Node.js-based, deterministic output.
-– Local Web UI: Thin wrapper around Service Layer; served from localhost only.
+– Local Web UI: Tree/file-explorer interface; served from localhost only.
 – Audio Pipeline: ffmpeg for probing, normalization, transcoding.
 
 Layered Architecture Rule:
@@ -51,26 +52,42 @@ Layered Architecture Rule:
 2. All business logic must reside in `src/services/`.
 3. CLI commands and API routes simply parse input, call a Service, and format output.
 
+Data Model Hierarchy:
+Project
+└── Actors
+    └── Actor
+        ├── Provider Settings (per content type)
+        ├── Dialogue Items
+        │   └── Takes
+        ├── Music Items
+        │   └── Takes
+        └── SFX Items
+            └── Takes
+
 Process Flow:
-1. Import actors and dialogue lines (via Service).
-2. System generates all valid Pairs or user generates them manually.
-3. User records / imports takes.
-4. Reviewer approves any number of takes.
-5. Reviewer marks Pair Complete.
-6. Export step bundles approved takes and metadata.
+1. Import or create actors with provider settings.
+2. Add content items (dialogue/music/SFX) to actors.
+3. Run batch generation to create takes via ElevenLabs API.
+4. Review takes: approve, reject, or regenerate.
+5. Mark content items as complete when satisfied.
+6. Export approved takes and metadata.
 
 =====================================================================
 2) IDENTIFIERS AND TIMEKEEPING
 =====================================================================
 
 ID Type:
-Use UUIDv7 for all IDs (actors, dialogues, pairs, takes, jobs, reviews).
+Use UUIDv7 for all IDs (actors, content, takes, jobs).
 
 Timestamps:
 All timestamps standardized as ISO 8601 UTC: YYYY-MM-DDTHH:mm:ss.sssZ
 
 Hashes:
 All audio files receive a SHA-256 content hash, stored in the Take record.
+
+File Naming Convention:
+{base_filename}{item_id}_{take_number}.{ext}
+Example: john_wick_my_name_001.wav
 
 =====================================================================
 3) DATA MODEL OVERVIEW
@@ -79,37 +96,32 @@ All audio files receive a SHA-256 content hash, stored in the Take record.
 Entities:
 – Project
 – Actor
-– Dialogue
-– Pair (actor × dialogue)
+– Content (dialogue, music, or SFX item)
 – Take
-– Review Event
-– Transform Job
-– Export Package
+– Generation Job
 
 Rules:
-– A Pair may have 0, 1, or many Takes.
-– A Pair may have 0, 1, or many approved Takes.
-– Complete flag is independent of approval.
-– Regeneration or new takes happen only when the user commands it.
+– An Actor owns many Content items.
+– A Content item may have 0, 1, or many Takes.
+– A Content item may have 0, 1, or many approved Takes.
+– Complete flags are user-controlled at actor, content-type, and content-item levels.
+– Generation happens only when user triggers batch build.
 
 Relationships:
-– Actor has many Pairs.
-– Dialogue has many Pairs.
-– Pair has many Takes.
-– Takes belong to exactly one Pair.
-– Reviews are append-only events referring to Takes or Pairs.
+– Actor has many Content items.
+– Content belongs to exactly one Actor.
+– Content has many Takes.
+– Takes belong to exactly one Content item.
 
 =====================================================================
 4) JSON SCHEMAS (FLATTENED DESCRIPTIONS)
 =====================================================================
 
-Note: In this flattened version, schemas are described structurally instead of using fenced code.
-
 Schema: project.json
 Fields:
 id: uuidv7 string
 name: string
-schema_version: "1.0.0"
+schema_version: "2.0.0"
 created_at: datetime
 updated_at: datetime
 settings: object with fields
@@ -125,40 +137,47 @@ Schema: actor.json
 Fields:
 id: uuidv7
 display_name: string
-aliases: array of strings
-notes: string
+base_filename: string (e.g., "john_wick_")
+all_approved: boolean (user-controlled)
+provider_settings: object with fields per content type
+  dialogue:
+    provider: "elevenlabs"
+    voice_id: string
+    batch_generate: number (takes per BUILD)
+    approval_count_default: number (target approved takes)
+    stability: number (0-1)
+    similarity_boost: number (0-1)
+  music:
+    provider: "elevenlabs"
+    batch_generate: number
+    approval_count_default: number
+  sfx:
+    provider: "elevenlabs"
+    batch_generate: number
+    approval_count_default: number
 created_at: datetime
 updated_at: datetime
 
-Schema: dialogue.json
-Fields:
-id: uuidv7
-scene: string
-line_number: string
-character: string
-text: string
-context: string
-direction: string
-tags: array of strings
-created_at: datetime
-updated_at: datetime
-
-Schema: pair.json
+Schema: content.json
 Fields:
 id: uuidv7
 actor_id: uuidv7
-dialogue_id: uuidv7
-state: Planned | Recording | Review | OnHold | Done
-complete: boolean
-notes: string
-approved_take_ids: array of uuidv7, unique
+content_type: "dialogue" | "music" | "sfx"
+item_id: string (combined with base_filename for file naming)
+prompt: string (dialogue text or music/SFX description)
+complete: boolean (user-controlled)
+all_approved: boolean (user-controlled)
+tags: array of strings
 created_at: datetime
 updated_at: datetime
 
 Schema: take.json
 Fields:
 id: uuidv7
-pair_id: uuidv7
+content_id: uuidv7
+take_number: integer (sequential, 1-indexed)
+filename: string (e.g., "john_wick_my_name_001.wav")
+status: "new" | "approved" | "rejected" | "hidden"
 path: relative file path
 hash_sha256: hex string
 duration_sec: number
@@ -168,27 +187,26 @@ bit_depth: 16 or 24
 channels: 1 or 2
 lufs_integrated: number
 peak_dbfs: number
-transform_chain: array of objects
-  job_id: uuidv7
-  name: string
-  params: object
+generated_by: "elevenlabs" | "manual" | null
+generation_params: object
+  voice_id: string
+  stability: number
+  (provider-specific params)
 created_at: datetime
-updated_at: datetime
 
-Schema: review.json
+Schema: generation-job.json
 Fields:
 id: uuidv7
-entity: "take" or "pair"
-entity_id: uuidv7
-action:
-  approve_take
-  reject_take
-  unapprove_take
-  mark_complete
-  unmark_complete
-  note
-note: optional string
-at: datetime
+status: "pending" | "running" | "completed" | "failed"
+items: array of objects
+  content_id: uuidv7
+  actor_id: uuidv7
+  take_count: number
+  status: "pending" | "generating" | "done" | "error"
+  error_message: string (optional)
+created_at: datetime
+completed_at: datetime
+error_log: array of strings
 
 =====================================================================
 5) FILESYSTEM LAYOUT
@@ -200,81 +218,100 @@ project_root/
   project.json
   catalog/
     actors.jsonl
-    dialogues.jsonl
-    pairs.jsonl
+    content.jsonl
     takes.jsonl
-    reviews.jsonl
+    generation-jobs.jsonl
     indexes/
       by_actor/{actor_id}.json
-      by_dialogue/{dialogue_id}.json
-      by_pair/{pair_id}.json
+      by_content/{content_id}.json
   media/
-    actors/{actor_id}/pairs/{pair_id}/raw/{hash}.{ext}
-    actors/{actor_id}/pairs/{pair_id}/proc/{take_id}.{ext}
+    actors/{actor_id}/
+      dialogue/{content_id}/
+        raw/{base_filename}{item_id}_{take_number}.wav
+        proc/{base_filename}{item_id}_{take_number}_normalized.wav
+      music/{content_id}/...
+      sfx/{content_id}/...
   exports/
     timestamp-export_id/
       manifest.json
       audio/
       sheets/
         takes.csv
-        pairs.csv
-        cue_sheet.csv
+        content.csv
   schema/
-  scripts/
   .vof/
-    migrations/
+    config.json
     audit.log
 
 Notes:
 – JSONL is append-only, easy to repair manually.
 – Indexes are derived; can always be rebuilt.
+– No pairs.jsonl (Pair concept removed in v2.0).
 
 =====================================================================
-6) STATE MACHINES
+6) BATCH GENERATION LOGIC
 =====================================================================
 
-Pair State Machine:
-Planned → Recording → Review → Done
-             ↘ OnHold ↗
+When user triggers BUILD (vof generate batch):
 
-Transitions:
-Planned → Recording
-Recording → Review
-Review → Recording
-Any → OnHold
-OnHold → Planned | Recording | Review
-Review → Done
+1. Find all content items where complete = false
+2. For each item:
+   a. Count approved takes
+   b. Get approval_count_target from actor.provider_settings.{content_type}.approval_count_default
+   c. If approved_count < approval_count_target:
+      - Calculate needed = approval_count_target - approved_count
+      - Generate 'needed' new takes via provider API
+3. Skip items where complete = true
+4. Log each generation attempt
+5. Retry failed generations 3 times
+6. Report summary: success count, failure count, takes created
 
-Complete Flag Rules:
-Independent from state.
-Can be toggled on or off at any time.
-Approval does not affect Complete automatically.
+Example:
+- john_wick.provider_settings.dialogue.approval_count_default = 3
+- my_name has 2 takes: 1 approved, 1 rejected
+- approved_count = 1, target = 3
+- Generate 3 - 1 = 2 more takes
 
-Review Actions:
-approve_take(take_id)
-unapprove_take(take_id)
-reject_take(take_id)
-mark_complete(pair_id)
-unmark_complete(pair_id)
+Special Cases:
+- If one take is exceptionally good, user can mark complete even with approved_count < target
+- If complete = true, skip generation regardless of approved_count
 
 =====================================================================
-7) CSV AND JSON IMPORT/EXPORT RULES
+7) PROVIDER INTEGRATION (ELEVENLABS)
 =====================================================================
 
-Dialogue CSV:
-Columns: scene, line_number, character, text, direction, tags
+ElevenLabs API Client:
+- generateDialogue(text, voiceId, settings) → audio buffer
+- generateMusic(prompt, settings) → audio buffer
+- generateSFX(prompt, settings) → audio buffer
+- getQuotaInfo() → usage stats
 
-Actor CSV:
-Columns: display_name, aliases, notes
+Error Handling:
+- Retry failed API calls 3 times with exponential backoff
+- Log all errors to generation-job.error_log
+- Skip failed items and continue batch
+- Report all errors at end of batch
 
-Export CSV files:
-takes.csv includes take metadata
-pairs.csv includes approvals and completion
-cue_sheet.csv includes final selected takes
+Configuration:
+Stored in .vof/config.json:
+{
+  "providers": {
+    "elevenlabs": {
+      "api_key": "sk-...",
+      "api_url": "https://api.elevenlabs.io/v1"
+    }
+  },
+  "generation": {
+    "default_format": "wav",
+    "auto_normalize": true,
+    "auto_transcode_formats": ["mp3"]
+  }
+}
 
-JSON Import Rules:
-All JSON files must validate against their schemas.
-IDs may be auto-generated if omitted.
+Quota Tracking:
+- Display usage before/after batch generation
+- Warn if quota is low
+- No automatic quota enforcement (user responsibility)
 
 =====================================================================
 8) AUDIO PIPELINE
@@ -311,15 +348,18 @@ fs check command validates file presence, hashes, and schema.
 CLI commands include:
 
 vof init
-vof import dialogues
 vof import actors
-vof pairs plan
-vof take add
-vof take list
-vof review approve
-vof review unapprove
-vof pair complete
-vof pair state
+vof content add --actor <name> --type <dialogue|music|sfx> --id <item_id> --prompt <text>
+vof content list [--actor <name>] [--type <type>] [--incomplete]
+vof content complete <content_id>
+vof generate batch [--actor <name>] [--type <type>] [--dry-run]
+vof generate status
+vof generate quota
+vof take approve <take_id>
+vof take reject <take_id>
+vof take regenerate <take_id>
+vof config set <key> <value>
+vof config list
 vof export bundle
 vof index rebuild
 vof fs check
@@ -327,7 +367,7 @@ vof schema validate
 vof migrate
 vof report summary
 
-All mutating commands append a review event.
+All mutating commands append an audit log entry.
 
 =====================================================================
 11) LOCAL WEB UI
@@ -337,68 +377,86 @@ The local UI runs on localhost only.
 Served via Fastify.
 Zero external network access allowed.
 
-Screens:
-Dashboard
-Pairs Board
-Pair Detail
-Exports Page
+UI Structure:
+Tree/file-explorer view with expandable nodes:
+- Project
+  - Actors
+    - Actor (display_name)
+      - Provider Settings (expandable)
+      - Dialogue (expandable, shows all_approved checkbox)
+        - Content Item (item_id, prompt)
+          - Take 1 (filename, status, actions)
+          - Take 2
+      - Music
+      - SFX
 
-UX Rules:
-No auto-complete on approval.
-No hidden state changes.
-Regenerate (if enabled post-MVP) must be manual.
+Actions:
+On Actor:
+- Edit provider settings
+- Mark all approved / unmark
+
+On Content Type (dialogue/music/sfx):
+- Mark all approved / unmark
+- Add new content item
+
+On Content Item:
+- Mark complete / incomplete
+- Mark all approved / unmark
+- Add take manually
+- Remove from UI (soft delete)
+
+On Take:
+- Approve
+- Reject
+- Play (audio player)
+- Regenerate
+- Hide/Show (via filter toggle)
+
+Filtering/Search:
+- Search by: actor name, item_id, prompt text
+- Filter by: content type, status (new/approved/rejected), complete flag
+- Toggle: Show/Hide rejected takes
 
 =====================================================================
-12) LOCAL API
-=====================================================================
-
-REST endpoints under /api/v1/:
-actors
-dialogues
-pairs
-takes
-reviews
-export
-health
-
-All POST/PUT/PATCH must validate data.
-
-=====================================================================
-13) INDEXES AND QUERIES
+12) INDEXES AND QUERIES
 =====================================================================
 
 Indexes exist only as derived caches. All truth lives in the JSONL files.
 
 Derived Indexes:
 – by_actor/{actor_id}.json
-  Contains list of pair_ids, count summaries, and last updated timestamp.
+  Contains list of content_ids, count summaries, and last updated timestamp.
 
-– by_dialogue/{dialogue_id}.json
-  Contains list of pair_ids and summary.
-
-– by_pair/{pair_id}.json
-  Summarizes pair info, take_ids, approved_take_ids, state, complete flag.
+– by_content/{content_id}.json
+  Summarizes content info, take_ids, approved_take_ids, status, complete flag.
 
 Index Rebuild:
 The command vof index rebuild reads all JSONL files, reconstructs indexes, validates references, and overwrites the index directory.
 
 Query Rules:
 – All fuzzy actor names resolve deterministically to exact actor_id.
-– Filters apply in canonical order: scene → actor → tags → state.
-
+– Filters apply in canonical order: actor → content_type → tags → status.
 
 =====================================================================
-14) VERSIONING AND MIGRATIONS
+13) VERSIONING AND MIGRATIONS
 =====================================================================
 
 Version Number:
-schema_version = "1.0.0"
+schema_version = "2.0.0"
+
+Breaking Changes from v1.x:
+– Removed Pair entity (actor × dialogue).
+– Renamed dialogue.json to content.json.
+– Added content_type field (dialogue | music | sfx).
+– Added actor.base_filename and actor.provider_settings.
+– Added content.complete and content.all_approved flags.
+– Added take.status and take.generated_by fields.
 
 Migrations:
 – All changes to schemas require a migration script.
 – Migrations operate on JSONL streams.
 – Migrations must be deterministic and idempotent when possible.
-– downgrades may not always be possible; if not, document it clearly.
+– Downgrades may not always be possible; if not, document it clearly.
 
 Migration Log:
 Stored in .vof/audit.log
@@ -409,26 +467,18 @@ Rules:
 – No silent addition of fields.
 – No silent removal of fields.
 
-
 =====================================================================
-15) LOGGING AND AUDIT
+14) LOGGING AND AUDIT
 =====================================================================
-
-Review Events:
-A review event is appended to reviews.jsonl for every mutating action:
-approve_take
-unapprove_take
-reject_take
-mark_complete
-unmark_complete
-note
 
 Audit Log:
 Human-readable log stored in .vof/audit.log.
 Contains high-level operations:
 import actors
-import dialogues
-pair planning
+add content
+batch generation
+approve/reject take
+mark complete
 index rebuild
 export generation
 migration events
@@ -437,9 +487,8 @@ Immutability:
 Events cannot be deleted automatically.
 Users may manually edit JSONL files, but fs check will detect inconsistencies.
 
-
 =====================================================================
-16) DETERMINISTIC BUILD AND TOOLING REQUIREMENTS
+15) DETERMINISTIC BUILD AND TOOLING REQUIREMENTS
 =====================================================================
 
 Node Version:
@@ -462,8 +511,8 @@ esModuleInterop = true
 Testing:
 vitest as test runner
 golden-file testing for outputs
-mock ffmpeg in pure unit tests
-run actual ffmpeg in integration tests (optional but recommended)
+mock ElevenLabs API in pure unit tests
+run actual ElevenLabs API in integration tests (optional, requires API key)
 
 Validation:
 ajv for JSON Schema validation
@@ -477,19 +526,23 @@ pnpm run verify performs:
 – schema validate all
 – fs check
 
-
 =====================================================================
-17) SECURITY AND PRIVACY
+16) SECURITY AND PRIVACY
 =====================================================================
 
 Offline Operation:
-VO Foundry never connects to the internet.
+VO Foundry connects to ElevenLabs API only for audio generation.
 No analytics.
 No telemetry.
 No error reporting to external servers.
 
+API Key Security:
+Stored in .vof/config.json (local file).
+User responsible for key security.
+Never log or display full API key.
+
 CSP:
-Content Security Policy in UI blocks all external resources.
+Content Security Policy in UI blocks all external resources except ElevenLabs API.
 
 File Access:
 All file operations are local and relative to project_root.
@@ -497,9 +550,8 @@ All file operations are local and relative to project_root.
 Backups:
 Handled manually by the user: zip project directory or export bundle.
 
-
 =====================================================================
-18) RISKS AND MITIGATIONS
+17) RISKS AND MITIGATIONS
 =====================================================================
 
 Risk: Manual Edits Corrupt Data
@@ -511,12 +563,14 @@ Mitigation: detect at startup, provide installation instructions, allow ingest w
 Risk: Large JSONL Files
 Mitigation: JSONL chosen for sequential writing; periodic compaction is optional.
 
-Risk: Reviewer Inconsistency
-Mitigation: require explicit state transitions, explicit approval, explicit completion.
+Risk: ElevenLabs API Failure
+Mitigation: retry logic, skip failed items, continue batch, report errors at end.
 
+Risk: API Quota Exceeded
+Mitigation: display quota before/after generation, warn if low, user responsibility to manage.
 
 =====================================================================
-19) DELIVERY PLAN
+18) DELIVERY PLAN
 =====================================================================
 
 Milestones:
@@ -531,39 +585,45 @@ M0 – Project Skeleton (Week 1)
 M1 – Data I/O (Week 2)
 – JSONL read/write
 – validation layer
-– import actors and dialogues
+– import actors
 – ID generation
 – indexes
+– Service Layer refactor
 
 M2 – Audio Pipeline (Week 3)
 – ffprobe integration
 – normalization
 – transcoding
 – hash computation
-– transform chain persistence
 
-M3 – Review Mechanics (Week 4)
-– approve/unapprove
+M2.5 – Audio Generation (Week 4)
+– ElevenLabs API client
+– provider interface
+– batch generation service
+– config management
+– CLI commands (generate, config)
+
+M3 – Review Mechanics (Week 5)
+– approve/reject actions
 – complete toggle
-– pair state machine
-– review events
+– content management
+– audit logging
 – reports
 
-M4 – Local UI (Week 5)
-– dashboard
-– pairs board
-– pair detail
-– waveform player
-– approvals
-– exports page
+M4 – Local UI (Week 6)
+– tree/file-explorer interface
+– provider settings editor
+– content item management
+– take approval interface
+– audio player
+– filtering/search
 
-M5 – Export & QA (Week 6)
+M5 – Export & QA (Week 7)
 – bundle export
 – cue sheet generation
 – integrity tests
 – performance checks
 – documentation
-
 
 Definition of Done:
 – All CLI commands functional.
@@ -571,9 +631,8 @@ Definition of Done:
 – Full pipeline testable on sample project.
 – No validation errors on fixtures.
 
-
 =====================================================================
-20) NO VIBE CODING POLICY
+19) NO VIBE CODING POLICY
 =====================================================================
 
 Definition:
@@ -593,185 +652,45 @@ Ensure stable, predictable development.
 Prevent architecture drift.
 Maintain long-term maintainability.
 
-
 =====================================================================
-21) EXAMPLE RECORDS (FLATTENED)
-=====================================================================
-
-Example Dialogue JSONL entry:
-{
-"id": "018e3f2e-9c1a-7d2a-bc7d-0b3d6a418001",
-"scene": "S01",
-"line_number": "001",
-"character": "OP",
-"text": "Stay frosty.",
-"direction": "dry",
-"tags": ["combat", "short"],
-"created_at": "2025-11-02T08:00:00.000Z"
-}
-
-Example Pair JSONL entry:
-{
-"id": "018e3f2e-9c1a-7d2a-bc7d-0b3d6a4180aa",
-"actor_id": "018e3f2e-9c1a-7d2a-bc7d-0b3d6a410123",
-"dialogue_id": "018e3f2e-9c1a-7d2a-bc7d-0b3d6a418001",
-"state": "Review",
-"complete": false,
-"approved_take_ids": [],
-"created_at": "2025-11-02T08:05:00.000Z"
-}
-
-Example Take JSONL entry:
-{
-"id": "018e3f2e-9c1a-7d2a-bc7d-0b3d6a4180ff",
-"pair_id": "018e3f2e-9c1a-7d2a-bc7d-0b3d6a4180aa",
-"path": "media/actors/018e3f2e.../pairs/018e3f2e.../proc/018e3f2e....wav",
-"hash_sha256": "2d711642b7...c3a8b",
-"duration_sec": 2.31,
-"format": "wav",
-"sample_rate": 48000,
-"bit_depth": 24,
-"channels": 1,
-"lufs_integrated": -23.1,
-"peak_dbfs": -1.0,
-"transform_chain": [
-  {
-    "job_id": "018e3f2e-...",
-    "name": "normalize-ebur128",
-    "params": {
-      "target_lufs": -23,
-      "peak_ceiling_db": -1.0
-    }
-  }
-],
-"created_at": "2025-11-02T08:06:00.000Z"
-}
-
-
-=====================================================================
-22) DEVELOPER SETUP
-=====================================================================
-
-Prerequisites:
-– Node 20+
-– pnpm
-– ffmpeg installed
-
-Commands:
-pnpm install
-pnpm run build
-pnpm run verify
-
-Example workflow:
-vof init ./demo
-vof import actors actors.csv
-vof import dialogues dialogues.csv
-vof pairs plan
-vof take add
-vof review approve
-vof pair complete
-vof export bundle
-
-
-=====================================================================
-23) TESTING STRATEGY
-=====================================================================
-
-Unit Tests:
-– parsers
-– validators
-– ID generation
-– parameter calculators
-
-Integration Tests:
-– full import → take → approve → export pipeline
-– hashing and file existence
-– index rebuild
-
-Golden Files:
-– JSONL samples
-– manifests
-– command outputs
-
-Audio Testing:
-– mock ffprobe for unit tests
-– real ffmpeg for integration tests when available
-
-
-=====================================================================
-24) OPERATIONAL PLAYBOOKS
-=====================================================================
-
-Corruption Repair:
-– run schema validate
-– run fs check
-– rebuild indexes
-– fix malformed JSONL lines manually if needed
-
-Moving Projects:
-Projects are fully portable; copy project_root as a folder.
-
-Backup Strategy:
-Zip entire project folder or export bundle directory.
-
-=====================================================================
-25) TRADE-OFFS
-=====================================================================
-
-JSONL vs Single JSON:
-– JSONL allows safe append and manual repair.
-– Individual entries are easy to isolate.
-– Single JSON becomes too large and fragile.
-Decision: JSONL is mandatory for catalog storage.
-
-ffmpeg Dependency:
-– Makes normalization and probing deterministic.
-– Users must install it manually.
-Decision: Acceptable for a professional workflow.
-
-Local UI Simplicity:
-– Svelte chosen for minimal bundle complexity.
-– Avoids React hook complexity and reduces cognitive load.
-Decision: Svelte required for MVP.
-
-Derived Indexes:
-– Cached convenience but never authoritative.
-– Can always be rebuilt.
-Decision: Keep indexes as derived only, never canonical.
-
-Completion Flag Separate from Approvals:
-– Gives reviewers explicit control.
-– Prevents accidental completion.
-Decision: Complete must always be explicit.
-
-
-=====================================================================
-26) GLOSSARY
+20) GLOSSARY
 =====================================================================
 
 Actor:
-A performer identity with display name, optional aliases, and notes.
+A performer identity with display name, base filename, and provider settings.
 
-Dialogue:
-A line of script associated with scene, line number, and text.
+Content:
+A dialogue line, music cue, or SFX item owned by an actor.
 
-Pair:
-A single (actor × dialogue) production unit requiring one or more takes.
+Content Type:
+One of: dialogue, music, or sfx.
 
 Take:
-An individual audio recording attempt tied to a Pair.
+An individual audio recording attempt tied to a Content item.
 
-Review Event:
-An immutable audit entry representing actions like approvals or completion.
+Batch Generation:
+Process of generating multiple takes for incomplete content items via provider API.
 
-Transform Chain:
-A sequence of deterministic audio processing steps applied to a take.
-
-Derived Index:
-A non-canonical JSON file summarizing relationships; can be rebuilt anytime.
+Provider:
+External service for audio generation (e.g., ElevenLabs).
 
 Complete Flag:
-Reviewer-declared finish state of a Pair, independent of approvals.
+User-declared finish state of a Content item, independent of approvals.
+
+All Approved Flag:
+User-declared state indicating all takes for a content item/type/actor are satisfactory.
+
+Approval Count Default:
+Target number of approved takes for a content type, used in batch generation logic.
+
+Batch Generate:
+Number of takes to generate per content item during a BUILD run.
+
+Base Filename:
+Actor's filename prefix (e.g., "john_wick_") used for all generated files.
+
+Item ID:
+Content item's identifier (e.g., "my_name") combined with base_filename for file naming.
 
 Normalization:
 Audio processing step ensuring consistent loudness and peak levels.
@@ -785,8 +704,6 @@ Top-level directory containing project.json, catalogs, media, schemas, and index
 Vibe Coding:
 Undisciplined or improvisational coding contrary to the formal spec; strictly forbidden.
 
-
 =====================================================================
-END MASTER SPEC v1.0
+END MASTER SPEC v2.0
 =====================================================================
-
