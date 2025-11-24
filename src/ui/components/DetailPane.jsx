@@ -15,7 +15,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Slider from '@mui/material/Slider';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { createActor, createContent, deleteActor, deleteContent, getVoices } from '../api/client.js';
+import { createActor, createContent, createSection, deleteActor, deleteContent, getVoices } from '../api/client.js';
 
 export default function DetailPane({ actors, content, sections, selectedNode, onActorCreated, onContentCreated, onActorDeleted, onContentDeleted, onSectionCreated }) {
   const [actorName, setActorName] = useState('');
@@ -139,23 +139,23 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
 
   const handleCreateSection = async (actorId, contentType) => {
     try {
+      setCreatingContent(true);
       setError(null);
       
-      // Create a section object (for now just in memory)
-      const section = {
-        id: `${actorId}-${contentType}`,
+      const result = await createSection({
         actor_id: actorId,
         content_type: contentType,
-        created_at: new Date().toISOString()
-      };
+      });
       
-      if (onSectionCreated) {
-        onSectionCreated(section);
+      if (result && result.section && onSectionCreated) {
+        onSectionCreated(result.section);
       }
       
       console.log(`Created ${contentType} section for actor ${actorId}`);
     } catch (err) {
       setError(err.message || String(err));
+    } finally {
+      setCreatingContent(false);
     }
   };
 

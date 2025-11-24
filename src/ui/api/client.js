@@ -33,6 +33,10 @@ export function getContent() {
   return fetchJson('/api/content');
 }
 
+export function getSections() {
+  return fetchJson('/api/sections');
+}
+
 export function getTakes(contentId) {
   const params = contentId ? `?contentId=${encodeURIComponent(contentId)}` : '';
   return fetchJson(`/api/takes${params}`);
@@ -66,6 +70,18 @@ export async function createContent(payload) {
   });
   if (!res.ok) {
     throw new Error(`Failed to create content: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function createSection(payload) {
+  const res = await fetch('/api/sections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to create section: ${await res.text()}`);
   }
   return res.json();
 }

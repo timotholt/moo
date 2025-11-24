@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
-import { getActors, getContent } from '../api/client.js';
+import { getActors, getContent, getSections } from '../api/client.js';
 
 export default function ProjectShell() {
   const [actors, setActors] = useState([]);
@@ -18,10 +18,15 @@ export default function ProjectShell() {
     async function load() {
       try {
         setLoading(true);
-        const [actorsRes, contentRes] = await Promise.all([getActors(), getContent()]);
+        const [actorsRes, contentRes, sectionsRes] = await Promise.all([
+          getActors(), 
+          getContent(), 
+          getSections()
+        ]);
         if (cancelled) return;
         setActors(actorsRes.actors || []);
         setContent(contentRes.content || []);
+        setSections(sectionsRes.sections || []);
         setError(null);
       } catch (err) {
         if (!cancelled) setError(err.message || String(err));

@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getProjectPaths } from './utils/paths.js';
 import { appendJsonl, ensureJsonlFile, readJsonl } from './utils/jsonl.js';
-import type { Actor, Content, Take, GenerationJob } from './types/index.js';
+import type { Actor, Content, Take, GenerationJob, Section } from './types/index.js';
 import { runBatchGeneration } from './services/generation.js';
 import { generateId } from './utils/ids.js';
 import { validate } from './utils/validation.js';
@@ -243,6 +243,41 @@ fastify.get('/api/voices', async (request, reply) => {
     
     return { error: 'Failed to fetch voices', details: errorMessage };
   }
+});
+
+fastify.get('/api/sections', async () => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  const sections = await readJsonl<Section>(paths.catalog.sections);
+  return { sections };
+});
+
+fastify.post('/api/sections', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  await ensureJsonlFile(paths.catalog.sections);
+
+  const body = request.body as {
+    actor_id: string;
+    content_type: 'dialogue' | 'music' | 'sfx';
+  };
+  
+  if (!body || !body.actor_id || !body.content_type) {
+    reply.code(400);
+    return { error: 'actor_id and content_type are required' };
+  }
+
+  const now = new Date().toISOString();
+  const section: Section = {
+    id: `${body.actor_id}-${body.content_type}`,
+    actor_id: body.actor_id,
+    content_type: body.content_type,
+    created_at: now,
+    updated_at: now,
+  };
+
+  await appendJsonl(paths.catalog.sections, section);
+  return { section };
 });
 
 fastify.get('/api/jobs', async () => {

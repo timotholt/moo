@@ -63,6 +63,14 @@ export interface Content {
     updated_at: string;
 }
 
+export interface Section {
+    id: string;
+    actor_id: string;
+    content_type: ContentType;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Take {
     id: string;
     content_id: string;
