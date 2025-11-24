@@ -15,9 +15,9 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Slider from '@mui/material/Slider';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { createActor, createContent, createSection, deleteActor, deleteContent, getVoices } from '../api/client.js';
+import { createActor, createContent, createSection, deleteActor, deleteContent, getVoices, updateActor } from '../api/client.js';
 
-export default function DetailPane({ actors, content, sections, selectedNode, onActorCreated, onContentCreated, onActorDeleted, onContentDeleted, onSectionCreated }) {
+export default function DetailPane({ actors, content, sections, selectedNode, onActorCreated, onContentCreated, onActorDeleted, onContentDeleted, onSectionCreated, onActorUpdated }) {
   const [actorName, setActorName] = useState('');
   const [creatingActor, setCreatingActor] = useState(false);
   const [contentPrompt, setContentPrompt] = useState('');
@@ -115,6 +115,19 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
     }
   };
 
+  // Auto-load voices when section opens and provider is elevenlabs
+  React.useEffect(() => {
+    if (selectedNode?.type?.endsWith('-section')) {
+      const contentType = selectedNode.type.replace('-section', '');
+      const actor = actors.find((a) => a.id === selectedNode.id);
+      const providerSettings = actor?.provider_settings?.[contentType];
+      
+      if (providerSettings?.provider === 'elevenlabs' && voices.length === 0 && !loadingVoices) {
+        loadVoices();
+      }
+    }
+  }, [selectedNode, actors, voices.length, loadingVoices]);
+
   const handleCreateContent = async (actorId, contentType) => {
     try {
       setCreatingContent(true);
@@ -156,6 +169,31 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
       setError(err.message || String(err));
     } finally {
       setCreatingContent(false);
+    }
+  };
+
+  const updateActorProviderSettings = async (actorId, contentType, newSettings) => {
+    try {
+      const actor = actors.find(a => a.id === actorId);
+      if (!actor) return;
+
+      const updatedProviderSettings = {
+        ...actor.provider_settings,
+        [contentType]: {
+          ...actor.provider_settings?.[contentType],
+          ...newSettings
+        }
+      };
+
+      const result = await updateActor(actorId, {
+        provider_settings: updatedProviderSettings
+      });
+
+      if (result && result.actor && onActorUpdated) {
+        onActorUpdated(result.actor);
+      }
+    } catch (err) {
+      setError(err.message || String(err));
     }
   };
 
@@ -732,7 +770,7 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
       );
     }
 
-    const providerSettings = actor.provider_settings?.[contentType];
+    const providerSettings = actor.provider_settings?.[contentType] || { provider: 'elevenlabs' };
 
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
@@ -740,27 +778,142 @@ export default function DetailPane({ actors, content, sections, selectedNode, on
           {contentType.toUpperCase()} - {actor.display_name}
         </Typography>
         
-        {/* Provider Settings for this section */}
+        {/* Editable Provider Settings for this section */}
         <Box sx={{ mt: 2, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
           <Typography variant="subtitle2" gutterBottom>
             Provider Settings
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Provider: {providerSettings?.provider || 'manual'}
-            {providerSettings?.voice_id && (
-              <> • Voice ID: {providerSettings.voice_id}</>
+          
+          <Stack spacing={2}>
+            {/* Provider Selection */}
+            <FormControl size="small" fullWidth>
+              <InputLabel>Provider</InputLabel>
+              <Select
+                value={providerSettings.provider}
+                label="Provider"
+                onChange={(e) => {
+                  updateActorProviderSettings(actor.id, contentType, { provider: e.target.value });
+                  // Auto-load voices when switching to elevenlabs
+                  if (e.target.value === 'elevenlabs' && voices.length === 0) {
+                    loadVoices();
+                  }
+                }}
+              >
+                <MenuItem value="manual">Manual</MenuItem>
+                <MenuItem value="elevenlabs">ElevenLabs</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* ElevenLabs Settings */}
+            {providerSettings.provider === 'elevenlabs' && (
+              <>
+                {/* Voice Selection for Dialogue */}
+                {contentType === 'dialogue' && (
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Voice</InputLabel>
+                    <Select
+                      value={providerSettings.voice_id || ''}
+                      label="Voice"
+                      disabled={loadingVoices}
+                      onChange={(e) => {
+                        updateActorProviderSettings(actor.id, contentType, { voice_id: e.target.value });
+                      }}
+                    >
+                      {/* Show current voice_id even if not in loaded list */}
+                      {providerSettings.voice_id && !voices.find(v => v.voice_id === providerSettings.voice_id) && (
+                        <MenuItem value={providerSettings.voice_id}>
+                          {providerSettings.voice_id} (current)
+                        </MenuItem>
+                      )}
+                      {loadingVoices ? (
+                        <MenuItem disabled>Loading voices...</MenuItem>
+                      ) : voices.length === 0 ? (
+                        <MenuItem disabled>No voices available</MenuItem>
+                      ) : (
+                        voices.map(voice => (
+                          <MenuItem key={voice.voice_id} value={voice.voice_id}>
+                            {voice.name}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {voices.length === 0 && !loadingVoices && contentType === 'dialogue' && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={loadVoices}
+                    disabled={loadingVoices}
+                  >
+                    Load Voices
+                  </Button>
+                )}
+
+                {/* Batch and Approval Settings */}
+                <Stack direction="row" spacing={2}>
+                  <TextField
+                    size="small"
+                    label="Batch Generate"
+                    type="number"
+                    value={providerSettings.batch_generate || 1}
+                    onChange={(e) => {
+                      updateActorProviderSettings(actor.id, contentType, { batch_generate: parseInt(e.target.value) || 1 });
+                    }}
+                    sx={{ width: 120 }}
+                  />
+                  <TextField
+                    size="small"
+                    label="Approval Count"
+                    type="number"
+                    value={providerSettings.approval_count_default || 1}
+                    onChange={(e) => {
+                      updateActorProviderSettings(actor.id, contentType, { approval_count_default: parseInt(e.target.value) || 1 });
+                    }}
+                    sx={{ width: 120 }}
+                  />
+                </Stack>
+
+                {/* Dialogue-specific settings */}
+                {contentType === 'dialogue' && (
+                  <>
+                    <Box>
+                      <Typography variant="body2" gutterBottom>
+                        Stability: {providerSettings.stability || 0.5}
+                      </Typography>
+                      <Slider
+                        value={providerSettings.stability || 0.5}
+                        onChange={(e, value) => {
+                          updateActorProviderSettings(actor.id, contentType, { stability: value });
+                        }}
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        size="small"
+                      />
+                    </Box>
+                    
+                    <Box>
+                      <Typography variant="body2" gutterBottom>
+                        Similarity Boost: {providerSettings.similarity_boost || 0.75}
+                      </Typography>
+                      <Slider
+                        value={providerSettings.similarity_boost || 0.75}
+                        onChange={(e, value) => {
+                          updateActorProviderSettings(actor.id, contentType, { similarity_boost: value });
+                        }}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        size="small"
+                      />
+                    </Box>
+                  </>
+                )}
+              </>
             )}
-          </Typography>
-          {providerSettings?.provider === 'elevenlabs' && (
-            <Typography variant="body2" color="text.secondary">
-              Batch: {providerSettings.batch_generate || 1} • 
-              Approval: {providerSettings.approval_count_default || 1}
-              {contentType === 'dialogue' && (
-                <> • Stability: {providerSettings.stability || 0.5} • 
-                Similarity: {providerSettings.similarity_boost || 0.75}</>
-              )}
-            </Typography>
-          )}
+          </Stack>
         </Box>
 
         <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mt: 3 }}>

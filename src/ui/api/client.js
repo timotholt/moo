@@ -62,6 +62,18 @@ export async function createActor(payload) {
   return res.json();
 }
 
+export async function updateActor(id, payload) {
+  const res = await fetch(`/api/actors/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update actor: ${await res.text()}`);
+  }
+  return res.json();
+}
+
 export async function createContent(payload) {
   const res = await fetch('/api/content', {
     method: 'POST',

@@ -51,9 +51,9 @@ fastify.post('/api/actors', async (request, reply) => {
     all_approved: false,
     provider_settings:
       (body?.provider_settings as Actor['provider_settings']) ?? {
-        dialogue: { provider: 'manual' },
-        music: { provider: 'manual' },
-        sfx: { provider: 'manual' },
+        dialogue: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1, stability: 0.5, similarity_boost: 0.75 },
+        music: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
+        sfx: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
       },
     aliases: body?.aliases ?? [],
     notes: body?.notes ?? '',
@@ -69,6 +69,58 @@ fastify.post('/api/actors', async (request, reply) => {
 
   await appendJsonl(paths.catalog.actors, actor);
   return { actor };
+});
+
+fastify.put('/api/actors/:id', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  
+  const { id } = request.params as { id: string };
+  const body = request.body as Partial<Actor>;
+  
+  if (!body) {
+    reply.code(400);
+    return { error: 'Request body is required' };
+  }
+
+  const actors = await readJsonl<Actor>(paths.catalog.actors);
+  const actorIndex = actors.findIndex(a => a.id === id);
+  
+  if (actorIndex === -1) {
+    reply.code(404);
+    return { error: 'Actor not found' };
+  }
+
+  // Update the actor with new data
+  const updatedActor: Actor = {
+    ...actors[actorIndex],
+    ...body,
+    id, // Ensure ID doesn't change
+    updated_at: new Date().toISOString(),
+  };
+
+  // Validate the updated actor
+  const validation = validate('actor', updatedActor);
+  if (!validation.valid) {
+    reply.code(400);
+    return { error: 'Invalid actor data', details: validation.errors };
+  }
+
+  // Replace the actor in the array
+  actors[actorIndex] = updatedActor;
+
+  // Write back to file
+  await ensureJsonlFile(paths.catalog.actors);
+  await import('fs-extra').then(async (fsMod) => {
+    const fs = fsMod.default;
+    await fs.writeFile(
+      paths.catalog.actors,
+      actors.map((a) => JSON.stringify(a)).join('\n') + (actors.length ? '\n' : ''),
+      'utf8',
+    );
+  });
+
+  return { actor: updatedActor };
 });
 
 fastify.delete('/api/actors/:id', async (request, reply) => {

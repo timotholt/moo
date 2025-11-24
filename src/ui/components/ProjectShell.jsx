@@ -73,6 +73,9 @@ export default function ProjectShell() {
         onActorCreated={(actor) => setActors((prev) => [...prev, actor])}
         onContentCreated={(item) => setContent((prev) => [...prev, item])}
         onSectionCreated={(section) => setSections((prev) => [...prev, section])}
+        onActorUpdated={(updatedActor) => {
+          setActors((prev) => prev.map(a => a.id === updatedActor.id ? updatedActor : a));
+        }}
         onActorDeleted={(id) => {
           setActors((prev) => prev.filter((a) => a.id !== id));
           setContent((prev) => prev.filter((c) => c.actor_id !== id));
