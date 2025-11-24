@@ -83,3 +83,19 @@ export interface Take {
     created_at: string;
     updated_at: string;
 }
+
+export interface GenerationJobItemSummary {
+    content_id: string;
+    generated_takes: number;
+    error?: string;
+}
+
+export interface GenerationJob {
+    id: string;
+    started_at: string;
+    completed_at?: string;
+    status: 'running' | 'completed' | 'failed';
+    total_content: number;
+    total_takes_created: number;
+    items: GenerationJobItemSummary[];
+}
