@@ -30,6 +30,7 @@ export function getProjectPaths(projectRoot: string) {
         vof: {
             dir: join(projectRoot, PATHS.VOF),
             auditLog: join(projectRoot, PATHS.VOF, 'audit.log'),
+            config: join(projectRoot, PATHS.VOF, 'config.json'),
         },
     };
 }

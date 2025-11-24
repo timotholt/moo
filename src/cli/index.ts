@@ -9,6 +9,8 @@ import { probeAudio } from '../services/audio/ffprobe.js';
 import { normalizeAudio } from '../services/audio/normalize.js';
 import { transcodeAudio } from '../services/audio/transcode.js';
 import { hashFile, verifyHash } from '../services/audio/hash.js';
+import { loadConfig, saveConfig } from '../services/config.js';
+import { getAudioProvider } from '../services/provider-factory.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -111,6 +113,75 @@ audioCommand
     });
 
 program.addCommand(audioCommand);
+
+// Config commands
+const configCommand = new Command('config').description('Configuration commands');
+
+configCommand
+    .command('list')
+    .description('Show current configuration from .vof/config.json')
+    .action(async () => {
+        try {
+            const config = await loadConfig(process.cwd());
+            console.log(JSON.stringify(config, null, 2));
+        } catch (err) {
+            console.error('Error loading config:', err);
+            process.exit(1);
+        }
+    });
+
+configCommand
+    .command('set <key> <value>')
+    .description('Set a configuration value (e.g. providers.elevenlabs.api_key)')
+    .action(async (key: string, value: string) => {
+        try {
+            const projectRoot = process.cwd();
+            const config = await loadConfig(projectRoot);
+
+            // Support simple dot-separated keys like "providers.elevenlabs.api_key"
+            const parts = key.split('.');
+            let cursor: any = config;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                if (i === parts.length - 1) {
+                    cursor[part] = value;
+                } else {
+                    if (cursor[part] === undefined) {
+                        cursor[part] = {};
+                    }
+                    cursor = cursor[part];
+                }
+            }
+
+            await saveConfig(projectRoot, config);
+            console.log(`Updated config key: ${key}`);
+        } catch (err) {
+            console.error('Error setting config value:', err);
+            process.exit(1);
+        }
+    });
+
+program.addCommand(configCommand);
+
+// Generation commands (M2.5)
+const generateCommand = new Command('generate').description('Audio generation commands');
+
+generateCommand
+    .command('quota')
+    .description('Show provider quota/usage information')
+    .action(async () => {
+        try {
+            const projectRoot = process.cwd();
+            const provider = await getAudioProvider(projectRoot);
+            const quota = await provider.getQuota();
+            console.log(JSON.stringify(quota, null, 2));
+        } catch (err) {
+            console.error('Error fetching quota:', err);
+            process.exit(1);
+        }
+    });
+
+program.addCommand(generateCommand);
 
 program
     .command('index')
