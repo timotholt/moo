@@ -1,0 +1,61 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "actor_id": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "content_type": {
+            "type": "string",
+            "enum": [
+                "dialogue",
+                "music",
+                "sfx"
+            ]
+        },
+        "item_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+        },
+        "prompt": {
+            "type": "string"
+        },
+        "complete": {
+            "type": "boolean"
+        },
+        "all_approved": {
+            "type": "boolean"
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "id",
+        "actor_id",
+        "content_type",
+        "item_id",
+        "prompt",
+        "complete",
+        "all_approved",
+        "created_at",
+        "updated_at"
+    ],
+    "additionalProperties": false
+}

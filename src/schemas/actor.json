@@ -9,6 +9,100 @@
         "display_name": {
             "type": "string"
         },
+        "base_filename": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+_$"
+        },
+        "all_approved": {
+            "type": "boolean"
+        },
+        "provider_settings": {
+            "type": "object",
+            "properties": {
+                "dialogue": {
+                    "type": "object",
+                    "properties": {
+                        "provider": {
+                            "type": "string",
+                            "enum": [
+                                "elevenlabs",
+                                "manual"
+                            ]
+                        },
+                        "voice_id": {
+                            "type": "string"
+                        },
+                        "batch_generate": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "approval_count_default": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "stability": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        },
+                        "similarity_boost": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                        }
+                    },
+                    "required": [
+                        "provider"
+                    ]
+                },
+                "music": {
+                    "type": "object",
+                    "properties": {
+                        "provider": {
+                            "type": "string",
+                            "enum": [
+                                "elevenlabs",
+                                "manual"
+                            ]
+                        },
+                        "batch_generate": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "approval_count_default": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    "required": [
+                        "provider"
+                    ]
+                },
+                "sfx": {
+                    "type": "object",
+                    "properties": {
+                        "provider": {
+                            "type": "string",
+                            "enum": [
+                                "elevenlabs",
+                                "manual"
+                            ]
+                        },
+                        "batch_generate": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "approval_count_default": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    "required": [
+                        "provider"
+                    ]
+                }
+            }
+        },
         "aliases": {
             "type": "array",
             "items": {
@@ -30,6 +124,8 @@
     "required": [
         "id",
         "display_name",
+        "base_filename",
+        "all_approved",
         "created_at",
         "updated_at"
     ],

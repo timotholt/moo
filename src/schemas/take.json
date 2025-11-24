@@ -6,25 +6,44 @@
             "type": "string",
             "format": "uuid"
         },
-        "pair_id": {
+        "content_id": {
             "type": "string",
             "format": "uuid"
+        },
+        "take_number": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "filename": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string",
+            "enum": [
+                "new",
+                "approved",
+                "rejected",
+                "hidden"
+            ]
         },
         "path": {
             "type": "string"
         },
         "hash_sha256": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
         },
         "duration_sec": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
         },
         "format": {
             "type": "string",
             "enum": [
                 "wav",
                 "flac",
-                "aiff"
+                "aiff",
+                "mp3"
             ]
         },
         "sample_rate": {
@@ -54,28 +73,19 @@
         "peak_dbfs": {
             "type": "number"
         },
-        "transform_chain": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "job_id": {
-                        "type": "string",
-                        "format": "uuid"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "params": {
-                        "type": "object"
-                    }
-                },
-                "required": [
-                    "job_id",
-                    "name",
-                    "params"
-                ]
-            }
+        "generated_by": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "enum": [
+                "elevenlabs",
+                "manual",
+                null
+            ]
+        },
+        "generation_params": {
+            "type": "object"
         },
         "created_at": {
             "type": "string",
@@ -88,14 +98,11 @@
     },
     "required": [
         "id",
-        "pair_id",
+        "content_id",
+        "take_number",
+        "filename",
+        "status",
         "path",
-        "hash_sha256",
-        "duration_sec",
-        "format",
-        "sample_rate",
-        "bit_depth",
-        "channels",
         "created_at",
         "updated_at"
     ],
