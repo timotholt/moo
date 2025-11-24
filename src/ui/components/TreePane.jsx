@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import List from '@mui/material/List';
@@ -74,7 +74,7 @@ export default function TreePane({ actors, content, sections, selectedNode, onSe
     });
   };
 
-  const expandNode = (key) => {
+  const expandNode = useCallback((key) => {
     setExpanded(prev => {
       const newState = { ...prev, [key]: true };
       // Save to localStorage
@@ -85,14 +85,14 @@ export default function TreePane({ actors, content, sections, selectedNode, onSe
       }
       return newState;
     });
-  };
+  }, []);
 
   // Expose expandNode to parent component
   React.useEffect(() => {
     if (onExpandNode) {
       onExpandNode(expandNode);
     }
-  }, [onExpandNode]);
+  }, [onExpandNode, expandNode]);
 
   return (
     <Box
