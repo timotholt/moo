@@ -5,6 +5,10 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { importActorsCommand } from './commands/import-actors.js';
 import { importDialoguesCommand } from './commands/import-dialogues.js';
+import { audioProbeCommand } from './commands/audio-probe.js';
+import { audioNormalizeCommand } from './commands/audio-normalize.js';
+import { audioTranscodeCommand } from './commands/audio-transcode.js';
+import { audioHashCommand } from './commands/audio-hash.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,6 +41,10 @@ program
 
 program.addCommand(importActorsCommand);
 program.addCommand(importDialoguesCommand);
+program.addCommand(audioProbeCommand);
+program.addCommand(audioNormalizeCommand);
+program.addCommand(audioTranscodeCommand);
+program.addCommand(audioHashCommand);
 
 program
     .command('index')
