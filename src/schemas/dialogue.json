@@ -1,0 +1,52 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "scene": {
+            "type": "string"
+        },
+        "line_number": {
+            "type": "string"
+        },
+        "character": {
+            "type": "string"
+        },
+        "text": {
+            "type": "string"
+        },
+        "context": {
+            "type": "string"
+        },
+        "direction": {
+            "type": "string"
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "id",
+        "scene",
+        "line_number",
+        "character",
+        "text",
+        "created_at",
+        "updated_at"
+    ],
+    "additionalProperties": false
+}

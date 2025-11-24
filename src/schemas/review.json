@@ -1,0 +1,47 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "entity": {
+            "type": "string",
+            "enum": [
+                "take",
+                "pair"
+            ]
+        },
+        "entity_id": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "action": {
+            "type": "string",
+            "enum": [
+                "approve_take",
+                "reject_take",
+                "unapprove_take",
+                "mark_complete",
+                "unmark_complete",
+                "note"
+            ]
+        },
+        "note": {
+            "type": "string"
+        },
+        "at": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "id",
+        "entity",
+        "entity_id",
+        "action",
+        "at"
+    ],
+    "additionalProperties": false
+}
