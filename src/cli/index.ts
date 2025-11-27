@@ -194,7 +194,7 @@ configCommand
 
             // Support simple dot-separated keys like "providers.elevenlabs.api_key"
             const parts = key.split('.');
-            let cursor: any = config;
+            let cursor = config as Record<string, unknown>;
             for (let i = 0; i < parts.length; i++) {
                 const part = parts[i];
                 if (i === parts.length - 1) {
@@ -203,7 +203,7 @@ configCommand
                     if (cursor[part] === undefined) {
                         cursor[part] = {};
                     }
-                    cursor = cursor[part];
+                    cursor = cursor[part] as Record<string, unknown>;
                 }
             }
 

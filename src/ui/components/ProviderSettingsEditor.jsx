@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CircularProgress from '@mui/material/CircularProgress';
 import { previewVoice } from '../api/client.js';
+import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 // Cache for voice previews to avoid regenerating the same audio
 const voicePreviewCache = new Map();
@@ -81,9 +82,9 @@ export default function ProviderSettingsEditor({
   };
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={isDefault ? "1rem" : "0.5rem"}>
       {/* Provider Selection */}
-      <FormControl size="small" fullWidth>
+      <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
         <InputLabel>{isDefault ? 'Default Provider' : 'Provider'}</InputLabel>
         <Select
           value={currentSettings.provider || 'elevenlabs'}
@@ -101,7 +102,7 @@ export default function ProviderSettingsEditor({
           {/* Voice selection only for dialogue */}
           {contentType === 'dialogue' && (
             <Box>
-              <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+              <FormControl size="small" fullWidth sx={{ ...DESIGN_SYSTEM.components.formControl, mb: DESIGN_SYSTEM.spacing.tightGap }}>
                 <InputLabel>{isDefault ? 'Default Voice' : 'Voice'}</InputLabel>
                 <Select
                   value={
@@ -136,7 +137,7 @@ export default function ProviderSettingsEditor({
                   startIcon={playingPreview ? <CircularProgress size={16} /> : <PlayArrowIcon />}
                   onClick={handlePlayPreview}
                   disabled={playingPreview || !currentSettings.voice_id}
-                  sx={{ fontSize: '0.75rem' }}
+                  sx={DESIGN_SYSTEM.typography.small}
                 >
                   {playingPreview ? 'Playing...' : 'Play Sample'}
                 </Button>
@@ -151,7 +152,7 @@ export default function ProviderSettingsEditor({
             value={currentSettings.batch_generate || 1}
             onChange={(e) => handleChange('batch_generate', parseInt(e.target.value) || 1)}
             inputProps={{ min: 1, max: 10 }}
-            sx={{ width: isDefault ? 200 : 120 }}
+            sx={{ width: isDefault ? 200 : 120, ...DESIGN_SYSTEM.components.formControl }}
           />
 
           <TextField
@@ -161,14 +162,14 @@ export default function ProviderSettingsEditor({
             value={currentSettings.approval_count_default || 1}
             onChange={(e) => handleChange('approval_count_default', parseInt(e.target.value) || 1)}
             inputProps={{ min: 1, max: 5 }}
-            sx={{ width: isDefault ? 200 : 120 }}
+            sx={{ width: isDefault ? 200 : 120, ...DESIGN_SYSTEM.components.formControl }}
           />
 
           {/* Dialogue-specific settings */}
           {contentType === 'dialogue' && (
             <>
-              <Box>
-                <Typography variant="body2" gutterBottom>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Typography variant="body2" sx={{ ...DESIGN_SYSTEM.typography.caption, minWidth: '120px', mb: 0 }}>
                   {isDefault ? 'Default Stability' : 'Stability'}: {currentSettings.stability || 0.5}
                 </Typography>
                 <Slider
@@ -178,11 +179,12 @@ export default function ProviderSettingsEditor({
                   max={1}
                   step={0.1}
                   size="small"
+                  sx={{ flexGrow: 1 }}
                 />
               </Box>
               
-              <Box>
-                <Typography variant="body2" gutterBottom>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <Typography variant="body2" sx={{ ...DESIGN_SYSTEM.typography.caption, minWidth: '120px', mb: 0 }}>
                   {isDefault ? 'Default Similarity Boost' : 'Similarity Boost'}: {currentSettings.similarity_boost || 0.75}
                 </Typography>
                 <Slider
@@ -192,6 +194,7 @@ export default function ProviderSettingsEditor({
                   max={1}
                   step={0.05}
                   size="small"
+                  sx={{ flexGrow: 1 }}
                 />
               </Box>
             </>

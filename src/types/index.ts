@@ -42,7 +42,6 @@ export interface Actor {
             approval_count_default?: number;
         };
     };
-    aliases: string[];
     notes: string;
     created_at: string;
     updated_at: string;

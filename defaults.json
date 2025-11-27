@@ -3,7 +3,7 @@
     "provider": "elevenlabs",
     "batch_generate": 1,
     "approval_count_default": 1,
-    "stability": 0.5,
+    "stability": 0.4,
     "similarity_boost": 0.75,
     "voice_id": "TX3LPaxmHKxFdv7VOQHJ"
   },

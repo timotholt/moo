@@ -65,8 +65,8 @@ export default function ProviderDefaultsView({
         {getContentTypeDescription(contentType)}
       </Typography>
 
-      <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+      <Box sx={{ p: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+        <Typography variant="subtitle2" gutterBottom sx={{ mb: 3 }}>
           {contentType.charAt(0).toUpperCase() + contentType.slice(1)} Default Settings
         </Typography>
         

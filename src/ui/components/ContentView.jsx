@@ -9,6 +9,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { deleteContent } from '../api/client.js';
+import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 export default function ContentView({ 
   item, 
@@ -34,9 +35,9 @@ export default function ContentView({
   };
 
   return (
-    <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
+    <Box sx={{ flexGrow: 1, overflow: 'auto', p: DESIGN_SYSTEM.spacing.containerPadding, minWidth: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="h6" gutterBottom sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" gutterBottom sx={{ flexGrow: 1, ...DESIGN_SYSTEM.typography.pageTitle }}>
           {item.item_id || item.id}
         </Typography>
         <IconButton
@@ -48,10 +49,10 @@ export default function ContentView({
           <DeleteIcon fontSize="small" />
         </IconButton>
       </Box>
-      <Typography variant="subtitle2" gutterBottom>
+      <Typography variant="subtitle2" gutterBottom sx={DESIGN_SYSTEM.typography.body}>
         Type: {item.content_type}
       </Typography>
-      <Typography variant="body1" gutterBottom>
+      <Typography variant="body1" gutterBottom sx={DESIGN_SYSTEM.typography.body}>
         {item.prompt}
       </Typography>
       

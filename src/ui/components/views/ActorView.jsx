@@ -9,6 +9,7 @@ import Button from '@mui/material/Button';
 import ActorHeader from '../ActorHeader.jsx';
 import ProviderSettingsDisplay from '../ProviderSettingsDisplay.jsx';
 import SectionManagement from '../SectionManagement.jsx';
+import { DESIGN_SYSTEM } from '../../theme/designSystem.js';
 
 export default function ActorView({ 
   actor, 
@@ -21,7 +22,7 @@ export default function ActorView({
 
   if (!actor) {
     return (
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
+      <Box sx={{ flexGrow: 1, overflow: 'auto', p: DESIGN_SYSTEM.spacing.containerPadding, minWidth: 0 }}>
         <Typography color="error">Actor not found.</Typography>
       </Box>
     );
@@ -37,7 +38,7 @@ export default function ActorView({
   };
 
   return (
-    <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
+    <Box sx={{ flexGrow: 1, overflow: 'auto', p: DESIGN_SYSTEM.spacing.containerPadding, minWidth: 0 }}>
       <ActorHeader 
         actor={actor}
         onDelete={() => setConfirmDeleteOpen(true)}

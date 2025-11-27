@@ -10,7 +10,6 @@ import { validate } from './utils/validation.js';
 import { getAudioProvider } from './services/provider-factory.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const fastify = Fastify({
   logger: false,
@@ -41,7 +40,7 @@ fastify.post('/api/actors', async (request, reply) => {
 
   // Load global defaults
   const defaultsPath = join(paths.root, 'defaults.json');
-  let globalDefaults: any = {
+  let globalDefaults: Record<string, Record<string, unknown>> = {
     dialogue: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1, stability: 0.5, similarity_boost: 0.75 },
     music: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
     sfx: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
@@ -68,7 +67,6 @@ fastify.post('/api/actors', async (request, reply) => {
     all_approved: false,
     provider_settings:
       (body?.provider_settings as Actor['provider_settings']) ?? globalDefaults,
-    aliases: body?.aliases ?? [],
     notes: body?.notes ?? '',
     created_at: now,
     updated_at: now,
@@ -272,7 +270,7 @@ fastify.post('/api/content', async (request, reply) => {
   }
 
   // Return the first item for single creation, or array for batch
-  const result: any = itemIds.length === 1 ? { content: createdContent[0] } : { content: createdContent };
+  const result: { content: Content | Content[]; duplicates_skipped?: string[]; message?: string } = itemIds.length === 1 ? { content: createdContent[0] } : { content: createdContent };
   
   // Include information about duplicates if any were skipped
   if (duplicateIds.length > 0) {
@@ -553,8 +551,8 @@ fastify.put('/api/defaults/:contentType', async (request, reply) => {
   const projectRoot = getProjectRoot();
   const paths = getProjectPaths(projectRoot);
   const defaultsPath = join(paths.root, 'defaults.json');
-  const contentType = (request.params as any).contentType as 'dialogue' | 'music' | 'sfx';
-  const body = request.body as any;
+  const contentType = (request.params as { contentType: string }).contentType as 'dialogue' | 'music' | 'sfx';
+  const body = request.body as Record<string, unknown>;
 
   if (!['dialogue', 'music', 'sfx'].includes(contentType)) {
     return reply.status(400).send({ error: 'Invalid content type' });
@@ -564,7 +562,7 @@ fastify.put('/api/defaults/:contentType', async (request, reply) => {
     const fs = await import('fs-extra').then(m => m.default);
     
     // Read existing defaults or create new ones
-    let defaults: any = {};
+    let defaults: Record<string, Record<string, unknown>> = {};
     if (await fs.pathExists(defaultsPath)) {
       defaults = await fs.readJson(defaultsPath);
     } else {
@@ -630,7 +628,6 @@ async function start() {
     const port = 3000;
     const host = '127.0.0.1';
     await fastify.listen({ port, host });
-    // eslint-disable-next-line no-console
     console.log(`VOF API server listening on http://${host}:${port}`);
   } catch (err) {
     fastify.log.error(err);

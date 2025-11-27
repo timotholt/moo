@@ -5,6 +5,7 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 export default function ActorHeader({ 
   actor, 
@@ -34,7 +35,7 @@ export default function ActorHeader({
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="subtitle1" gutterBottom sx={{ flexGrow: 1, fontSize: '1.1rem' }}>
+        <Typography variant="subtitle1" gutterBottom sx={{ flexGrow: 1, ...DESIGN_SYSTEM.typography.pageTitle }}>
           {actor.display_name}
         </Typography>
         <IconButton
@@ -51,7 +52,7 @@ export default function ActorHeader({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         {editingBaseFilename ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>Base filename:</Typography>
+            <Typography variant="body2" sx={DESIGN_SYSTEM.typography.body}>Base filename:</Typography>
             <TextField
               size="small"
               value={baseFilename}
@@ -63,7 +64,7 @@ export default function ActorHeader({
                   handleSaveBaseFilename();
                 }
               }}
-              sx={{ fontSize: '0.8rem' }}
+              sx={DESIGN_SYSTEM.components.formControl}
             />
             <Button
               size="small"
@@ -82,14 +83,14 @@ export default function ActorHeader({
           </Box>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            <Typography variant="body2" sx={DESIGN_SYSTEM.typography.body}>
               Base filename: {actor.base_filename}
             </Typography>
             <Button
               size="small"
               variant="text"
               onClick={handleStartEdit}
-              sx={{ fontSize: '0.7rem' }}
+              sx={DESIGN_SYSTEM.typography.small}
             >
               Edit
             </Button>
@@ -97,10 +98,6 @@ export default function ActorHeader({
         )}
       </Box>
       
-      <Typography variant="body2" gutterBottom sx={{ fontSize: '0.8rem' }}>
-        Aliases: {actor.aliases && actor.aliases.length ? actor.aliases.join(', ') : '—'}
-      </Typography>
-
       {error && (
         <Typography color="error" variant="body2" sx={{ mt: 1 }}>
           {error}

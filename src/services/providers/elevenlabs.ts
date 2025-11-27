@@ -56,7 +56,7 @@ export class ElevenLabsProvider implements AudioProvider {
     /**
      * Generate music audio using ElevenLabs (placeholder - API may differ)
      */
-    async generateMusic(prompt: string, settings?: MusicSettings): Promise<Buffer> {
+    async generateMusic(_prompt: string, _settings?: MusicSettings): Promise<Buffer> {
         // Note: ElevenLabs may not have a direct music API yet
         // This is a placeholder for future implementation
         throw new Error('Music generation not yet implemented for ElevenLabs');

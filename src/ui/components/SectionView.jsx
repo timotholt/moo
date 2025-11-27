@@ -3,16 +3,16 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
+import Collapse from '@mui/material/Collapse';
+import Stack from '@mui/material/Stack';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
-import Slider from '@mui/material/Slider';
-import Collapse from '@mui/material/Collapse';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import Stack from '@mui/material/Stack';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
+import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 export default function SectionView({ 
   sectionData,
@@ -54,7 +54,7 @@ export default function SectionView({
   };
 
   return (
-    <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
+    <Box sx={{ flexGrow: 1, overflow: 'auto', p: DESIGN_SYSTEM.spacing.containerPadding, minWidth: 0 }}>
       {/* Editable Section Name Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         {editingSectionName ? (
@@ -70,7 +70,7 @@ export default function SectionView({
                   handleSaveSectionName();
                 }
               }}
-              sx={{ fontSize: '0.9rem' }}
+              sx={DESIGN_SYSTEM.components.formControl}
             />
             <Button
               size="small"
@@ -89,14 +89,14 @@ export default function SectionView({
           </Box>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontSize: '1.1rem' }}>
+            <Typography variant="subtitle1" sx={DESIGN_SYSTEM.typography.pageTitle}>
               {currentSectionName}
             </Typography>
             <Button
               size="small"
               variant="text"
               onClick={handleStartEditSectionName}
-              sx={{ fontSize: '0.8rem' }}
+              sx={DESIGN_SYSTEM.typography.small}
             >
               Edit Name
             </Button>
@@ -104,7 +104,7 @@ export default function SectionView({
         )}
       </Box>
 
-      <Typography variant="body2" gutterBottom sx={{ fontSize: '0.85rem' }}>
+      <Typography variant="body2" gutterBottom sx={DESIGN_SYSTEM.typography.body}>
         Actor: {actor.display_name} • Type: {contentType}
       </Typography>
 
@@ -121,7 +121,7 @@ export default function SectionView({
           }}
           onClick={() => setProviderSettingsExpanded(!providerSettingsExpanded)}
         >
-          <Typography variant="subtitle2" sx={{ fontSize: '0.9rem' }}>
+          <Typography variant="subtitle2" sx={DESIGN_SYSTEM.typography.sectionTitle}>
             Provider Settings
           </Typography>
           {providerSettingsExpanded ? <ExpandLess /> : <ExpandMore />}
@@ -129,9 +129,9 @@ export default function SectionView({
         
         <Collapse in={providerSettingsExpanded} timeout="auto" unmountOnExit>
           <Box sx={{ p: 2, pt: 0 }}>
-            <Stack spacing={2}>
+            <Stack spacing="0.5rem">
               {/* Provider Selection */}
-              <FormControl size="small" fullWidth>
+              <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
                 <InputLabel>Provider Mode</InputLabel>
                 <Select
                   value={providerSettings.provider === 'inherit' ? 'inherit' : 'custom'}
@@ -192,10 +192,10 @@ export default function SectionView({
       </Typography>
 
       <Box sx={{ mt: 3 }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ fontSize: '0.9rem' }}>
+        <Typography variant="subtitle2" gutterBottom sx={DESIGN_SYSTEM.typography.sectionTitle}>
           Add New {contentType.charAt(0).toUpperCase() + contentType.slice(1)} Content
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: '0.8rem' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: DESIGN_SYSTEM.spacing.elementGap, ...DESIGN_SYSTEM.typography.body }}>
           Use commas to create multiple items at once: "Hi, Yes, No, My name is, Go away, I'm gonna kill you"
         </Typography>
         <TextField
@@ -206,7 +206,7 @@ export default function SectionView({
           value={contentItemId}
           onChange={onContentItemIdChange}
           required
-          sx={{ mb: 1 }}
+          sx={{ mb: DESIGN_SYSTEM.spacing.tightGap, ...DESIGN_SYSTEM.components.formControl }}
           helperText="Separate multiple items with commas for batch creation"
         />
         <TextField
@@ -218,7 +218,7 @@ export default function SectionView({
           placeholder={`${contentType} prompt or description`}
           value={contentPrompt}
           onChange={onContentPromptChange}
-          sx={{ mb: 2 }}
+          sx={{ mb: DESIGN_SYSTEM.spacing.elementGap, ...DESIGN_SYSTEM.components.formControl }}
         />
         <Button
           variant="contained"
