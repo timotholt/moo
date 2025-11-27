@@ -42,6 +42,19 @@ export function getTakes(contentId) {
   return fetchJson(`/api/takes${params}`);
 }
 
+export async function generateTakes(contentId, count = 1) {
+  const res = await fetch(`/api/content/${encodeURIComponent(contentId)}/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ count }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to generate takes: ${res.status}`);
+  }
+  return res.json();
+}
+
 export function getJobs() {
   return fetchJson('/api/jobs');
 }

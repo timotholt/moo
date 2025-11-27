@@ -19,7 +19,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { deleteContent, updateContent, getTakes, updateTake } from '../api/client.js';
+import { deleteContent, updateContent, getTakes, updateTake, generateTakes } from '../api/client.js';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 // Helper to apply blank space conversion setting
@@ -91,6 +91,7 @@ export default function ContentView({
   // Takes
   const [takes, setTakes] = useState([]);
   const [loadingTakes, setLoadingTakes] = useState(false);
+  const [generatingTakes, setGeneratingTakes] = useState(false);
   const [playingTakeId, setPlayingTakeId] = useState(null);
   const [audioElement, setAudioElement] = useState(null);
 
@@ -181,8 +182,9 @@ export default function ContentView({
 
     try {
       setPlayingTakeId(take.id);
-      // Construct audio URL from take path
-      const audio = new Audio(`/media/${take.path}`);
+      // Construct audio URL from take path (normalize backslashes for URL)
+      const audioPath = take.path.replace(/\\/g, '/');
+      const audio = new Audio(`/media/${audioPath}`);
       audio.onended = () => {
         setPlayingTakeId(null);
         setAudioElement(null);
@@ -209,6 +211,23 @@ export default function ContentView({
       }
     } catch (err) {
       setError(err.message || String(err));
+    }
+  };
+
+  const handleGenerateTakes = async () => {
+    if (sectionComplete || generatingTakes) return;
+    const count = actor?.provider_settings?.[item.content_type]?.batch_generate || 1;
+    try {
+      setGeneratingTakes(true);
+      setError(null);
+      const result = await generateTakes(item.id, count);
+      if (result.takes && result.takes.length > 0) {
+        setTakes(prev => [...prev, ...result.takes]);
+      }
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setGeneratingTakes(false);
     }
   };
 
@@ -306,10 +325,11 @@ export default function ContentView({
           <Button
             variant="contained"
             size="small"
-            disabled={isDisabled}
+            disabled={isDisabled || generatingTakes}
+            onClick={handleGenerateTakes}
             sx={{ ...DESIGN_SYSTEM.typography.small }}
           >
-            Generate {actor?.provider_settings?.[item.content_type]?.batch_generate || 1} Takes Now!
+            {generatingTakes ? 'Generating...' : `Generate ${actor?.provider_settings?.[item.content_type]?.batch_generate || 1} Takes Now!`}
           </Button>
         </Box>
         

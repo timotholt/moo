@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import fastifyStatic from '@fastify/static';
 import path, { join } from 'path';
 import { fileURLToPath } from 'url';
 import { getProjectPaths } from './utils/paths.js';
@@ -13,6 +14,15 @@ const __filename = fileURLToPath(import.meta.url);
 
 const fastify = Fastify({
   logger: false,
+});
+
+// Serve media files statically
+const projectRoot = process.cwd();
+const paths = getProjectPaths(projectRoot);
+fastify.register(fastifyStatic, {
+  root: paths.media,
+  prefix: '/media/',
+  decorateReply: false,
 });
 
 function getProjectRoot(): string {
@@ -770,6 +780,124 @@ fastify.post('/api/generation/batch', async (request, reply) => {
     });
 
     return { job };
+  } catch (err) {
+    request.log.error(err);
+    reply.code(500);
+    return { error: (err as Error).message };
+  }
+});
+
+// Generate takes for a specific content item
+fastify.post('/api/content/:id/generate', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  const { id } = request.params as { id: string };
+  const body = request.body as { count?: number } | undefined;
+  const count = body?.count || 1;
+
+  try {
+    // Load content and actor
+    const contentItems = await readJsonl<Content>(paths.catalog.content);
+    const content = contentItems.find(c => c.id === id);
+    if (!content) {
+      reply.code(404);
+      return { error: 'Content not found' };
+    }
+
+    const actors = await readJsonl<Actor>(paths.catalog.actors);
+    const actor = actors.find(a => a.id === content.actor_id);
+    if (!actor) {
+      reply.code(404);
+      return { error: 'Actor not found' };
+    }
+
+    // Only support dialogue for now
+    if (content.content_type !== 'dialogue') {
+      reply.code(400);
+      return { error: 'Only dialogue generation is currently supported' };
+    }
+
+    // Get provider settings for dialogue
+    const providerSettings = actor.provider_settings?.dialogue;
+    if (!providerSettings || providerSettings.provider !== 'elevenlabs') {
+      reply.code(400);
+      return { error: 'No ElevenLabs provider configured for dialogue' };
+    }
+
+    if (!providerSettings.voice_id) {
+      reply.code(400);
+      return { error: 'No voice selected for this actor' };
+    }
+
+    const provider = await getAudioProvider(projectRoot);
+    await ensureJsonlFile(paths.catalog.takes);
+    const existingTakes = await readJsonl<Take>(paths.catalog.takes);
+    const takesForContent = existingTakes.filter(t => t.content_id === content.id);
+    const baseTakeNumber = takesForContent.reduce((max, t) => Math.max(max, t.take_number), 0);
+
+    const generatedTakes: Take[] = [];
+
+    for (let i = 1; i <= count; i++) {
+      const buffer = await provider.generateDialogue(
+        content.prompt || content.item_id || 'Hello',
+        providerSettings.voice_id,
+        {
+          stability: providerSettings.stability,
+          similarity_boost: providerSettings.similarity_boost,
+        }
+      );
+
+      const takeNumber = baseTakeNumber + i;
+      const filename = `${actor.base_filename}${content.item_id}_take${takeNumber}.wav`;
+      // Store relative path from media root for URL serving
+      const relativePath = join('actors', actor.id, 'dialogue', content.id, 'raw', filename);
+      const mediaDir = join(paths.media, 'actors', actor.id, 'dialogue', content.id, 'raw');
+      const filePath = join(mediaDir, filename);
+
+      await import('fs-extra').then(async (fsMod) => {
+        const fs = fsMod.default;
+        await fs.ensureDir(mediaDir);
+        await fs.writeFile(filePath, buffer);
+      });
+
+      const { probeAudio } = await import('./services/audio/ffprobe.js');
+      const { hashFile } = await import('./services/audio/hash.js');
+      
+      const probeResult = await probeAudio(filePath);
+      const hash = await hashFile(filePath);
+
+      const primaryStream = probeResult.streams[0];
+      const durationSec = probeResult.format.duration;
+      const rawSampleRate = primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 44100;
+      const rawChannels = primaryStream?.channels ?? 1;
+
+      const now = new Date().toISOString();
+      const take: Take = {
+        id: generateId(),
+        content_id: content.id,
+        take_number: takeNumber,
+        filename,
+        status: 'new',
+        path: relativePath,
+        hash_sha256: hash,
+        duration_sec: durationSec,
+        format: 'wav',
+        sample_rate: rawSampleRate === 48000 ? 48000 : 44100,
+        bit_depth: 16,
+        channels: rawChannels === 2 ? 2 : 1,
+        lufs_integrated: 0,
+        peak_dbfs: 0,
+        generated_by: 'elevenlabs',
+        generation_params: { provider: 'elevenlabs' },
+        created_at: now,
+        updated_at: now,
+      };
+
+      await appendJsonl(paths.catalog.takes, take);
+      generatedTakes.push(take);
+    }
+
+    return { takes: generatedTakes };
   } catch (err) {
     request.log.error(err);
     reply.code(500);
