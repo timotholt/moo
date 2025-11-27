@@ -150,3 +150,36 @@ export async function updateSection(id, payload) {
   }
   return res.json();
 }
+
+export async function deleteSection(id) {
+  const res = await fetch(`/api/sections/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Failed to delete section: ${await res.text()}`);
+  }
+}
+
+export async function updateContent(id, payload) {
+  const res = await fetch(`/api/content/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update content: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function updateTake(id, payload) {
+  const res = await fetch(`/api/takes/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update take: ${await res.text()}`);
+  }
+  return res.json();
+}

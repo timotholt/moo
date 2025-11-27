@@ -3,9 +3,9 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
-import { getActors, getContent, getSections } from '../api/client.js';
+import { getActors, getContent, getSections, deleteSection } from '../api/client.js';
 
-export default function ProjectShell() {
+export default function ProjectShell({ blankSpaceConversion, capitalizationConversion }) {
   const [actors, setActors] = useState([]);
   const [content, setContent] = useState([]);
   const [sections, setSections] = useState([]); // Track sections separately from content
@@ -97,6 +97,24 @@ export default function ProjectShell() {
           setContent((prev) => prev.filter((c) => c.id !== id));
           setSelectedNode(null);
         }}
+        onContentUpdated={(updatedContent) => {
+          setContent((prev) => prev.map(c => c.id === updatedContent.id ? updatedContent : c));
+        }}
+        onSectionDeleted={async (sectionId) => {
+          try {
+            const section = sections.find(s => s.id === sectionId);
+            await deleteSection(sectionId);
+            setSections((prev) => prev.filter((s) => s.id !== sectionId));
+            if (section) {
+              setContent((prev) => prev.filter((c) => !(c.actor_id === section.actor_id && c.content_type === section.content_type)));
+            }
+            if (selectedNode?.id === sectionId) setSelectedNode(null);
+          } catch (err) {
+            setError(err.message || String(err));
+          }
+        }}
+        blankSpaceConversion={blankSpaceConversion}
+        capitalizationConversion={capitalizationConversion}
       />
     </Box>
   );

@@ -74,6 +74,23 @@ export const DESIGN_SYSTEM = {
         paddingRight: '8px',
         fontSize: '0.8rem',
       },
+      '& .MuiOutlinedInput-input.MuiInputBase-inputMultiline': {
+        paddingTop: '4px',
+        paddingBottom: '4px',
+        paddingLeft: '8px',
+        paddingRight: '8px',
+        fontSize: '0.8rem',
+      },
+      '& .MuiInputBase-multiline': {
+        padding: '0',
+      },
+      '& textarea.MuiOutlinedInput-input': {
+        paddingTop: '4px',
+        paddingBottom: '4px',
+        paddingLeft: '8px',
+        paddingRight: '8px',
+        fontSize: '0.8rem',
+      },
       '& .MuiFormHelperText-root': {
         fontSize: '0.7rem',
         marginTop: '2px',

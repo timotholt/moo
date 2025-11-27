@@ -24,7 +24,11 @@ export default function DetailPane({
   onContentDeleted, 
   onSectionCreated, 
   onActorUpdated, 
-  onSectionUpdated 
+  onSectionUpdated,
+  onContentUpdated,
+  onSectionDeleted,
+  blankSpaceConversion,
+  capitalizationConversion 
 }) {
   const actorOps = useActorOperations({ 
     onActorCreated, 
@@ -71,6 +75,12 @@ export default function DetailPane({
           </Box>
         );
       }
+      // Check if all content in this section is complete
+      const sectionContent = content.filter(c => 
+        c.actor_id === data.actor.id && c.content_type === data.contentType
+      );
+      const sectionComplete = sectionContent.length > 0 && sectionContent.every(c => c.all_approved);
+      
       return (
         <SectionView
           sectionData={data.sectionData}
@@ -86,6 +96,13 @@ export default function DetailPane({
           onCreateContent={dataOps.createContent}
           onUpdateSectionName={dataOps.updateSectionName}
           onUpdateProviderSettings={dataOps.updateProviderSettings}
+          sectionComplete={sectionComplete}
+          onToggleSectionComplete={(complete) => {
+            // Toggle all_approved on all content in this section
+            // For now, this is a UI-only indicator based on content approval status
+            console.log('Section complete toggle:', complete);
+          }}
+          onDeleteSection={() => onSectionDeleted && onSectionDeleted(data.sectionData.id)}
           error={commonError}
         />
       );
@@ -98,10 +115,20 @@ export default function DetailPane({
           </Box>
         );
       }
+      // Check if the section containing this content is complete
+      const contentSectionComplete = data.item.all_approved;
+      // Find the actor for this content to get base_filename
+      const contentActor = actors.find(a => a.id === data.item.actor_id);
+      
       return (
         <ContentView 
           item={data.item}
+          actor={contentActor}
           onContentDeleted={onContentDeleted}
+          onContentUpdated={onContentUpdated}
+          sectionComplete={contentSectionComplete}
+          blankSpaceConversion={blankSpaceConversion}
+          capitalizationConversion={capitalizationConversion}
           error={commonError}
         />
       );

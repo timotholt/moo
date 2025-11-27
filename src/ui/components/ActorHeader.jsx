@@ -11,10 +11,13 @@ export default function ActorHeader({
   actor, 
   onDelete, 
   onUpdateBaseFilename,
+  onUpdateDisplayName,
   error 
 }) {
   const [editingBaseFilename, setEditingBaseFilename] = useState(false);
   const [baseFilename, setBaseFilename] = useState('');
+  const [editingDisplayName, setEditingDisplayName] = useState(false);
+  const [displayName, setDisplayName] = useState('');
 
   const handleSaveBaseFilename = () => {
     onUpdateBaseFilename(actor.id, baseFilename || actor.base_filename);
@@ -32,12 +35,78 @@ export default function ActorHeader({
     setBaseFilename(actor.base_filename);
   };
 
+  const handleSaveDisplayName = () => {
+    if (onUpdateDisplayName) {
+      onUpdateDisplayName(actor.id, displayName || actor.display_name);
+    }
+    setEditingDisplayName(false);
+    setDisplayName('');
+  };
+
+  const handleCancelDisplayNameEdit = () => {
+    setEditingDisplayName(false);
+    setDisplayName('');
+  };
+
+  const handleStartDisplayNameEdit = () => {
+    setEditingDisplayName(true);
+    setDisplayName(actor.display_name);
+  };
+
+  // Compact button style
+  const compactButtonSx = { py: 0, px: 0.5, minHeight: 0, fontSize: '0.7rem' };
+
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Typography variant="subtitle1" gutterBottom sx={{ flexGrow: 1, ...DESIGN_SYSTEM.typography.pageTitle }}>
-          {actor.display_name}
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        {editingDisplayName ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1 }}>
+            <TextField
+              size="small"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={actor.display_name}
+              autoFocus
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSaveDisplayName();
+                }
+              }}
+              sx={DESIGN_SYSTEM.components.formControl}
+            />
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleSaveDisplayName}
+              sx={compactButtonSx}
+            >
+              Save
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleCancelDisplayNameEdit}
+              sx={compactButtonSx}
+            >
+              Cancel
+            </Button>
+          </Box>
+        ) : (
+          <>
+            <Typography variant="subtitle1" sx={{ ...DESIGN_SYSTEM.typography.pageTitle }}>
+              {actor.display_name}
+            </Typography>
+            <Button
+              size="small"
+              variant="text"
+              onClick={handleStartDisplayNameEdit}
+              sx={compactButtonSx}
+            >
+              Edit
+            </Button>
+          </>
+        )}
+        <Box sx={{ flexGrow: 1 }} />
         <IconButton
           size="small"
           color="error"
@@ -70,6 +139,7 @@ export default function ActorHeader({
               size="small"
               variant="contained"
               onClick={handleSaveBaseFilename}
+              sx={compactButtonSx}
             >
               Save
             </Button>
@@ -77,6 +147,7 @@ export default function ActorHeader({
               size="small"
               variant="outlined"
               onClick={handleCancelEdit}
+              sx={compactButtonSx}
             >
               Cancel
             </Button>
@@ -90,7 +161,7 @@ export default function ActorHeader({
               size="small"
               variant="text"
               onClick={handleStartEdit}
-              sx={DESIGN_SYSTEM.typography.small}
+              sx={compactButtonSx}
             >
               Edit
             </Button>

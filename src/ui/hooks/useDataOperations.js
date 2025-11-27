@@ -64,11 +64,20 @@ export function useDataOperations({
     try {
       setCreatingContent(true);
       setError(null);
+      
+      // If no prompt provided, use the item ID as the default prompt (with title case)
+      const defaultPrompt = contentItemId
+        .split(',')
+        .map(id => id.trim())
+        .filter(id => id)
+        .map(id => id.charAt(0).toUpperCase() + id.slice(1))
+        .join(', ');
+      
       const result = await createContent({
         actor_id: actorId,
         content_type: contentType,
         item_id: contentItemId,
-        prompt: contentPrompt || '',
+        prompt: contentPrompt || defaultPrompt,
       });
       if (result && result.content && onContentCreated) {
         if (Array.isArray(result.content)) {
@@ -131,29 +140,61 @@ export function useDataOperations({
     }
   };
 
+  // Sanitize provider settings to only include valid schema properties
+  const sanitizeProviderSettings = (settings, contentType) => {
+    if (!settings || settings.provider === 'inherit') {
+      return { provider: 'inherit' };
+    }
+    
+    // Valid keys per content type
+    const validKeys = contentType === 'dialogue'
+      ? ['provider', 'voice_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost']
+      : ['provider', 'batch_generate', 'approval_count_default'];
+    
+    const sanitized = {};
+    for (const key of validKeys) {
+      if (settings[key] !== undefined) {
+        sanitized[key] = settings[key];
+      }
+    }
+    return sanitized;
+  };
+
   const updateProviderSettings = async (actorId, contentType, newSettings) => {
     try {
+      console.log('[useDataOperations] updateProviderSettings called:', { actorId, contentType, newSettings });
       const actor = actors.find(a => a.id === actorId);
       if (!actor) return;
 
-      const updatedProviderSettings = {
-        ...actor.provider_settings,
-        [contentType]: newSettings.provider === 'inherit' 
-          ? { provider: 'inherit' }  // Replace entirely when switching to inherit
-          : {
-              ...actor.provider_settings?.[contentType],
-              ...newSettings
-            }
-      };
+      // Sanitize each content type's settings
+      const sanitizedNewSettings = sanitizeProviderSettings(newSettings, contentType);
+      
+      const updatedProviderSettings = {};
+      
+      // Copy and sanitize existing settings for other content types
+      if (actor.provider_settings) {
+        for (const ct of ['dialogue', 'music', 'sfx']) {
+          if (ct === contentType) {
+            updatedProviderSettings[ct] = sanitizedNewSettings;
+          } else if (actor.provider_settings[ct]) {
+            updatedProviderSettings[ct] = sanitizeProviderSettings(actor.provider_settings[ct], ct);
+          }
+        }
+      } else {
+        updatedProviderSettings[contentType] = sanitizedNewSettings;
+      }
 
+      console.log('[useDataOperations] Sending to API:', { provider_settings: updatedProviderSettings });
       const result = await updateActor(actorId, {
         provider_settings: updatedProviderSettings
       });
 
+      console.log('[useDataOperations] API result:', result);
       if (result && result.actor && onActorUpdated) {
         onActorUpdated(result.actor);
       }
     } catch (err) {
+      console.error('[useDataOperations] Error:', err);
       setError(err.message || String(err));
     }
   };
@@ -180,6 +221,17 @@ export function useDataOperations({
     }
   };
 
+  const updateDisplayName = async (actorId, newDisplayName) => {
+    try {
+      const result = await updateActor(actorId, { display_name: newDisplayName });
+      if (result && result.actor && onActorUpdated) {
+        onActorUpdated(result.actor);
+      }
+    } catch (err) {
+      setError(err.message || String(err));
+    }
+  };
+
   return {
     // State
     contentPrompt,
@@ -197,6 +249,7 @@ export function useDataOperations({
     createSection: createSectionForActor,
     updateProviderSettings,
     updateSectionName,
-    updateBaseFilename
+    updateBaseFilename,
+    updateDisplayName
   };
 }

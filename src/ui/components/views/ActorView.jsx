@@ -43,6 +43,7 @@ export default function ActorView({
         actor={actor}
         onDelete={() => setConfirmDeleteOpen(true)}
         onUpdateBaseFilename={dataOps.updateBaseFilename}
+        onUpdateDisplayName={dataOps.updateDisplayName}
         error={error || actorOps.error}
       />
 

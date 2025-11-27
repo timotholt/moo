@@ -1,7 +1,6 @@
 import React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
 import { useGlobalDefaults } from '../hooks/useGlobalDefaults.js';
@@ -66,17 +65,12 @@ export default function ProviderDefaultsView({
       </Typography>
 
       <Box sx={{ p: 3, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-        <Typography variant="subtitle2" gutterBottom sx={{ mb: 3 }}>
-          {contentType.charAt(0).toUpperCase() + contentType.slice(1)} Default Settings
-        </Typography>
-        
         <ProviderSettingsEditor
           contentType={contentType}
           settings={currentDefaults}
           voices={voices}
           loadingVoices={loadingVoices}
           onSettingsChange={handleSettingsChange}
-          isDefault={true}
           error={error || defaultsError}
         />
       </Box>

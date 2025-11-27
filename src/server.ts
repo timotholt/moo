@@ -499,6 +499,160 @@ fastify.put('/api/sections/:id', async (request, reply) => {
   return { section: updatedSection };
 });
 
+fastify.delete('/api/sections/:id', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+
+  const { id } = request.params as { id: string };
+
+  const sections = await readJsonl<Section>(paths.catalog.sections);
+  const contentItems = await readJsonl<Content>(paths.catalog.content);
+  const takes = await readJsonl<Take>(paths.catalog.takes);
+
+  // Find the section to get actor_id and content_type
+  const section = sections.find(s => s.id === id);
+  if (!section) {
+    reply.code(404);
+    return { error: 'Section not found' };
+  }
+
+  // Remove section
+  const remainingSections = sections.filter(s => s.id !== id);
+  
+  // Remove all content in this section
+  const removedContent = contentItems.filter(c => 
+    c.actor_id === section.actor_id && c.content_type === section.content_type
+  );
+  const removedContentIds = new Set(removedContent.map(c => c.id));
+  const remainingContent = contentItems.filter(c => !removedContentIds.has(c.id));
+  
+  // Remove all takes for removed content
+  const remainingTakes = takes.filter(t => !removedContentIds.has(t.content_id));
+
+  await ensureJsonlFile(paths.catalog.sections);
+  await ensureJsonlFile(paths.catalog.content);
+  await ensureJsonlFile(paths.catalog.takes);
+
+  await import('fs-extra').then(async (fsMod) => {
+    const fs = fsMod.default;
+    await fs.writeFile(
+      paths.catalog.sections,
+      remainingSections.map(s => JSON.stringify(s)).join('\n') + (remainingSections.length ? '\n' : ''),
+      'utf8',
+    );
+    await fs.writeFile(
+      paths.catalog.content,
+      remainingContent.map(c => JSON.stringify(c)).join('\n') + (remainingContent.length ? '\n' : ''),
+      'utf8',
+    );
+    await fs.writeFile(
+      paths.catalog.takes,
+      remainingTakes.map(t => JSON.stringify(t)).join('\n') + (remainingTakes.length ? '\n' : ''),
+      'utf8',
+    );
+  });
+
+  reply.code(204);
+  return null;
+});
+
+fastify.put('/api/content/:id', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  
+  const { id } = request.params as { id: string };
+  const body = request.body as Partial<Content>;
+  
+  if (!body) {
+    reply.code(400);
+    return { error: 'Request body is required' };
+  }
+
+  const contentItems = await readJsonl<Content>(paths.catalog.content);
+  const contentIndex = contentItems.findIndex(c => c.id === id);
+  
+  if (contentIndex === -1) {
+    reply.code(404);
+    return { error: 'Content not found' };
+  }
+
+  // Update the content with new data
+  const updatedContent: Content = {
+    ...contentItems[contentIndex],
+    ...body,
+    id, // Ensure ID doesn't change
+    updated_at: new Date().toISOString(),
+  };
+
+  // Validate the updated content
+  const validation = validate('content', updatedContent);
+  if (!validation.valid) {
+    reply.code(400);
+    return { error: 'Invalid content data', details: validation.errors };
+  }
+
+  // Replace the content in the array
+  contentItems[contentIndex] = updatedContent;
+
+  // Write back to file
+  await ensureJsonlFile(paths.catalog.content);
+  await import('fs-extra').then(async (fsMod) => {
+    const fs = fsMod.default;
+    await fs.writeFile(
+      paths.catalog.content,
+      contentItems.map(c => JSON.stringify(c)).join('\n') + (contentItems.length ? '\n' : ''),
+      'utf8',
+    );
+  });
+
+  return { content: updatedContent };
+});
+
+fastify.put('/api/takes/:id', async (request, reply) => {
+  const projectRoot = getProjectRoot();
+  const paths = getProjectPaths(projectRoot);
+  
+  const { id } = request.params as { id: string };
+  const body = request.body as Partial<Take>;
+  
+  if (!body) {
+    reply.code(400);
+    return { error: 'Request body is required' };
+  }
+
+  const takes = await readJsonl<Take>(paths.catalog.takes);
+  const takeIndex = takes.findIndex(t => t.id === id);
+  
+  if (takeIndex === -1) {
+    reply.code(404);
+    return { error: 'Take not found' };
+  }
+
+  // Update the take with new data
+  const updatedTake: Take = {
+    ...takes[takeIndex],
+    ...body,
+    id, // Ensure ID doesn't change
+    updated_at: new Date().toISOString(),
+  };
+
+  // Replace the take in the array
+  takes[takeIndex] = updatedTake;
+
+  // Write back to file
+  await ensureJsonlFile(paths.catalog.takes);
+  await import('fs-extra').then(async (fsMod) => {
+    const fs = fsMod.default;
+    await fs.writeFile(
+      paths.catalog.takes,
+      takes.map(t => JSON.stringify(t)).join('\n') + (takes.length ? '\n' : ''),
+      'utf8',
+    );
+  });
+
+  return { take: updatedTake };
+});
+
 fastify.get('/api/jobs', async () => {
   const projectRoot = getProjectRoot();
   const paths = getProjectPaths(projectRoot);
