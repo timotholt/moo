@@ -56,6 +56,9 @@ importers:
       uuidv7:
         specifier: ^1.0.2
         version: 1.0.2
+      wavesurfer.js:
+        specifier: ^7.11.1
+        version: 7.11.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -2159,6 +2162,9 @@ packages:
       jsdom:
         optional: true
 
+  wavesurfer.js@7.11.1:
+    resolution: {integrity: sha512-8Q+wwItpjJAlhQ7crQLtKwgfbqqczm5/wx+76K4PptP+MBAjB0OA78+A9OuLnULz/8GpAQ+fKM6s81DonEO0Sg==}
+
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
     engines: {node: '>= 8'}
@@ -4163,6 +4169,8 @@ snapshots:
       - sugarss
       - supports-color
       - terser
+
+  wavesurfer.js@7.11.1: {}
 
   which@2.0.2:
     dependencies:

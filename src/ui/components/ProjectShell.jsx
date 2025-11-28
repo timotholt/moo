@@ -5,7 +5,7 @@ import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
 import { getActors, getContent, getSections, getTakes, deleteSection } from '../api/client.js';
 
-export default function ProjectShell({ blankSpaceConversion, capitalizationConversion, onStatusChange, onCreditsRefresh }) {
+export default function ProjectShell({ blankSpaceConversion, capitalizationConversion, onStatusChange, onCreditsRefresh, onPlayTake, onStopPlayback, currentPlayingTakeId }) {
   const [actors, setActors] = useState([]);
   const [content, setContent] = useState([]);
   const [sections, setSections] = useState([]); // Track sections separately from content
@@ -14,9 +14,6 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
   const [error, setError] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
   const [expandNode, setExpandNode] = useState(null);
-  const [playingContentId, setPlayingContentId] = useState(null);
-  const [playingTakeId, setPlayingTakeId] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
   const [playedTakes, setPlayedTakes] = useState(() => {
     try {
       const saved = localStorage.getItem('audiomanager-played-takes');
@@ -44,56 +41,13 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
     setExpandNode(() => expandNodeFunction);
   }, []);
 
-  const handleStopPlayback = useCallback(() => {
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-    }
-    setAudioElement(null);
-    setPlayingContentId(null);
-    setPlayingTakeId(null);
-  }, [audioElement]);
-
   const handlePlayTakeGlobal = useCallback((contentId, take) => {
-    // Stop any existing playback first
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-    }
-
-    // If the same take is requested again, treat it as a stop toggle
-    if (playingContentId === contentId && playingTakeId === take.id) {
-      setAudioElement(null);
-      setPlayingContentId(null);
-      setPlayingTakeId(null);
-      return;
-    }
-
-    const audioPath = (take.path || '').replace(/\\/g, '/');
-    const audio = new Audio(`/media/${audioPath}`);
-    audio.onended = () => {
-      setAudioElement(null);
-      setPlayingContentId(null);
-      setPlayingTakeId(null);
-    };
-    audio.onerror = () => {
-      console.error('Failed to play audio:', take.path);
-      setAudioElement(null);
-      setPlayingContentId(null);
-      setPlayingTakeId(null);
-    };
-
-    setAudioElement(audio);
-    setPlayingContentId(contentId);
-    setPlayingTakeId(take.id);
+    // Mark as played and delegate to global player
     setPlayedTakes((prev) => ({ ...prev, [take.id]: true }));
-    audio.play().catch((err) => {
-      console.error('Failed to play take:', err);
-      setAudioElement(null);
-      setPlayingContentId(null);
-      setPlayingTakeId(null);
-    });
-  }, [audioElement, playingContentId, playingTakeId]);
+    if (onPlayTake) {
+      onPlayTake(take);
+    }
+  }, [onPlayTake]);
 
   useEffect(() => {
     try {
@@ -198,7 +152,7 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         selectedNode={selectedNode}
         onSelect={setSelectedNode}
         onExpandNode={handleExpandNode}
-        playingContentId={playingContentId}
+        playingTakeId={currentPlayingTakeId}
         playedTakes={playedTakes}
       />
       {/* Resizable divider */}
@@ -265,10 +219,9 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         blankSpaceConversion={blankSpaceConversion}
         capitalizationConversion={capitalizationConversion}
         onStatusChange={onStatusChange}
-        playingContentId={playingContentId}
-        playingTakeId={playingTakeId}
+        playingTakeId={currentPlayingTakeId}
         onPlayRequest={handlePlayTakeGlobal}
-        onStopRequest={handleStopPlayback}
+        onStopRequest={onStopPlayback}
         playedTakes={playedTakes}
         onTakePlayed={(takeId) => setPlayedTakes((prev) => ({ ...prev, [takeId]: true }))}
         onCreditsRefresh={onCreditsRefresh}

@@ -7,7 +7,7 @@ export default function StatusBar({ statusText, providerCredits }) {
     <Box
       sx={{
         position: 'fixed',
-        bottom: 0,
+        bottom: 0, // At the very bottom
         left: 0,
         right: 0,
         height: '1.75rem',

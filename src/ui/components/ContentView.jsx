@@ -81,7 +81,6 @@ export default function ContentView({
   onTakesGenerated,
   onTakeUpdated,
   onStatusChange,
-  playingContentId,
   playingTakeId,
   onPlayRequest,
   onStopRequest,
@@ -211,12 +210,14 @@ export default function ContentView({
       onTakePlayed(take.id);
     }
 
-    const isCurrentlyPlaying = playingContentId === item.id && playingTakeId === take.id;
-
-    if (isCurrentlyPlaying) {
+    // If this take is currently playing, stop it
+    if (playingTakeId === take.id) {
       if (onStopRequest) onStopRequest();
-    } else if (onPlayRequest) {
-      onPlayRequest(item.id, take);
+    } else {
+      // Play the selected take
+      if (onPlayRequest) {
+        onPlayRequest(item.id, take);
+      }
     }
   };
 

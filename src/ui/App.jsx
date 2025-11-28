@@ -5,6 +5,7 @@ import { GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
 import AppBarShell from './components/AppBarShell.jsx';
 import ProjectShell from './components/ProjectShell.jsx';
 import StatusBar from './components/StatusBar.jsx';
+import AudioPlayerBar from './components/AudioPlayerBar.jsx';
 import { getProviderCredits } from './api/client.js';
 
 // Font size multipliers
@@ -30,6 +31,41 @@ export default function App() {
   });
   const [statusText, setStatusText] = useState('');
   const [providerCredits, setProviderCredits] = useState('');
+
+  // Global audio player state
+  const [currentTake, setCurrentTake] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const handlePlayTake = useCallback((take) => {
+    const audioPath = (take.path || '').replace(/\\/g, '/');
+    // If same take, just ensure it plays (handles replay)
+    if (currentTake?.id === take.id) {
+      setIsPlaying(true); // Signal to replay
+    } else {
+      setCurrentTake(take);
+      setAudioUrl(`/media/${audioPath}`);
+    }
+    setIsPlaying(true);
+  }, [currentTake?.id]);
+
+  // Called when playback ends - keep audio loaded but clear "playing" indicator
+  const handlePlaybackEnd = useCallback(() => {
+    // Don't clear currentTake or audioUrl - keep player loaded
+    // Just clear the playing state so tree shows correct status
+    setIsPlaying(false);
+  }, []);
+
+  // Called when user clicks stop in detail pane
+  const handleStopPlayback = useCallback(() => {
+    setIsPlaying(false);
+  }, []);
+
+  // Only called when user explicitly wants to clear the player
+  const handleClosePlayer = useCallback(() => {
+    setCurrentTake(null);
+    setAudioUrl(null);
+  }, []);
 
   // Save settings to localStorage
   useEffect(() => {
@@ -111,6 +147,16 @@ export default function App() {
           capitalizationConversion={capitalizationConversion}
           onStatusChange={setStatusText}
           onCreditsRefresh={refreshCredits}
+          onPlayTake={handlePlayTake}
+          onStopPlayback={handleStopPlayback}
+          currentPlayingTakeId={isPlaying ? currentTake?.id : null}
+        />
+        <AudioPlayerBar
+          currentTake={currentTake}
+          audioUrl={audioUrl}
+          isPlaying={isPlaying}
+          onPlayingChange={setIsPlaying}
+          onPlaybackEnd={handlePlaybackEnd}
         />
         <StatusBar 
           statusText={statusText}

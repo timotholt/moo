@@ -32,7 +32,6 @@ export default function DetailPane({
   blankSpaceConversion,
   capitalizationConversion,
   onStatusChange,
-  playingContentId,
   playingTakeId,
   onPlayRequest,
   onStopRequest,
@@ -143,7 +142,6 @@ export default function DetailPane({
           onTakesGenerated={onTakesGenerated}
           onTakeUpdated={onTakeUpdated}
           onStatusChange={onStatusChange}
-          playingContentId={playingContentId}
           playingTakeId={playingTakeId}
           onPlayRequest={onPlayRequest}
           onStopRequest={onStopRequest}

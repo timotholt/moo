@@ -98,7 +98,7 @@ function getActorStatus(actor, sections, content, takes) {
   return worstStatus;
 }
 
-export default function TreePane({ width, actors, content, sections, takes = [], selectedNode, onSelect, onExpandNode, playingContentId, playedTakes = {} }) {
+export default function TreePane({ width, actors, content, sections, takes = [], selectedNode, onSelect, onExpandNode, playingTakeId, playedTakes = {} }) {
   const selectedId = selectedNode ? nodeKey(selectedNode.type, selectedNode.id) : null;
   
   // Load expanded state from localStorage or use defaults
@@ -368,7 +368,9 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                               displayText += ` (${newCount} new)`;
                                             }
 
-                                            const isPlaying = playingContentId === c.id;
+                                            // Check if any take of this content is currently playing
+                                            const contentTakesForPlaying = takes.filter(t => t.content_id === c.id);
+                                            const isPlaying = contentTakesForPlaying.some(t => t.id === playingTakeId);
 
                                             const iconColor = isPlaying ? 'common.white' : contentStatus.color;
                                             const contentIcon = sectionType === 'dialogue'
