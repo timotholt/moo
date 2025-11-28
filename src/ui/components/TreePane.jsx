@@ -98,7 +98,7 @@ function getActorStatus(actor, sections, content, takes) {
   return worstStatus;
 }
 
-export default function TreePane({ actors, content, sections, takes = [], selectedNode, onSelect, onExpandNode, playingContentId, playedTakes = {} }) {
+export default function TreePane({ width, actors, content, sections, takes = [], selectedNode, onSelect, onExpandNode, playingContentId, playedTakes = {} }) {
   const selectedId = selectedNode ? nodeKey(selectedNode.type, selectedNode.id) : null;
   
   // Load expanded state from localStorage or use defaults
@@ -161,11 +161,13 @@ export default function TreePane({ actors, content, sections, takes = [], select
   return (
     <Box
       sx={{
-        width: { xs: '16.25rem', md: '18.75rem' },
+        width: width || 300,
         flexShrink: 0,
         borderRight: 1,
         borderColor: 'divider',
-        overflow: 'auto',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        height: '100%',
         pt: '0.625rem',
       }}
     >

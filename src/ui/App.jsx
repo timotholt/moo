@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
@@ -48,32 +48,29 @@ export default function App() {
     localStorage.setItem('audiomanager-capitalization-conversion', capitalizationConversion);
   }, [capitalizationConversion]);
 
-  // Fetch provider credits (currently ElevenLabs) on startup
-  useEffect(() => {
-    let cancelled = false;
-    async function loadCredits() {
-      try {
-        const data = await getProviderCredits();
-        if (cancelled) return;
-        if (data && typeof data.remaining_credits === 'number') {
-          const formatted = data.remaining_credits.toLocaleString();
-          setProviderCredits(`ElevenLabs: ${formatted} characters remaining`);
-        } else if (data && data.raw && typeof data.raw.character_limit === 'number') {
-          const remaining = Math.max(0, data.raw.character_limit - (data.raw.character_count || 0));
-          const formatted = remaining.toLocaleString();
-          setProviderCredits(`ElevenLabs: ${formatted} characters remaining`);
-        } else {
-          setProviderCredits('ElevenLabs: credits unavailable');
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setProviderCredits('ElevenLabs: credits unavailable');
-        }
+  // Fetch provider credits (currently ElevenLabs)
+  const refreshCredits = useCallback(async () => {
+    try {
+      const data = await getProviderCredits();
+      if (data && typeof data.remaining_credits === 'number') {
+        const formatted = data.remaining_credits.toLocaleString();
+        setProviderCredits(`ElevenLabs: ${formatted} characters remaining`);
+      } else if (data && data.raw && typeof data.raw.character_limit === 'number') {
+        const remaining = Math.max(0, data.raw.character_limit - (data.raw.character_count || 0));
+        const formatted = remaining.toLocaleString();
+        setProviderCredits(`ElevenLabs: ${formatted} characters remaining`);
+      } else {
+        setProviderCredits('ElevenLabs: credits unavailable');
       }
+    } catch (err) {
+      setProviderCredits('ElevenLabs: credits unavailable');
     }
-    loadCredits();
-    return () => { cancelled = true; };
   }, []);
+
+  // Load credits on startup
+  useEffect(() => {
+    refreshCredits();
+  }, [refreshCredits]);
 
   // Create theme based on settings
   const theme = useMemo(() => {
@@ -113,6 +110,7 @@ export default function App() {
           blankSpaceConversion={blankSpaceConversion} 
           capitalizationConversion={capitalizationConversion}
           onStatusChange={setStatusText}
+          onCreditsRefresh={refreshCredits}
         />
         <StatusBar 
           statusText={statusText}

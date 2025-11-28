@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
 import { getActors, getContent, getSections, getTakes, deleteSection } from '../api/client.js';
 
-export default function ProjectShell({ blankSpaceConversion, capitalizationConversion, onStatusChange }) {
+export default function ProjectShell({ blankSpaceConversion, capitalizationConversion, onStatusChange, onCreditsRefresh }) {
   const [actors, setActors] = useState([]);
   const [content, setContent] = useState([]);
   const [sections, setSections] = useState([]); // Track sections separately from content
@@ -26,6 +26,18 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
       return {};
     }
   });
+
+  // Resizable tree pane width
+  const [treePaneWidth, setTreePaneWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('audiomanager-tree-pane-width');
+      return saved ? parseInt(saved, 10) : 300;
+    } catch (e) {
+      return 300;
+    }
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef(null);
 
   // Memoize the callback to prevent unnecessary re-renders
   const handleExpandNode = useCallback((expandNodeFunction) => {
@@ -91,6 +103,45 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
     }
   }, [playedTakes]);
 
+  // Save tree pane width to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('audiomanager-tree-pane-width', String(treePaneWidth));
+    } catch (e) {
+      console.warn('Failed to save tree pane width:', e);
+    }
+  }, [treePaneWidth]);
+
+  // Handle resize drag
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = e.clientX - containerRect.left;
+      // Clamp between 200 and 500 pixels
+      setTreePaneWidth(Math.max(200, Math.min(500, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -137,8 +188,9 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
   }
 
   return (
-    <Box component="main" sx={{ flexGrow: 1, pt: 8, display: 'flex', minWidth: 0 }}>
+    <Box ref={containerRef} component="main" sx={{ flexGrow: 1, pt: 8, display: 'flex', minWidth: 0, userSelect: isResizing ? 'none' : 'auto' }}>
       <TreePane
+        width={treePaneWidth}
         actors={actors}
         content={content}
         sections={sections}
@@ -148,6 +200,20 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         onExpandNode={handleExpandNode}
         playingContentId={playingContentId}
         playedTakes={playedTakes}
+      />
+      {/* Resizable divider */}
+      <Box
+        onMouseDown={handleMouseDown}
+        sx={{
+          width: '6px',
+          cursor: 'col-resize',
+          backgroundColor: isResizing ? 'primary.main' : 'transparent',
+          '&:hover': {
+            backgroundColor: 'action.hover',
+          },
+          flexShrink: 0,
+          zIndex: 1,
+        }}
       />
       <DetailPane
         actors={actors}
@@ -205,6 +271,7 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         onStopRequest={handleStopPlayback}
         playedTakes={playedTakes}
         onTakePlayed={(takeId) => setPlayedTakes((prev) => ({ ...prev, [takeId]: true }))}
+        onCreditsRefresh={onCreditsRefresh}
       />
     </Box>
   );

@@ -37,7 +37,8 @@ export default function DetailPane({
   onPlayRequest,
   onStopRequest,
   playedTakes,
-  onTakePlayed
+  onTakePlayed,
+  onCreditsRefresh
 }) {
   const actorOps = useActorOperations({ 
     onActorCreated, 
@@ -148,6 +149,7 @@ export default function DetailPane({
           onStopRequest={onStopRequest}
           playedTakes={playedTakes}
           onTakePlayed={onTakePlayed}
+          onCreditsRefresh={onCreditsRefresh}
           error={commonError}
         />
       );

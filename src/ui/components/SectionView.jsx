@@ -7,6 +7,7 @@ import IconButton from '@mui/material/IconButton';
 import Collapse from '@mui/material/Collapse';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Tooltip from '@mui/material/Tooltip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -134,23 +135,29 @@ export default function SectionView({
         <Typography variant="body2" sx={DESIGN_SYSTEM.typography.body}>
           Actor: {actor.display_name} • Type: {toTitleCase(contentType)}
         </Typography>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={sectionComplete || false}
-              onChange={(e) => onToggleSectionComplete && onToggleSectionComplete(e.target.checked)}
-              size="small"
-            />
-          }
-          label={
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {sectionComplete && <LockIcon sx={{ fontSize: '0.875rem' }} />}
-              <Typography variant="body2" sx={DESIGN_SYSTEM.typography.body}>
-                Complete
-              </Typography>
-            </Box>
-          }
-        />
+        <Tooltip 
+          title="When checked, all content items in this section are marked as complete and locked from editing"
+          arrow
+          placement="left"
+        >
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={sectionComplete || false}
+                onChange={(e) => onToggleSectionComplete && onToggleSectionComplete(e.target.checked)}
+                size="small"
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {sectionComplete && <LockIcon sx={{ fontSize: '0.875rem' }} />}
+                <Typography variant="body2" sx={DESIGN_SYSTEM.typography.body}>
+                  Complete
+                </Typography>
+              </Box>
+            }
+          />
+        </Tooltip>
       </Box>
 
       {sectionComplete && (

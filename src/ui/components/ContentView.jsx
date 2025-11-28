@@ -13,6 +13,7 @@ import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import CircularProgress from '@mui/material/CircularProgress';
+import Tooltip from '@mui/material/Tooltip';
 import Collapse from '@mui/material/Collapse';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -86,6 +87,7 @@ export default function ContentView({
   onStopRequest,
   playedTakes = {},
   onTakePlayed,
+  onCreditsRefresh,
   error: parentError 
 }) {
   // Build the base filename for this content item
@@ -261,6 +263,8 @@ export default function ContentView({
     } finally {
       setGeneratingTakes(false);
       if (onStatusChange) onStatusChange('');
+      // Refresh credits after generation
+      if (onCreditsRefresh) onCreditsRefresh();
     }
   };
 
@@ -377,30 +381,37 @@ export default function ContentView({
               {approvedCount} of {requiredApprovals} approved takes to be complete
             </Typography>
           </Box>
-          <Button
-            variant={item.all_approved ? 'outlined' : 'contained'}
-            size="small"
-            color={item.all_approved ? 'success' : 'primary'}
-            disabled={saving}
-            onClick={async () => {
-              // Bypass sectionComplete check for toggling all_approved
-              try {
-                setSaving(true);
-                setError(null);
-                const result = await updateContent(item.id, { all_approved: !item.all_approved });
-                if (result.content && onContentUpdated) {
-                  onContentUpdated(result.content);
-                }
-              } catch (err) {
-                setError(err.message || String(err));
-              } finally {
-                setSaving(false);
-              }
-            }}
-            sx={{ ...DESIGN_SYSTEM.typography.small }}
+          <Tooltip 
+            title={approvedCount === 0 && !item.all_approved ? "At least one take must be approved before marking complete" : ""}
+            arrow
           >
-            {item.all_approved ? 'Completed ✓' : 'Mark As Completed'}
-          </Button>
+            <span>
+              <Button
+                variant={item.all_approved ? 'outlined' : 'contained'}
+                size="small"
+                color={item.all_approved ? 'success' : 'primary'}
+                disabled={saving || (approvedCount === 0 && !item.all_approved)}
+                onClick={async () => {
+                  // Bypass sectionComplete check for toggling all_approved
+                  try {
+                    setSaving(true);
+                    setError(null);
+                    const result = await updateContent(item.id, { all_approved: !item.all_approved });
+                    if (result.content && onContentUpdated) {
+                      onContentUpdated(result.content);
+                    }
+                  } catch (err) {
+                    setError(err.message || String(err));
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                sx={{ ...DESIGN_SYSTEM.typography.small }}
+              >
+                {item.all_approved ? 'Completed ✓' : 'Mark As Completed'}
+              </Button>
+            </span>
+          </Tooltip>
         </Box>
         
         {loadingTakes ? (
