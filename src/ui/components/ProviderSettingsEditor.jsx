@@ -14,9 +14,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { previewVoice } from '../api/client.js';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
-// Cache for voice previews to avoid regenerating the same audio
-const voicePreviewCache = new Map();
-
 // Default settings by content type
 const DEFAULT_SETTINGS = {
   dialogue: {
@@ -92,7 +89,6 @@ export default function ProviderSettingsEditor({
   const handlePlayPreview = async () => {
     if (!currentSettings.voice_id) return;
     
-    // Create cache key based on voice settings and model
     let stability = currentSettings.stability || 0.5;
     const similarityBoost = currentSettings.similarity_boost || 0.75;
     const modelId = currentSettings.model_id || 'eleven_multilingual_v2';
@@ -104,32 +100,22 @@ export default function ProviderSettingsEditor({
       else if (stability < 0.75) stability = 0.5;
       else stability = 1.0;
     }
-    const cacheKey = `${currentSettings.voice_id}-${modelId}-${stability}-${similarityBoost}`;
     
     try {
       setPlayingPreview(true);
       
-      // Check if we have cached audio for this voice/settings combination
-      let audioData = voicePreviewCache.get(cacheKey);
+      // Always generate fresh preview (no cache - settings may have changed)
+      console.log('Generating voice preview for:', currentSettings.voice_id, 'model:', modelId, 'stability:', stability);
+      const result = await previewVoice(
+        currentSettings.voice_id,
+        "The quick brown fox jumps over the lazy dog!",
+        stability,
+        similarityBoost,
+        modelId
+      );
       
-      if (!audioData) {
-        // Generate new audio and cache it
-        console.log('Generating new voice preview for:', currentSettings.voice_id, 'with model:', modelId);
-        const result = await previewVoice(
-          currentSettings.voice_id,
-          "The quick brown fox jumps over the lazy dog!",
-          stability,
-          similarityBoost,
-          modelId
-        );
-        audioData = result.audio;
-        voicePreviewCache.set(cacheKey, audioData);
-      } else {
-        console.log('Using cached voice preview for:', currentSettings.voice_id);
-      }
-      
-      // Create audio element and play the cached or new audio
-      const audio = new Audio(`data:audio/mp3;base64,${audioData}`);
+      // Play the audio
+      const audio = new Audio(`data:audio/mp3;base64,${result.audio}`);
       await audio.play();
     } catch (err) {
       console.error('Failed to play voice preview:', err);
