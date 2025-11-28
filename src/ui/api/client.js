@@ -7,6 +7,10 @@ export async function fetchJson(path) {
   return res.json();
 }
 
+export function getProviderCredits() {
+  return fetchJson('/api/provider/credits');
+}
+
 export async function deleteActor(id) {
   const res = await fetch(`/api/actors/${encodeURIComponent(id)}`, {
     method: 'DELETE',

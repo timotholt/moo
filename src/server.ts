@@ -719,6 +719,38 @@ fastify.get('/api/jobs', async () => {
   return { jobs };
 });
 
+// Get provider credits/usage (currently only ElevenLabs)
+fastify.get('/api/provider/credits', async (request, reply) => {
+  try {
+    const projectRoot = getProjectRoot();
+    const provider = await getAudioProvider(projectRoot);
+    const quota = await provider.getQuota();
+
+    // ElevenLabs quota is in characters. Approximate remaining credits
+    // as remaining characters for now.
+    const remaining = Math.max(0, quota.character_limit - quota.character_count);
+
+    return {
+      provider: 'elevenlabs',
+      character_count: quota.character_count,
+      character_limit: quota.character_limit,
+      remaining_credits: remaining,
+      raw: quota,
+    };
+  } catch (err) {
+    request.log.error(err);
+    // If we can't get credits, return a graceful fallback instead of 500
+    // so the UI can show "credits unavailable" without logging errors.
+    return {
+      provider: 'elevenlabs',
+      character_count: 0,
+      character_limit: 0,
+      remaining_credits: null,
+      error: (err as Error).message,
+    };
+  }
+});
+
 // Global defaults endpoints
 fastify.get('/api/defaults', async () => {
   const projectRoot = getProjectRoot();
