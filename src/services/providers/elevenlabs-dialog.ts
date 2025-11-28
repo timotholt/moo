@@ -18,17 +18,28 @@ export class ElevenLabsDialogApi {
     modelId?: string
   ): Promise<Buffer> {
     const path = `/text-to-speech/${voiceId}`;
+    const effectiveModelId = modelId || DEFAULT_MODEL_ID;
+    
+    // v3 can cut off audio abruptly - add trailing ellipsis to create a natural pause
+    let processedText = text;
+    if (effectiveModelId === 'eleven_v3') {
+      // Only add if text doesn't already end with punctuation that creates a pause
+      const lastChar = text.trim().slice(-1);
+      if (!['.', '!', '?', '…', ','].includes(lastChar)) {
+        processedText = text.trim() + ' ...';
+      }
+    }
 
     const body = {
-      text,
-      model_id: modelId || DEFAULT_MODEL_ID,
+      text: processedText,
+      model_id: effectiveModelId,
       voice_settings: settings || {
         stability: 0.5,
         similarity_boost: 0.75,
       },
     };
 
-    console.log('[ElevenLabsDialogApi] generateDialogue request:', { voiceId, modelId: body.model_id, textLength: text.length });
+    console.log('[ElevenLabsDialogApi] generateDialogue request:', { voiceId, modelId: body.model_id, textLength: processedText.length });
 
     return this.common.getAudio(path, {
       method: 'POST',
