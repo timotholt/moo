@@ -1,15 +1,18 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { GenerationJob } from '../../types/index.js';
 import { readJsonl } from '../../utils/jsonl.js';
 import { runBatchGeneration } from '../../services/generation.js';
 
-export function registerGenerationRoutes(fastify: any, getProjectContext: any) {
+type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
+
+export function registerGenerationRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
   fastify.get('/api/jobs', async () => {
     const { paths } = getProjectContext();
     const jobs = await readJsonl<GenerationJob>(paths.catalog.generationJobs);
     return { jobs };
   });
 
-  fastify.post('/api/generation/batch', async (request: any, reply: any) => {
+  fastify.post('/api/generation/batch', async (request: FastifyRequest, reply: FastifyReply) => {
     const { projectRoot } = getProjectContext();
     const body = request.body as {
       actorId?: string;

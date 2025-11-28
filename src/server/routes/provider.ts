@@ -1,10 +1,13 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAudioProvider } from '../../services/provider-factory.js';
 
 // In-memory cache for voice previews
 const voicePreviewCache = new Map<string, string>();
 
-export function registerProviderRoutes(fastify: any, getProjectContext: any) {
-  fastify.get('/api/voices', async (request: any, reply: any) => {
+type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
+
+export function registerProviderRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
+  fastify.get('/api/voices', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { projectRoot } = getProjectContext();
       const provider = await getAudioProvider(projectRoot);
@@ -24,7 +27,7 @@ export function registerProviderRoutes(fastify: any, getProjectContext: any) {
     }
   });
 
-  fastify.post('/api/voices/preview', async (request: any, reply: any) => {
+  fastify.post('/api/voices/preview', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { projectRoot } = getProjectContext();
       const provider = await getAudioProvider(projectRoot);
@@ -77,7 +80,7 @@ export function registerProviderRoutes(fastify: any, getProjectContext: any) {
   });
 
   // Get provider credits/usage (currently only ElevenLabs)
-  fastify.get('/api/provider/credits', async (request: any, reply: any) => {
+  fastify.get('/api/provider/credits', async (request: FastifyRequest, _reply: FastifyReply) => {
     try {
       const { projectRoot } = getProjectContext();
       const provider = await getAudioProvider(projectRoot);

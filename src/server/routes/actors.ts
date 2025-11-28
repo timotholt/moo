@@ -1,18 +1,21 @@
 import { join } from 'path';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Actor, Content, Take } from '../../types/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { validate } from '../../utils/validation.js';
 
-export function registerActorRoutes(fastify: any, getProjectContext: any) {
+type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
+
+export function registerActorRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
   fastify.get('/api/actors', async () => {
     const { paths } = getProjectContext();
     const actors = await readJsonl<Actor>(paths.catalog.actors);
     return { actors };
   });
 
-  fastify.post('/api/actors', async (request: any, reply: any) => {
-    const { projectRoot, paths } = getProjectContext();
+  fastify.post('/api/actors', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { paths } = getProjectContext();
     await ensureJsonlFile(paths.catalog.actors);
 
     const body = request.body as Partial<Actor> | undefined;
@@ -62,7 +65,7 @@ export function registerActorRoutes(fastify: any, getProjectContext: any) {
     return { actor };
   });
 
-  fastify.put('/api/actors/:id', async (request: any, reply: any) => {
+  fastify.put('/api/actors/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { paths } = getProjectContext();
     
     const { id } = request.params as { id: string };
@@ -105,7 +108,7 @@ export function registerActorRoutes(fastify: any, getProjectContext: any) {
     return { actor: updatedActor };
   });
 
-  fastify.delete('/api/actors/:id', async (request: any, reply: any) => {
+  fastify.delete('/api/actors/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { paths } = getProjectContext();
 
     const { id } = request.params as { id: string };

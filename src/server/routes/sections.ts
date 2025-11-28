@@ -1,14 +1,17 @@
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Section, Content, Take } from '../../types/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 
-export function registerSectionRoutes(fastify: any, getProjectContext: any) {
+type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
+
+export function registerSectionRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
   fastify.get('/api/sections', async () => {
     const { paths } = getProjectContext();
     const sections = await readJsonl<Section>(paths.catalog.sections);
     return { sections };
   });
 
-  fastify.post('/api/sections', async (request: any, reply: any) => {
+  fastify.post('/api/sections', async (request: FastifyRequest, reply: FastifyReply) => {
     const { paths } = getProjectContext();
     await ensureJsonlFile(paths.catalog.sections);
 
@@ -37,7 +40,7 @@ export function registerSectionRoutes(fastify: any, getProjectContext: any) {
     return { section };
   });
 
-  fastify.put('/api/sections/:id', async (request: any, reply: any) => {
+  fastify.put('/api/sections/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { paths } = getProjectContext();
     
     const { id } = request.params as { id: string };
@@ -88,7 +91,7 @@ export function registerSectionRoutes(fastify: any, getProjectContext: any) {
     return { section: updatedSection };
   });
 
-  fastify.delete('/api/sections/:id', async (request: any, reply: any) => {
+  fastify.delete('/api/sections/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { paths } = getProjectContext();
 
     const { id } = request.params as { id: string };
