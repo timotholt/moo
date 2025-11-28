@@ -31,6 +31,7 @@ export default function App() {
   });
   const [statusText, setStatusText] = useState('');
   const [providerCredits, setProviderCredits] = useState('');
+  const [currentProject, setCurrentProject] = useState(null);
 
   // Global audio player state
   const [currentTake, setCurrentTake] = useState(null);
@@ -143,8 +144,12 @@ export default function App() {
           onBlankSpaceConversionChange={setBlankSpaceConversion}
           capitalizationConversion={capitalizationConversion}
           onCapitalizationConversionChange={setCapitalizationConversion}
+          currentProject={currentProject}
+          onProjectChange={setCurrentProject}
         />
         <ProjectShell 
+          key={currentProject?.name || 'no-project'}
+          currentProject={currentProject}
           blankSpaceConversion={blankSpaceConversion} 
           capitalizationConversion={capitalizationConversion}
           onStatusChange={setStatusText}

@@ -11,7 +11,8 @@
   "music": {
     "provider": "elevenlabs",
     "batch_generate": 1,
-    "approval_count_default": 1
+    "approval_count_default": 1,
+    "duration_seconds": 46
   },
   "sfx": {
     "provider": "elevenlabs",

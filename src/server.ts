@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
+import { join } from 'path';
 import { getProjectPaths } from './utils/paths.js';
 import { registerActorRoutes } from './server/routes/actors.js';
 import { registerContentRoutes } from './server/routes/content.js';
@@ -9,29 +10,24 @@ import { registerDefaultsRoutes } from './server/routes/defaults.js';
 import { registerProviderRoutes } from './server/routes/provider.js';
 import { registerGenerationRoutes } from './server/routes/generation.js';
 import llmRoutes from './server/routes/llm.js';
+import projectRoutes, { setCurrentProject, getCurrentProjectPath } from './server/routes/projects.js';
 
 const fastify = Fastify({
   logger: false,
 });
 
-// Serve media files statically
-const projectRoot = process.cwd();
-const paths = getProjectPaths(projectRoot);
-fastify.register(fastifyStatic, {
-  root: paths.media,
-  prefix: '/media/',
-  decorateReply: false,
-});
+// Projects directory
+const PROJECTS_DIR = join(process.cwd(), 'projects');
 
-function getProjectRoot(): string {
-  return process.cwd();
-}
-
+// Dynamic project context - uses the switchable project path
 function getProjectContext() {
-  const projectRoot = getProjectRoot();
+  const projectRoot = getCurrentProjectPath();
   const paths = getProjectPaths(projectRoot);
   return { projectRoot, paths };
 }
+
+// Export for use by project routes
+export { getProjectContext, PROJECTS_DIR };
 
 fastify.get('/api/health', async () => {
   return { status: 'ok' };
@@ -46,6 +42,7 @@ registerDefaultsRoutes(fastify, getProjectContext);
 registerProviderRoutes(fastify, getProjectContext);
 registerGenerationRoutes(fastify, getProjectContext);
 fastify.register(llmRoutes);
+fastify.register(projectRoutes);
 
 async function start() {
   try {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -27,12 +27,52 @@ const DEFAULT_SETTINGS = {
     provider: 'elevenlabs',
     batch_generate: 1,
     approval_count_default: 1,
+    duration_seconds: 30,
   },
   sfx: {
     provider: 'elevenlabs',
     batch_generate: 1,
     approval_count_default: 1,
   }
+};
+
+// Format helpers for music duration (stored as seconds, shown as mm:ss)
+const formatSecondsToMmSs = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
+  const total = Math.floor(seconds);
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+};
+
+const parseMmSsToSeconds = (input) => {
+  const trimmed = String(input || '').trim();
+  if (!trimmed) return null;
+
+  // Allow plain seconds like "90"
+  if (!trimmed.includes(':')) {
+    const sec = Number(trimmed);
+    return Number.isFinite(sec) ? sec : null;
+  }
+
+  // Accept formats like "1:30", "1:3", "1:" (=> 1 minute)
+  const [mmStrRaw, ssStrRaw = ''] = trimmed.split(':');
+  const mmStr = mmStrRaw.trim();
+  const ssStr = ssStrRaw.trim();
+
+  const mm = Number(mmStr);
+  if (!Number.isFinite(mm) || mm < 0) return null;
+
+  let ss = 0;
+  if (ssStr !== '') {
+    ss = Number(ssStr);
+    if (!Number.isFinite(ss) || ss < 0) return null;
+  }
+
+  // Clamp seconds component to [0,59]
+  if (ss > 59) ss = 59;
+
+  return mm * 60 + ss;
 };
 
 export default function ProviderSettingsEditor({ 
@@ -45,13 +85,15 @@ export default function ProviderSettingsEditor({
   error 
 }) {
   const [playingPreview, setPlayingPreview] = useState(false);
+  // Local text state for music duration in mm:ss format
+  const [durationText, setDurationText] = useState(() => formatSecondsToMmSs(DEFAULT_SETTINGS.music.duration_seconds));
 
   // Only include valid provider_settings properties to avoid schema validation errors
   const sanitizeSettings = (rawSettings) => {
     if (!rawSettings || rawSettings.provider === 'inherit') {
       return { provider: 'inherit' };
     }
-    const validKeys = ['provider', 'voice_id', 'model_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost'];
+    const validKeys = ['provider', 'voice_id', 'model_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost', 'duration_seconds'];
     const sanitized = {};
     for (const key of validKeys) {
       if (rawSettings[key] !== undefined) {
@@ -59,12 +101,6 @@ export default function ProviderSettingsEditor({
       }
     }
     return sanitized;
-  };
-
-  // Use currentSettings as base to ensure we're working with actual values, not undefined
-  const getBaseSettings = () => {
-    const isInheriting = settings?.provider === 'inherit';
-    return isInheriting ? DEFAULT_SETTINGS[contentType] : (settings || DEFAULT_SETTINGS[contentType]);
   };
 
   const handleChange = (key, value) => {
@@ -84,6 +120,21 @@ export default function ProviderSettingsEditor({
       console.log('[ProviderSettingsEditor] handleMultiChange:', changes, 'new settings:', newSettings);
       onSettingsChange(sanitizeSettings(newSettings));
     }
+  };
+
+  // Keep durationText in sync when duration_seconds changes externally
+  useEffect(() => {
+    if (contentType === 'music') {
+      const base = getBaseSettings();
+      const duration = base.duration_seconds || DEFAULT_SETTINGS.music.duration_seconds;
+      setDurationText(formatSecondsToMmSs(duration));
+    }
+  }, [contentType, settings?.duration_seconds]);
+
+  // Use currentSettings as base to ensure we're working with actual values, not undefined
+  const getBaseSettings = () => {
+    const isInheriting = settings?.provider === 'inherit';
+    return isInheriting ? DEFAULT_SETTINGS[contentType] : (settings || DEFAULT_SETTINGS[contentType]);
   };
 
   const handlePlayPreview = async () => {
@@ -182,8 +233,25 @@ export default function ProviderSettingsEditor({
                     value={currentSettings.model_id || 'eleven_multilingual_v2'}
                     label="Model"
                     onChange={(e) => {
-                      console.log('[ProviderSettingsEditor] Model onChange fired:', e.target.value);
-                      handleChange('model_id', e.target.value);
+                      const newModel = e.target.value;
+                      console.log('[ProviderSettingsEditor] Model onChange fired:', newModel);
+
+                      // Adjust stability per model so the slider is always in a valid position
+                      let newStability = currentSettings.stability;
+                      if (newModel === 'eleven_v3') {
+                        // v3 only supports 0.0, 0.5, 1.0
+                        if (newStability == null) newStability = 0.5;
+                        if (newStability < 0.25) newStability = 0.0;
+                        else if (newStability < 0.75) newStability = 0.5;
+                        else newStability = 1.0;
+                      } else {
+                        // v2/turbo/flash can use any 0–1 value; default to 0.5 if unset
+                        if (newStability == null || Number.isNaN(newStability)) {
+                          newStability = 0.5;
+                        }
+                      }
+
+                      handleMultiChange({ model_id: newModel, stability: newStability });
                     }}
                   >
                     <MenuItem value="eleven_v3">Eleven v3 (alpha) - Audio tags [angry], [whispers]</MenuItem>
@@ -201,7 +269,7 @@ export default function ProviderSettingsEditor({
                 const compatibleVoices = voices.filter(voice => {
                   const modelIds = voice.high_quality_base_model_ids || [];
                   return modelIds.some(id => id.includes(selectedModel) || selectedModel.includes(id));
-                });
+                }).sort((a, b) => a.name.localeCompare(b.name));
                 // Only use saved voice_id if it exists in the compatible voices list
                 const currentVoiceId = compatibleVoices.some(v => v.voice_id === currentSettings.voice_id)
                   ? currentSettings.voice_id
@@ -209,14 +277,33 @@ export default function ProviderSettingsEditor({
                 
                 return (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <FormControl size="small" sx={{ ...DESIGN_SYSTEM.components.formControl, flexGrow: 1 }}>
-                    <InputLabel>Voice</InputLabel>
+                  <FormControl size="small" variant="outlined" sx={{ ...DESIGN_SYSTEM.components.formControl, flexGrow: 1 }}>
+                    <InputLabel id="provider-voice-select-label" shrink>Voice</InputLabel>
                     <Select
+                      labelId="provider-voice-select-label"
                       value={currentVoiceId}
                       label="Voice"
+                      displayEmpty
+                      renderValue={(value) => {
+                        if (!value) return '- None -';
+                        const v = compatibleVoices.find(vo => vo.voice_id === value);
+                        return v ? v.name : '- None -';
+                      }}
                       onChange={(e) => handleChange('voice_id', e.target.value)}
-                      disabled={loadingVoices || voices.length === 0}
+                      disabled={loadingVoices}
+                      MenuProps={{
+                        PaperProps: {
+                          style: {
+                            maxHeight: 48 * 6 + 8, // ~6 items tall, then scroll
+                          },
+                        },
+                      }}
                     >
+                      {/* Explicit no-default option so user can clear the voice */}
+                      <MenuItem value="">
+                        - None -
+                      </MenuItem>
+
                       {voices.length === 0 ? (
                         <MenuItem value="" disabled>
                           {loadingVoices ? 'Loading voices...' : 'No voices available (check API key)'}
@@ -323,6 +410,70 @@ export default function ProviderSettingsEditor({
                     </Box>
                   )}
                 </>
+                );
+              })()}
+
+              {/* Music-specific settings */}
+              {contentType === 'music' && (() => {
+                const duration = currentSettings.duration_seconds || DEFAULT_SETTINGS.music.duration_seconds;
+                const min = 1;
+                const max = 300;
+
+                const handleDurationSecondsChange = (seconds) => {
+                  let v = Number(seconds) || 0;
+                  if (v < min) v = min;
+                  if (v > max) v = max;
+                  handleChange('duration_seconds', v);
+                  setDurationText(formatSecondsToMmSs(v));
+                };
+
+                const handleDurationTextChange = (value) => {
+                  setDurationText(value);
+                  const secs = parseMmSsToSeconds(value);
+                  if (secs != null) {
+                    handleDurationSecondsChange(secs);
+                  }
+                };
+
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {/* Primary row: Duration input with mm:ss label inside the border */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <TextField
+                        size="small"
+                        label="Duration (mm:ss)"
+                        value={durationText}
+                        onChange={(e) => handleDurationTextChange(e.target.value)}
+                        placeholder="mm:ss"
+                        sx={{ width: 160, ...DESIGN_SYSTEM.components.formControl }}
+                      />
+                    </Box>
+
+                    {/* Secondary row: slider for quick adjustment */}
+                    <Slider
+                      value={duration}
+                      onChange={(e, value) => handleDurationSecondsChange(value)}
+                      min={min}
+                      max={max}
+                      step={1}
+                      marks={[
+                        { value: 1, label: '1s' },
+                        { value: 5, label: '5s' },
+                        { value: 30, label: '30s' },
+                        { value: 60, label: '1:00' },
+                        { value: 90, label: '1:30' },
+                        { value: 120, label: '2:00' },
+                        { value: 150, label: '2:30' },
+                        { value: 180, label: '3:00' },
+                        { value: 210, label: '3:30' },
+                        { value: 240, label: '4:00' },
+                        { value: 270, label: '4:30' },
+                        { value: 300, label: '5:00' },
+                      ]}
+                      size="small"
+                      sx={{ flexGrow: 1, mt: 0.5 }}
+                    />
+                  </Box>
                 );
               })()}
             </>

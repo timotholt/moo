@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SettingsDialog from './SettingsDialog.jsx';
+import ProjectSelector from './ProjectSelector.jsx';
 
 export default function AppBarShell({ 
   themeMode, 
@@ -14,7 +16,9 @@ export default function AppBarShell({
   blankSpaceConversion,
   onBlankSpaceConversionChange,
   capitalizationConversion,
-  onCapitalizationConversionChange
+  onCapitalizationConversionChange,
+  currentProject,
+  onProjectChange
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -22,9 +26,14 @@ export default function AppBarShell({
     <>
       <AppBar position="fixed" color="default" elevation={1} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar variant="dense" sx={{ minHeight: 40, py: 0.25 }}>
-          <Typography variant="body1" sx={{ flexGrow: 1, fontWeight: 500, fontSize: '0.9rem' }} noWrap>
+          <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '0.9rem', mr: 2 }} noWrap>
             VO Foundry
           </Typography>
+          <ProjectSelector 
+            currentProject={currentProject}
+            onProjectChange={onProjectChange}
+          />
+          <Box sx={{ flexGrow: 1 }} />
           <IconButton
             size="small"
             onClick={() => setSettingsOpen(true)}

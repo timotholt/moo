@@ -118,7 +118,7 @@ export async function runBatchGeneration(
                 });
 
                 const takeNumber = baseTakeNumber + i;
-                const filename = `${actor.base_filename}${content.item_id}_take${takeNumber}.wav`;
+                const filename = `${actor.base_filename}${content.cue_id}_take${takeNumber}.wav`;
                 const mediaDir = join(paths.media, 'actors', actor.id, 'dialogue', content.id, 'raw');
                 const filePath = join(mediaDir, filename);
 

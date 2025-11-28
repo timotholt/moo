@@ -333,8 +333,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                             const newCount = contentTakes.filter(t => t.status === 'new' && !playedTakes[t.id]).length;
 
                                             let displayText = contentStatus.approvedCount > 0 
-                                              ? `${c.item_id || c.id} (${contentStatus.approvedCount})`
-                                              : (c.item_id || c.id);
+                                              ? `${c.cue_id || c.id} (${contentStatus.approvedCount})`
+                                              : (c.cue_id || c.id);
 
                                             if (newCount > 0) {
                                               displayText += ` (${newCount} new)`;

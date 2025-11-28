@@ -98,10 +98,10 @@ export default function DetailPane({
           voices={dataOps.voices}
           loadingVoices={dataOps.loadingVoices}
           contentPrompt={dataOps.contentPrompt}
-          contentItemId={dataOps.contentItemId}
+          contentCueId={dataOps.contentCueId}
           creatingContent={dataOps.creatingContent}
           onContentPromptChange={(e) => dataOps.setContentPrompt(e.target.value)}
-          onContentItemIdChange={(e) => dataOps.setContentItemId(e.target.value)}
+          onContentCueIdChange={(e) => dataOps.setContentCueId(e.target.value)}
           onCreateContent={dataOps.createContent}
           onUpdateSectionName={dataOps.updateSectionName}
           onUpdateProviderSettings={dataOps.updateProviderSettings}

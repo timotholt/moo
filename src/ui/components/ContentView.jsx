@@ -96,14 +96,14 @@ export default function ContentView({
   error: parentError 
 }) {
   // Build the base filename for this content item
-  // Strip trailing underscore from actor.base_filename and apply conversions to item_id
+  // Strip trailing underscore from actor.base_filename and apply conversions to cue_id
   const actorBase = stripTrailingUnderscore(actor?.base_filename || 'unknown');
-  const itemIdConverted = applyCapitalizationConversion(
-    applyBlankSpaceConversion(item.item_id || 'untitled', blankSpaceConversion),
+  const cueIdConverted = applyCapitalizationConversion(
+    applyBlankSpaceConversion(item.cue_id || 'untitled', blankSpaceConversion),
     capitalizationConversion
   );
   const baseFilename = applyCapitalizationConversion(
-    `${actorBase}_${item.content_type}_${itemIdConverted}`,
+    `${actorBase}_${item.content_type}_${cueIdConverted}`,
     capitalizationConversion
   );
   
@@ -112,9 +112,9 @@ export default function ContentView({
   const [error, setError] = useState(null);
   
   // Editable fields
-  const [itemId, setItemId] = useState(item.item_id || '');
-  // Default prompt to item_id with first letter capitalized if not set
-  const defaultPrompt = item.item_id ? item.item_id.charAt(0).toUpperCase() + item.item_id.slice(1) : '';
+  const [cueId, setCueId] = useState(item.cue_id || '');
+  // Default prompt to cue_id with first letter capitalized if not set
+  const defaultPrompt = item.cue_id ? item.cue_id.charAt(0).toUpperCase() + item.cue_id.slice(1) : '';
   const [prompt, setPrompt] = useState(item.prompt || defaultPrompt);
   // Initialize filename with stored value or auto-generated baseFilename
   const [filename, setFilename] = useState(item.filename || baseFilename);
@@ -132,18 +132,18 @@ export default function ContentView({
 
   // Sync local state when item changes
   useEffect(() => {
-    setItemId(item.item_id || '');
-    // Use stored prompt or default to item_id with first letter capitalized
-    const newDefaultPrompt = item.item_id ? item.item_id.charAt(0).toUpperCase() + item.item_id.slice(1) : '';
+    setCueId(item.cue_id || '');
+    // Use stored prompt or default to cue_id with first letter capitalized
+    const newDefaultPrompt = item.cue_id ? item.cue_id.charAt(0).toUpperCase() + item.cue_id.slice(1) : '';
     setPrompt(item.prompt || newDefaultPrompt);
     // Use stored filename or regenerate from baseFilename with proper formatting
     const newActorBase = stripTrailingUnderscore(actor?.base_filename || 'unknown');
-    const newItemIdConverted = applyCapitalizationConversion(
-      applyBlankSpaceConversion(item.item_id || 'untitled', blankSpaceConversion),
+    const newCueIdConverted = applyCapitalizationConversion(
+      applyBlankSpaceConversion(item.cue_id || 'untitled', blankSpaceConversion),
       capitalizationConversion
     );
     const newBaseFilename = applyCapitalizationConversion(
-      `${newActorBase}_${item.content_type}_${newItemIdConverted}`,
+      `${newActorBase}_${item.content_type}_${newCueIdConverted}`,
       capitalizationConversion
     );
     const effective = item.filename || newBaseFilename;
@@ -155,7 +155,7 @@ export default function ContentView({
       // This will call updateContent('filename', effective)
       handleSaveField('filename', effective);
     }
-  }, [item.id, item.item_id, item.prompt, item.filename, item.content_type, actor, blankSpaceConversion, capitalizationConversion, sectionComplete]);
+  }, [item.id, item.cue_id, item.prompt, item.filename, item.content_type, actor, blankSpaceConversion, capitalizationConversion, sectionComplete]);
   
   // Compute effective filename (custom or auto-generated)
   const effectiveFilename = filename || baseFilename;
@@ -325,7 +325,7 @@ export default function ContentView({
           apiKey: settings.apiKey,
           model: settings.model,
           systemPrompt: settings.systemPrompts?.generate || '',
-          contentName: item.item_id || 'untitled',
+          contentName: item.cue_id || 'untitled',
           actorName: actor?.name || '',
           sectionType: item.content_type
         })
@@ -370,7 +370,7 @@ export default function ContentView({
           model: settings.model,
           systemPrompt: settings.systemPrompts?.improve || '',
           currentPrompt: prompt,
-          contentName: item.item_id || 'untitled',
+          contentName: item.cue_id || 'untitled',
           sectionType: item.content_type
         })
       });
@@ -390,7 +390,7 @@ export default function ContentView({
   };
 
   const handleResetPrompt = () => {
-    const newDefault = item.item_id ? item.item_id.charAt(0).toUpperCase() + item.item_id.slice(1) : '';
+    const newDefault = item.cue_id ? item.cue_id.charAt(0).toUpperCase() + item.cue_id.slice(1) : '';
     setPrompt(newDefault);
     handleSaveField('prompt', newDefault);
     setAiError('');
@@ -422,10 +422,10 @@ export default function ContentView({
       <TextField
         fullWidth
         size="small"
-        label="Item ID"
-        value={itemId}
-        onChange={(e) => setItemId(e.target.value)}
-        onBlur={() => itemId !== item.item_id && handleSaveField('item_id', itemId)}
+        label="Cue ID"
+        value={cueId}
+        onChange={(e) => setCueId(e.target.value)}
+        onBlur={() => cueId !== item.cue_id && handleSaveField('cue_id', cueId)}
         disabled={isDisabled || saving}
         sx={{ mb: DESIGN_SYSTEM.spacing.elementGap, ...DESIGN_SYSTEM.components.formControl }}
       />
@@ -725,7 +725,7 @@ export default function ContentView({
                       </Typography>
                     )}
                     <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block' }}>
-                      <strong>Prompt:</strong> {take.generation_params?.prompt || item.prompt || item.item_id || 'unknown'}
+                      <strong>Prompt:</strong> {take.generation_params?.prompt || item.prompt || item.cue_id || 'unknown'}
                     </Typography>
                     <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block' }}>
                       <strong>Generated:</strong> {formatStatusDate(take.generation_params?.generated_at || take.created_at)}
@@ -745,40 +745,65 @@ export default function ContentView({
         
         {/* Generate Takes Button at bottom */}
         <Box sx={{ mt: 2 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            fullWidth
-            disabled={isDisabled || generatingTakes}
-            onClick={handleGenerateTakes}
-            sx={{ ...DESIGN_SYSTEM.typography.small }}
-          >
-            {generatingTakes ? 'Generating...' : `Generate ${actor?.provider_settings?.[item.content_type]?.batch_generate || 1} Takes Now!`}
-          </Button>
-        </Box>
-      </Box>
+          {(() => {
+            const dialogueProvider = actor?.provider_settings?.dialogue;
+            const voiceMissing = item.content_type === 'dialogue' && (!dialogueProvider || !dialogueProvider.voice_id);
+            const disabled = isDisabled || generatingTakes || voiceMissing;
+            const batchCount = actor?.provider_settings?.[item.content_type]?.batch_generate || 1;
+            const label = generatingTakes
+              ? 'Generating takes...'
+              : `Generate ${batchCount} Take${batchCount > 1 ? 's' : ''}`;
 
-      <Dialog
-        open={confirmDeleteContentOpen}
-        onClose={() => {
-          if (!deleting) setConfirmDeleteContentOpen(false);
-        }}
-      >
-        <DialogTitle>Delete content?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            This will remove this content item and all of its takes. This cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDeleteContentOpen(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button color="error" onClick={handleConfirmDeleteContent} disabled={deleting}>
-            {deleting ? 'Deleting…' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            const button = (
+              <Button
+                variant="outlined"
+                size="small"
+                fullWidth
+                disabled={disabled}
+                onClick={handleGenerateTakes}
+                sx={{ ...DESIGN_SYSTEM.typography.small }}
+              >
+                {label}
+              </Button>
+            );
+
+            if (voiceMissing) {
+              return (
+                <Tooltip
+                  title="Select a default dialogue voice in Provider settings before generating takes."
+                  arrow
+                >
+                  <span>{button}</span>
+                </Tooltip>
+              );
+            }
+
+            return button;
+          })()}
+        </Box>
+        
+        <Dialog
+          open={confirmDeleteContentOpen}
+          onClose={() => {
+            if (!deleting) setConfirmDeleteContentOpen(false);
+          }}
+        >
+          <DialogTitle>Delete content?</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              This will remove this content item and all of its takes. This cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmDeleteContentOpen(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button color="error" onClick={handleConfirmDeleteContent} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
     </Box>
   );
 }

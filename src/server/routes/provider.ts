@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAudioProvider } from '../../services/provider-factory.js';
+import { setElevenLabsApiKey, getElevenLabsApiKey } from '../../services/global-config.js';
 
 // In-memory cache for voice previews
 const voicePreviewCache = new Map<string, string>();
@@ -110,6 +111,68 @@ export function registerProviderRoutes(fastify: FastifyInstance, getProjectConte
         remaining_credits: null,
         error: (err as Error).message,
       };
+    }
+  });
+
+  // Get saved ElevenLabs API key (masked)
+  fastify.get('/api/provider/api-key', async (_request: FastifyRequest, _reply: FastifyReply) => {
+    const apiKey = await getElevenLabsApiKey();
+    if (apiKey) {
+      // Return masked key for display
+      const masked = apiKey.slice(0, 4) + '...' + apiKey.slice(-4);
+      return { hasKey: true, masked };
+    }
+    return { hasKey: false };
+  });
+
+  // Save ElevenLabs API key
+  fastify.post('/api/provider/api-key', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { apiKey?: string } | null;
+    
+    if (!body?.apiKey) {
+      reply.code(400);
+      return { error: 'API key is required' };
+    }
+    
+    await setElevenLabsApiKey(body.apiKey);
+    return { success: true };
+  });
+
+  // Test ElevenLabs API key
+  fastify.post('/api/provider/test-key', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = request.body as { apiKey?: string } | null;
+      
+      if (!body?.apiKey) {
+        reply.code(400);
+        return { success: false, error: 'API key is required' };
+      }
+
+      // Test the key by fetching user info
+      const response = await fetch('https://api.elevenlabs.io/v1/user', {
+        headers: {
+          'xi-api-key': body.apiKey,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json() as { subscription?: { tier?: string } };
+        return { 
+          success: true, 
+          user: {
+            subscription: data.subscription?.tier || 'unknown',
+          }
+        };
+      } else {
+        const errorText = await response.text();
+        return { 
+          success: false, 
+          error: response.status === 401 ? 'Invalid API key' : errorText 
+        };
+      }
+    } catch (err) {
+      request.log.error(err);
+      return { success: false, error: (err as Error).message };
     }
   });
 }

@@ -29,6 +29,8 @@ import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 // Local storage keys for LLM settings
 const LLM_STORAGE_KEY = 'vofoundry-llm-settings';
+// Global storage for ElevenLabs API key (shared across projects)
+const ELEVENLABS_KEY_STORAGE = 'vofoundry-elevenlabs-apikey';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -85,6 +87,14 @@ export default function SettingsDialog({
 }) {
   const [tabValue, setTabValue] = useState(0);
   
+  // ElevenLabs settings state
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState(() => 
+    localStorage.getItem(ELEVENLABS_KEY_STORAGE) || ''
+  );
+  const [showElevenLabsKey, setShowElevenLabsKey] = useState(false);
+  const [elevenLabsTestStatus, setElevenLabsTestStatus] = useState(null);
+  const [elevenLabsTestError, setElevenLabsTestError] = useState('');
+  
   // LLM settings state
   const [providers, setProviders] = useState([]);
   const [llmSettings, setLLMSettings] = useState(loadLLMSettings);
@@ -121,6 +131,63 @@ export default function SettingsDialog({
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
+  };
+
+  // Load saved API key info on mount (do not overwrite localStorage value)
+  useEffect(() => {
+    fetch('/api/provider/api-key')
+      .then(res => res.json())
+      .then(data => {
+        if (data.hasKey) {
+          // A key exists on the server; assume it's valid for now
+          setElevenLabsTestStatus('success');
+        }
+      })
+      .catch(err => console.error('Failed to check API key:', err));
+  }, []);
+
+  // ElevenLabs handlers
+  const handleElevenLabsKeyChange = (value) => {
+    setElevenLabsApiKey(value);
+    // Persist like the Groq key so the field survives reloads
+    try {
+      localStorage.setItem(ELEVENLABS_KEY_STORAGE, value);
+    } catch (e) {
+      console.error('Failed to save ElevenLabs key to localStorage:', e);
+    }
+    setElevenLabsTestStatus(null);
+  };
+
+  const handleTestElevenLabs = async () => {
+    setElevenLabsTestStatus('testing');
+    setElevenLabsTestError('');
+    
+    try {
+      // Test the key
+      const testRes = await fetch('/api/provider/test-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: elevenLabsApiKey })
+      });
+      
+      const testData = await testRes.json();
+      
+      if (testRes.ok && testData.success) {
+        // Save the key if test passed
+        await fetch('/api/provider/api-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apiKey: elevenLabsApiKey })
+        });
+        setElevenLabsTestStatus('success');
+      } else {
+        setElevenLabsTestStatus('error');
+        setElevenLabsTestError(testData.error || 'Connection failed');
+      }
+    } catch (err) {
+      setElevenLabsTestStatus('error');
+      setElevenLabsTestError(err.message);
+    }
   };
 
   const handleLLMSettingChange = (key, value) => {
@@ -183,71 +250,89 @@ export default function SettingsDialog({
       <DialogContent sx={{ overflowY: 'scroll' }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="settings tabs">
-            <Tab label="Theme" id="settings-tab-0" aria-controls="settings-tabpanel-0" />
-            <Tab label="Filename" id="settings-tab-1" aria-controls="settings-tabpanel-1" />
-            <Tab label="AI" id="settings-tab-2" aria-controls="settings-tabpanel-2" />
+            <Tab label="Provider" id="settings-tab-0" aria-controls="settings-tabpanel-0" />
+            <Tab label="AI" id="settings-tab-1" aria-controls="settings-tabpanel-1" />
+            <Tab label="Theme" id="settings-tab-2" aria-controls="settings-tabpanel-2" />
+            <Tab label="Filename" id="settings-tab-3" aria-controls="settings-tabpanel-3" />
           </Tabs>
         </Box>
         
+        {/* Provider Tab (index 0) */}
         <TabPanel value={tabValue} index={0}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
-              <InputLabel>Theme Mode</InputLabel>
-              <Select
-                value={themeMode}
-                label="Theme Mode"
-                onChange={(e) => onThemeModeChange(e.target.value)}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Configure your ElevenLabs API key for voice generation.
+            </Typography>
+
+            <TextField
+              size="small"
+              fullWidth
+              label="API Key"
+              type={showElevenLabsKey ? 'text' : 'password'}
+              value={elevenLabsApiKey}
+              onChange={(e) => handleElevenLabsKeyChange(e.target.value)}
+              placeholder="Enter your ElevenLabs API key"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowElevenLabsKey(!showElevenLabsKey)}
+                      edge="end"
+                      sx={{ p: 0.5 }}
+                    >
+                      {showElevenLabsKey ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
+              }}
+              sx={DESIGN_SYSTEM.components.formControl}
+            />
+
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleTestElevenLabs}
+                disabled={!elevenLabsApiKey || elevenLabsTestStatus === 'testing'}
               >
-                <MenuItem value="light">Light</MenuItem>
-                <MenuItem value="dark">Dark</MenuItem>
-              </Select>
-            </FormControl>
-            
-            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
-              <InputLabel>Font Size</InputLabel>
-              <Select
-                value={fontSize}
-                label="Font Size"
-                onChange={(e) => onFontSizeChange(e.target.value)}
+                {elevenLabsTestStatus === 'testing' ? (
+                  <CircularProgress size={16} sx={{ mr: 1 }} />
+                ) : null}
+                Test Connection
+              </Button>
+              
+              {elevenLabsTestStatus === 'success' && (
+                <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
+                  <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                  <Typography variant="caption">Connected</Typography>
+                </Box>
+              )}
+              
+              {elevenLabsTestStatus === 'error' && (
+                <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
+                  <ErrorIcon fontSize="small" sx={{ mr: 0.5 }} />
+                  <Typography variant="caption">{elevenLabsTestError}</Typography>
+                </Box>
+              )}
+              
+              <Button
+                size="small"
+                variant="text"
+                href="https://elevenlabs.io/app/settings/api-keys"
+                target="_blank"
+                endIcon={<OpenInNewIcon fontSize="small" />}
+                sx={{ ml: 'auto' }}
               >
-                <MenuItem value="small">Small</MenuItem>
-                <MenuItem value="medium">Medium</MenuItem>
-                <MenuItem value="large">Large</MenuItem>
-              </Select>
-            </FormControl>
+                Get API Key
+              </Button>
+            </Box>
           </Box>
         </TabPanel>
 
+        {/* AI Tab (index 1) */}
         <TabPanel value={tabValue} index={1}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
-              <InputLabel>Blank Space Conversion</InputLabel>
-              <Select
-                value={blankSpaceConversion || 'underscore'}
-                label="Blank Space Conversion"
-                onChange={(e) => onBlankSpaceConversionChange(e.target.value)}
-              >
-                <MenuItem value="underscore">Convert blank spaces to underscores (recommended)</MenuItem>
-                <MenuItem value="delete">Delete blank spaces from filenames</MenuItem>
-                <MenuItem value="keep">Leave blank spaces</MenuItem>
-              </Select>
-            </FormControl>
-            
-            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
-              <InputLabel>Capitalization Conversion</InputLabel>
-              <Select
-                value={capitalizationConversion || 'lowercase'}
-                label="Capitalization Conversion"
-                onChange={(e) => onCapitalizationConversionChange(e.target.value)}
-              >
-                <MenuItem value="lowercase">Convert to lower case (recommended)</MenuItem>
-                <MenuItem value="keep">Leave capitals as is</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Configure AI to help generate and improve voice-over prompts.
@@ -280,32 +365,32 @@ export default function SettingsDialog({
               )}
             </Box>
 
-            {/* API Key - multiline to handle long keys */}
-            <Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">API Key</Typography>
-                <IconButton
-                  size="small"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  sx={{ p: 0.25 }}
-                >
-                  {showApiKey ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
-                </IconButton>
-              </Box>
-              <TextField
-                size="small"
-                fullWidth
-                multiline
-                rows={2}
-                value={showApiKey ? llmSettings.apiKey : llmSettings.apiKey ? '•'.repeat(Math.min(llmSettings.apiKey.length, 40)) : ''}
-                onChange={(e) => showApiKey && handleLLMSettingChange('apiKey', e.target.value)}
-                placeholder="Paste your API key here"
-                InputProps={{
-                  sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
-                  readOnly: !showApiKey
-                }}
-              />
-            </Box>
+            {/* API Key - single row with inline eye icon, like Provider tab */}
+            <TextField
+              size="small"
+              fullWidth
+              label="API Key"
+              type={showApiKey ? 'text' : 'password'}
+              value={llmSettings.apiKey}
+              onChange={(e) => handleLLMSettingChange('apiKey', e.target.value)}
+              placeholder="Enter your API key"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      edge="end"
+                      sx={{ p: 0.5 }}
+                    >
+                      {showApiKey ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+                sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
+              }}
+              sx={DESIGN_SYSTEM.components.formControl}
+            />
 
             {/* Model Selection */}
             <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
@@ -392,6 +477,66 @@ export default function SettingsDialog({
                 </Box>
               </AccordionDetails>
             </Accordion>
+          </Box>
+        </TabPanel>
+
+        {/* Theme Tab (index 2) */}
+        <TabPanel value={tabValue} index={2}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
+              <InputLabel>Theme Mode</InputLabel>
+              <Select
+                value={themeMode}
+                label="Theme Mode"
+                onChange={(e) => onThemeModeChange(e.target.value)}
+              >
+                <MenuItem value="light">Light</MenuItem>
+                <MenuItem value="dark">Dark</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
+              <InputLabel>Font Size</InputLabel>
+              <Select
+                value={fontSize}
+                label="Font Size"
+                onChange={(e) => onFontSizeChange(e.target.value)}
+              >
+                <MenuItem value="small">Small</MenuItem>
+                <MenuItem value="medium">Medium</MenuItem>
+                <MenuItem value="large">Large</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+        </TabPanel>
+
+        {/* Filename Tab (index 3) */}
+        <TabPanel value={tabValue} index={3}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
+              <InputLabel>Blank Space Conversion</InputLabel>
+              <Select
+                value={blankSpaceConversion || 'underscore'}
+                label="Blank Space Conversion"
+                onChange={(e) => onBlankSpaceConversionChange(e.target.value)}
+              >
+                <MenuItem value="underscore">Convert blank spaces to underscores (recommended)</MenuItem>
+                <MenuItem value="delete">Delete blank spaces from filenames</MenuItem>
+                <MenuItem value="keep">Leave blank spaces</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <FormControl size="small" fullWidth sx={DESIGN_SYSTEM.components.formControl}>
+              <InputLabel>Capitalization Conversion</InputLabel>
+              <Select
+                value={capitalizationConversion || 'lowercase'}
+                label="Capitalization Conversion"
+                onChange={(e) => onCapitalizationConversionChange(e.target.value)}
+              >
+                <MenuItem value="lowercase">Convert to lower case (recommended)</MenuItem>
+                <MenuItem value="keep">Leave capitals as is</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
         </TabPanel>
       </DialogContent>

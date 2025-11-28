@@ -36,6 +36,7 @@ export interface Actor {
             provider: 'elevenlabs' | 'manual' | 'inherit';
             batch_generate?: number;
             approval_count_default?: number;
+            duration_seconds?: number;
         };
         sfx?: {
             provider: 'elevenlabs' | 'manual' | 'inherit';
@@ -54,7 +55,7 @@ export interface Content {
     id: string;
     actor_id: string;
     content_type: ContentType;
-    item_id: string;
+    cue_id: string;
     prompt: string;
     complete: boolean;
     all_approved: boolean;

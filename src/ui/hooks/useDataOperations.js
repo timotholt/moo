@@ -12,25 +12,37 @@ export function useDataOperations({
   onSectionUpdated 
 }) {
   const [contentPrompt, setContentPrompt] = useState('');
-  const [contentItemId, setContentItemId] = useState('');
+  const [contentCueId, setContentCueId] = useState('');
   const [creatingContent, setCreatingContent] = useState(false);
   const [voices, setVoices] = useState([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [error, setError] = useState(null);
 
-  // Auto-load voices when needed
+  // Auto-load voices when needed:
+  // - when a content section is selected
+  // - when the Provider Defaults screen is active
   useEffect(() => {
-    if (selectedNode?.type?.endsWith('-section')) {
-      const contentType = selectedNode.type.replace('-section', '');
-      const sectionData = sections.find(s => s.id === selectedNode.id);
-      if (sectionData) {
-        const actor = actors.find((a) => a.id === sectionData.actor_id);
-        const providerSettings = actor?.provider_settings?.[contentType];
-        
-        if (providerSettings?.provider === 'elevenlabs' && voices.length === 0 && !loadingVoices) {
-          loadVoices();
+    const needsVoices = () => {
+      if (selectedNode?.type === 'provider-default') {
+        // Defaults screen may need voices for dialogue voice selection
+        return true;
+      }
+
+      if (selectedNode?.type?.endsWith('-section')) {
+        const contentType = selectedNode.type.replace('-section', '');
+        const sectionData = sections.find(s => s.id === selectedNode.id);
+        if (sectionData) {
+          const actor = actors.find((a) => a.id === sectionData.actor_id);
+          const providerSettings = actor?.provider_settings?.[contentType];
+          return providerSettings?.provider === 'elevenlabs';
         }
       }
+
+      return false;
+    };
+
+    if (needsVoices() && voices.length === 0 && !loadingVoices) {
+      loadVoices();
     }
   }, [selectedNode, actors, sections, voices.length, loadingVoices]);
 
@@ -71,11 +83,11 @@ export function useDataOperations({
       setError(null);
       
       // Only send prompt if user explicitly provided one
-      // Server will default each item's prompt to its own item_id
+      // Server will default each item's prompt to its own cue_id
       const result = await createContent({
         actor_id: actorId,
         content_type: contentType,
-        item_id: contentItemId,
+        cue_id: contentCueId,
         prompt: contentPrompt || undefined,
       });
       if (result && result.content && onContentCreated) {
@@ -100,7 +112,7 @@ export function useDataOperations({
         }
       }
       setContentPrompt('');
-      setContentItemId('');
+      setContentCueId('');
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -146,9 +158,14 @@ export function useDataOperations({
     }
     
     // Valid keys per content type
-    const validKeys = contentType === 'dialogue'
-      ? ['provider', 'voice_id', 'model_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost']
-      : ['provider', 'batch_generate', 'approval_count_default'];
+    let validKeys;
+    if (contentType === 'dialogue') {
+      validKeys = ['provider', 'voice_id', 'model_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost'];
+    } else if (contentType === 'music') {
+      validKeys = ['provider', 'batch_generate', 'approval_count_default', 'duration_seconds'];
+    } else {
+      validKeys = ['provider', 'batch_generate', 'approval_count_default'];
+    }
     
     const sanitized = {};
     for (const key of validKeys) {
@@ -234,7 +251,7 @@ export function useDataOperations({
   return {
     // State
     contentPrompt,
-    contentItemId,
+    contentCueId,
     creatingContent,
     voices,
     loadingVoices,
@@ -243,7 +260,7 @@ export function useDataOperations({
     
     // Handlers
     setContentPrompt,
-    setContentItemId,
+    setContentCueId,
     createContent: createContentItem,
     createSection: createSectionForActor,
     updateProviderSettings,

@@ -210,3 +210,66 @@ export async function updateTake(id, payload) {
   }
   return res.json();
 }
+
+// Project management
+export async function getProjects() {
+  const res = await fetch('/api/projects');
+  if (!res.ok) {
+    throw new Error(`Failed to get projects: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function createProject(name) {
+  const res = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to create project: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function deleteProject(name) {
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to delete project: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function copyProject(name, newName) {
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newName }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to copy project: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function getCurrentProject() {
+  const res = await fetch('/api/projects/current');
+  if (!res.ok) {
+    throw new Error(`Failed to get current project: ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function switchProject(name) {
+  const res = await fetch('/api/projects/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to switch project: ${await res.text()}`);
+  }
+  return res.json();
+}

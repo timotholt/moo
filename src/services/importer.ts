@@ -88,7 +88,7 @@ export async function importContentService(projectRoot: string, inputStream: Rea
             id: generateId(),
             actor_id: record.actor_id,
             content_type: record.content_type,
-            item_id: record.item_id,
+            cue_id: record.cue_id,
             prompt: record.prompt,
             complete: false,
             all_approved: false,

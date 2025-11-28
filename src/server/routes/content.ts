@@ -33,52 +33,52 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     const body = request.body as {
       actor_id: string;
       content_type: Content['content_type'];
-      item_id: string;
+      cue_id: string;
       prompt?: string;
       tags?: string[];
     } | null;
 
-    if (!body || !body.actor_id || !body.content_type || !body.item_id) {
+    if (!body || !body.actor_id || !body.content_type || !body.cue_id) {
       reply.code(400);
-      return { error: 'actor_id, content_type, and item_id are required' };
+      return { error: 'actor_id, content_type, and cue_id are required' };
     }
 
     const now = new Date().toISOString();
 
-    // Support batch creation by splitting comma-separated item_ids
-    const allItemIds = body.item_id.split(',').map(id => id.trim()).filter(id => id.length > 0);
+    // Support batch creation by splitting comma-separated cue_ids
+    const allCueIds = body.cue_id.split(',').map((id: string) => id.trim()).filter((id: string) => id.length > 0);
     
-    if (allItemIds.length === 0) {
+    if (allCueIds.length === 0) {
       reply.code(400);
-      return { error: 'At least one valid item_id is required' };
+      return { error: 'At least one valid cue_id is required' };
     }
 
     // Check for existing content and filter out duplicates
     const existingContent = await readJsonl<Content>(paths.catalog.content);
-    const existingItemIds = new Set(
+    const existingCueIds = new Set(
       existingContent
         .filter(c => c.actor_id === body.actor_id && c.content_type === body.content_type)
-        .map(c => c.item_id)
+        .map(c => c.cue_id)
     );
     
-    const itemIds = allItemIds.filter(id => !existingItemIds.has(id));
-    const duplicateIds = allItemIds.filter(id => existingItemIds.has(id));
+    const cueIds = allCueIds.filter((id: string) => !existingCueIds.has(id));
+    const duplicateIds = allCueIds.filter((id: string) => existingCueIds.has(id));
     
-    if (itemIds.length === 0) {
+    if (cueIds.length === 0) {
       reply.code(400);
-      return { error: 'All provided item_ids already exist for this actor and content type', duplicates: duplicateIds };
+      return { error: 'All provided cue_ids already exist for this actor and content type', duplicates: duplicateIds };
     }
 
     const createdContent: Content[] = [];
 
-    for (const itemId of itemIds) {
-      // Default prompt to the individual item_id (title-cased) if no custom prompt provided
-      const defaultPrompt = itemId.charAt(0).toUpperCase() + itemId.slice(1);
+    for (const cueId of cueIds) {
+      // Default prompt to the individual cue_id (title-cased) if no custom prompt provided
+      const defaultPrompt = cueId.charAt(0).toUpperCase() + cueId.slice(1);
       const content: Content = {
         id: generateId(),
         actor_id: body.actor_id,
         content_type: body.content_type,
-        item_id: itemId,
+        cue_id: cueId,
         prompt: body.prompt || defaultPrompt,
         complete: false,
         all_approved: false,
@@ -90,7 +90,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
       const validation = validate('content', content);
       if (!validation.valid) {
         reply.code(400);
-        return { error: `Invalid content for item_id "${itemId}"`, details: validation.errors };
+        return { error: `Invalid content for cue_id "${cueId}"`, details: validation.errors };
       }
 
       await appendJsonl(paths.catalog.content, content);
@@ -98,12 +98,12 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     }
 
     // Return the first item for single creation, or array for batch
-    const result: { content: Content | Content[]; duplicates_skipped?: string[]; message?: string } = itemIds.length === 1 ? { content: createdContent[0] } : { content: createdContent };
+    const result: { content: Content | Content[]; duplicates_skipped?: string[]; message?: string } = cueIds.length === 1 ? { content: createdContent[0] } : { content: createdContent };
     
     // Include information about duplicates if any were skipped
     if (duplicateIds.length > 0) {
       result.duplicates_skipped = duplicateIds;
-      result.message = `Created ${itemIds.length} items. Skipped ${duplicateIds.length} duplicates: ${duplicateIds.join(', ')}`;
+      result.message = `Created ${cueIds.length} items. Skipped ${duplicateIds.length} duplicates: ${duplicateIds.join(', ')}`;
     }
     
     return result;
@@ -210,11 +210,11 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
 
       // Compute the base filename in the same style as the UI's Filenames tab.
       const actorBase = (actor.base_filename || 'unknown').replace(/_+$/, '');
-      const safeItemId = (content.item_id || 'untitled')
+      const safeCueId = (content.cue_id || 'untitled')
         .trim()
         .replace(/\s+/g, '_')
         .toLowerCase();
-      const derivedBaseFilename = `${actorBase}_${content.content_type}_${safeItemId}`;
+      const derivedBaseFilename = `${actorBase}_${content.content_type}_${safeCueId}`;
       const contentFilename = (content as Content & { filename?: string }).filename;
       const baseFilename = contentFilename && contentFilename.trim().length > 0
         ? contentFilename.trim()
@@ -226,7 +226,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
       let dialogSettingsForMetadata: { voice_id?: string; model_id?: string; stability?: number; similarity_boost?: number } | null = null;
 
       for (let i = 0; i < count; i++) {
-        const textPrompt = content.prompt || content.item_id || 'Hello';
+        const textPrompt = content.prompt || content.cue_id || 'Hello';
         let buffer: Buffer;
         let relativePath: string;
         let mediaDir: string;
@@ -273,7 +273,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
           }
 
           buffer = await provider.generateMusic(textPrompt, {
-            duration_seconds: 60,
+            duration_seconds: musicSettings.duration_seconds || 30,
           });
           relativePath = join('actors', actor.id, 'music', content.id, 'raw', filename);
           mediaDir = join(paths.media, 'actors', actor.id, 'music', content.id, 'raw');

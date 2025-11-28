@@ -31,10 +31,10 @@ export default function SectionView({
   voices,
   loadingVoices,
   contentPrompt,
-  contentItemId,
+  contentCueId,
   creatingContent,
   onContentPromptChange,
-  onContentItemIdChange,
+  onContentCueIdChange,
   onCreateContent,
   onUpdateSectionName,
   onUpdateProviderSettings,
@@ -246,10 +246,10 @@ export default function SectionView({
         <TextField
           fullWidth
           size="small"
-          label="Item IDs (comma-separated)"
+          label="Cue IDs (comma-separated)"
           placeholder="Hi, Yes, No, My name is"
-          value={contentItemId}
-          onChange={onContentItemIdChange}
+          value={contentCueId}
+          onChange={onContentCueIdChange}
           required
           disabled={sectionComplete}
           sx={{ mb: DESIGN_SYSTEM.spacing.tightGap, ...DESIGN_SYSTEM.components.formControl }}
@@ -269,7 +269,7 @@ export default function SectionView({
         <Button
           variant="contained"
           size="small"
-          disabled={sectionComplete || !contentItemId.trim() || creatingContent}
+          disabled={sectionComplete || !contentCueId.trim() || creatingContent}
           onClick={() => onCreateContent(sectionData.actor_id, sectionData.content_type)}
         >
           {creatingContent ? 'Creating…' : `Add ${toTitleCase(contentType)} Content`}
