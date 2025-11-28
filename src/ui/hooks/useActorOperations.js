@@ -11,14 +11,28 @@ export function useActorOperations({ onActorCreated, onActorUpdated, onActorDele
       setCreating(true);
       setError(null);
       const result = await createActor(actorData);
-      if (result && result.actor && onActorCreated) {
-        onActorCreated(result.actor);
+      
+      // Handle batch creation (multiple actors) or single actor
+      if (result && onActorCreated) {
+        if (result.actors && Array.isArray(result.actors)) {
+          // Batch creation - multiple actors
+          result.actors.forEach(actor => onActorCreated(actor));
+        } else if (result.actor) {
+          // Single actor creation
+          onActorCreated(result.actor);
+        }
         
-        // Auto-expand Actors to show the new actor
+        // Auto-expand Actors to show the new actor(s)
         if (expandNode) {
           expandNode('actors');
         }
       }
+      
+      // Show message about duplicates if any were skipped
+      if (result.message) {
+        setError(result.message);
+      }
+      
       return result;
     } catch (err) {
       setError(err.message || String(err));

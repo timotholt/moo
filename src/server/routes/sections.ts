@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Section, Content, Take } from '../../types/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
+import { generateId } from '../../utils/ids.js';
 
 type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
 
@@ -38,7 +39,7 @@ export function registerSectionRoutes(fastify: FastifyInstance, getProjectContex
 
     const now = new Date().toISOString();
     const section: Section = {
-      id: `${body.actor_id}-${body.content_type}`,
+      id: generateId(),
       actor_id: body.actor_id,
       content_type: body.content_type,
       name: body.name,
@@ -130,10 +131,8 @@ export function registerSectionRoutes(fastify: FastifyInstance, getProjectContex
     // Remove section
     const remainingSections = sections.filter(s => s.id !== id);
     
-    // Remove all content in this section
-    const removedContent = contentItems.filter(c => 
-      c.actor_id === section.actor_id && c.content_type === section.content_type
-    );
+    // Remove all content in this section (now keyed by section_id)
+    const removedContent = contentItems.filter(c => c.section_id === section.id);
     const removedContentIds = new Set(removedContent.map(c => c.id));
     const remainingContent = contentItems.filter(c => !removedContentIds.has(c.id));
     

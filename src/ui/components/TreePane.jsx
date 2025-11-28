@@ -49,7 +49,10 @@ function getContentStatus(content, takes = []) {
 
 function getSectionStatus(sectionItem, content, takes) {
   const sectionContent = content.filter(
-    c => c.actor_id === sectionItem.actor_id && c.content_type === sectionItem.content_type
+    c =>
+      c.actor_id === sectionItem.actor_id &&
+      c.content_type === sectionItem.content_type &&
+      c.section_id === sectionItem.id
   );
   
   if (sectionContent.length === 0) {
@@ -326,7 +329,12 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                     <Collapse in={expanded[sectionKey]} timeout="auto" unmountOnExit>
                                       <List component="div" disablePadding>
                                         {content
-                                          .filter((c) => c.actor_id === actor.id && c.content_type === sectionType)
+                                          .filter(
+                                            (c) =>
+                                              c.actor_id === actor.id &&
+                                              c.content_type === sectionType &&
+                                              c.section_id === sectionItem.id
+                                          )
                                           .map((c) => {
                                             const contentStatus = getContentStatus(c, takes);
                                             const contentTakes = takes.filter(t => t.content_id === c.id);

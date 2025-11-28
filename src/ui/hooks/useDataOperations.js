@@ -77,7 +77,7 @@ export function useDataOperations({
     }
   };
 
-  const createContentItem = async (actorId, contentType) => {
+  const createContentItem = async (actorId, contentType, sectionId) => {
     try {
       setCreatingContent(true);
       setError(null);
@@ -87,6 +87,7 @@ export function useDataOperations({
       const result = await createContent({
         actor_id: actorId,
         content_type: contentType,
+        section_id: sectionId,
         cue_id: contentCueId,
         prompt: contentPrompt || undefined,
       });
@@ -101,9 +102,8 @@ export function useDataOperations({
         if (expandNode) {
           expandNode('actors');
           expandNode(`actor-${actorId}`);
-          const section = sections.find(s => s.actor_id === actorId && s.content_type === contentType);
-          if (section) {
-            expandNode(`section-${section.id}`);
+          if (sectionId) {
+            expandNode(`section-${sectionId}`);
           }
         }
         
@@ -176,38 +176,30 @@ export function useDataOperations({
     return sanitized;
   };
 
-  const updateProviderSettings = async (actorId, contentType, newSettings) => {
+  // Update provider settings on a SECTION (not actor)
+  // Each section has its own provider_settings, independent of other sections
+  const updateSectionProviderSettings = async (sectionId, newSettings) => {
     try {
-      console.log('[useDataOperations] updateProviderSettings called:', { actorId, contentType, newSettings });
-      const actor = actors.find(a => a.id === actorId);
-      if (!actor) return;
-
-      // Sanitize each content type's settings
-      const sanitizedNewSettings = sanitizeProviderSettings(newSettings, contentType);
+      console.log('[useDataOperations] updateSectionProviderSettings called:', { sectionId, newSettings });
       
-      const updatedProviderSettings = {};
-      
-      // Copy and sanitize existing settings for other content types
-      if (actor.provider_settings) {
-        for (const ct of ['dialogue', 'music', 'sfx']) {
-          if (ct === contentType) {
-            updatedProviderSettings[ct] = sanitizedNewSettings;
-          } else if (actor.provider_settings[ct]) {
-            updatedProviderSettings[ct] = sanitizeProviderSettings(actor.provider_settings[ct], ct);
-          }
-        }
-      } else {
-        updatedProviderSettings[contentType] = sanitizedNewSettings;
+      // Find the section to get its content type for sanitization
+      const section = sections.find(s => s.id === sectionId);
+      if (!section) {
+        console.error('[useDataOperations] Section not found:', sectionId);
+        return;
       }
 
-      console.log('[useDataOperations] Sending to API:', { provider_settings: updatedProviderSettings });
-      const result = await updateActor(actorId, {
-        provider_settings: updatedProviderSettings
+      // Sanitize the settings based on content type
+      const sanitizedSettings = sanitizeProviderSettings(newSettings, section.content_type);
+
+      console.log('[useDataOperations] Sending to API:', { provider_settings: sanitizedSettings });
+      const result = await updateSection(sectionId, {
+        provider_settings: sanitizedSettings
       });
 
       console.log('[useDataOperations] API result:', result);
-      if (result && result.actor && onActorUpdated) {
-        onActorUpdated(result.actor);
+      if (result && result.section && onSectionUpdated) {
+        onSectionUpdated(result.section);
       }
     } catch (err) {
       console.error('[useDataOperations] Error:', err);
@@ -263,7 +255,7 @@ export function useDataOperations({
     setContentCueId,
     createContent: createContentItem,
     createSection: createSectionForActor,
-    updateProviderSettings,
+    updateProviderSettings: updateSectionProviderSettings,
     updateSectionName,
     updateBaseFilename,
     updateDisplayName

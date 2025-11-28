@@ -55,6 +55,7 @@ export interface Content {
     id: string;
     actor_id: string;
     content_type: ContentType;
+    section_id: string; // Section this content belongs to
     cue_id: string;
     prompt: string;
     complete: boolean;
@@ -70,6 +71,16 @@ export interface Section {
     actor_id: string;
     content_type: ContentType;
     name?: string; // Custom section name like "Story Dialog", "Combat Dialog"
+    provider_settings?: {
+        provider: 'elevenlabs' | 'manual' | 'inherit';
+        voice_id?: string;
+        model_id?: string;
+        batch_generate?: number;
+        approval_count_default?: number;
+        stability?: number;
+        similarity_boost?: number;
+        duration_seconds?: number;
+    };
     created_at: string;
     updated_at: string;
 }

@@ -1,6 +1,6 @@
 import { join } from 'path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { Actor, Content, Take } from '../../types/index.js';
+import type { Actor, Content, Take, Section } from '../../types/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { validate } from '../../utils/validation.js';
@@ -18,13 +18,15 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     const { paths } = ctx;
     const contentItems = await readJsonl<Content>(paths.catalog.content);
 
-    const query = request.query as { actorId?: string; type?: string };
+    const query = request.query as { actorId?: string; type?: string; sectionId?: string };
     const actorId = query.actorId;
     const type = query.type as Content['content_type'] | undefined;
+    const sectionId = query.sectionId;
 
     const filtered = contentItems.filter((c: Content) => {
       if (actorId && c.actor_id !== actorId) return false;
       if (type && c.content_type !== type) return false;
+      if (sectionId && c.section_id !== sectionId) return false;
       return true;
     });
 
@@ -43,14 +45,15 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     const body = request.body as {
       actor_id: string;
       content_type: Content['content_type'];
+      section_id: string;
       cue_id: string;
       prompt?: string;
       tags?: string[];
     } | null;
 
-    if (!body || !body.actor_id || !body.content_type || !body.cue_id) {
+    if (!body || !body.actor_id || !body.content_type || !body.section_id || !body.cue_id) {
       reply.code(400);
-      return { error: 'actor_id, content_type, and cue_id are required' };
+      return { error: 'actor_id, content_type, section_id, and cue_id are required' };
     }
 
     const now = new Date().toISOString();
@@ -88,6 +91,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
         id: generateId(),
         actor_id: body.actor_id,
         content_type: body.content_type,
+        section_id: body.section_id,
         cue_id: cueId,
         prompt: body.prompt || defaultPrompt,
         complete: false,
@@ -221,6 +225,35 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
         return { error: 'Actor not found' };
       }
 
+      // Load section to get per-section provider settings
+      const sectionsData = await readJsonl<Section>(paths.catalog.sections);
+      const section = sectionsData.find(s => s.id === content.section_id);
+      if (!section) {
+        reply.code(404);
+        return { error: 'Section not found for this content' };
+      }
+
+      // Get section settings, falling back to global defaults if 'inherit'
+      let sectionSettings = section.provider_settings;
+      if (!sectionSettings || sectionSettings.provider === 'inherit') {
+        // Load global defaults
+        const defaultsPath = join(paths.root, 'defaults.json');
+        let globalDefaults: Record<string, Record<string, unknown>> = {
+          dialogue: { provider: 'elevenlabs', stability: 0.5, similarity_boost: 0.75 },
+          music: { provider: 'elevenlabs', duration_seconds: 30 },
+          sfx: { provider: 'elevenlabs' },
+        };
+        try {
+          const fs = await import('fs-extra').then(m => m.default);
+          if (await fs.pathExists(defaultsPath)) {
+            globalDefaults = await fs.readJson(defaultsPath);
+          }
+        } catch (err) {
+          fastify.log.warn(err, 'Failed to load global defaults, using hardcoded values');
+        }
+        sectionSettings = globalDefaults[content.content_type] as Section['provider_settings'];
+      }
+
       const provider = await getAudioProvider(projectRoot);
       await ensureJsonlFile(paths.catalog.takes);
       const existingTakes = await readJsonl<Take>(paths.catalog.takes);
@@ -284,52 +317,49 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
         const filename = `${baseFilename}_v${paddedTake}.wav`;
 
         if (content.content_type === 'dialogue') {
-          const providerSettings = actor.provider_settings?.dialogue;
-          if (!providerSettings || providerSettings.provider !== 'elevenlabs') {
+          if (!sectionSettings || sectionSettings.provider !== 'elevenlabs') {
             reply.code(400);
-            return { error: 'No ElevenLabs provider configured for dialogue' };
+            return { error: 'No ElevenLabs provider configured for dialogue in this section' };
           }
-          if (!providerSettings.voice_id) {
+          if (!sectionSettings.voice_id) {
             reply.code(400);
-            return { error: 'No voice selected for this actor' };
+            return { error: 'No voice selected for this section' };
           }
 
           buffer = await provider.generateDialogue(
             textPrompt,
-            providerSettings.voice_id,
+            sectionSettings.voice_id,
             {
-              stability: providerSettings.stability,
-              similarity_boost: providerSettings.similarity_boost,
+              stability: sectionSettings.stability,
+              similarity_boost: sectionSettings.similarity_boost,
             },
-            providerSettings.model_id
+            sectionSettings.model_id
           );
 
           relativePath = join('actors', actor.id, 'dialogue', content.id, 'raw', filename);
           mediaDir = join(paths.media, 'actors', actor.id, 'dialogue', content.id, 'raw');
 
           dialogSettingsForMetadata = {
-            voice_id: providerSettings.voice_id,
-            model_id: providerSettings.model_id,
-            stability: providerSettings.stability,
-            similarity_boost: providerSettings.similarity_boost,
+            voice_id: sectionSettings.voice_id,
+            model_id: sectionSettings.model_id,
+            stability: sectionSettings.stability,
+            similarity_boost: sectionSettings.similarity_boost,
           };
         } else if (content.content_type === 'music') {
-          const musicSettings = actor.provider_settings?.music;
-          if (!musicSettings || musicSettings.provider !== 'elevenlabs') {
+          if (!sectionSettings || sectionSettings.provider !== 'elevenlabs') {
             reply.code(400);
-            return { error: 'No ElevenLabs provider configured for music' };
+            return { error: 'No ElevenLabs provider configured for music in this section' };
           }
 
           buffer = await provider.generateMusic(textPrompt, {
-            duration_seconds: musicSettings.duration_seconds || 30,
+            duration_seconds: sectionSettings.duration_seconds || 30,
           });
           relativePath = join('actors', actor.id, 'music', content.id, 'raw', filename);
           mediaDir = join(paths.media, 'actors', actor.id, 'music', content.id, 'raw');
         } else if (content.content_type === 'sfx') {
-          const sfxSettings = actor.provider_settings?.sfx;
-          if (!sfxSettings || sfxSettings.provider !== 'elevenlabs') {
+          if (!sectionSettings || sectionSettings.provider !== 'elevenlabs') {
             reply.code(400);
-            return { error: 'No ElevenLabs provider configured for sfx' };
+            return { error: 'No ElevenLabs provider configured for sfx in this section' };
           }
 
           buffer = await provider.generateSFX(textPrompt, {});

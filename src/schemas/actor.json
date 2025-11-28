@@ -11,7 +11,7 @@
         },
         "base_filename": {
             "type": "string",
-            "pattern": "^[a-z0-9_]+_$"
+            "pattern": "^[a-z0-9_]+$"
         },
         "all_approved": {
             "type": "boolean"

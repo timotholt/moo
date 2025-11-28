@@ -51,9 +51,10 @@ export default function SectionView({
 
   const currentSectionName = sectionData?.name || toTitleCase(contentType);
   
-  // Build the base filename: actor_base_filename + suffix (no trailing underscore)
+  // Build the base filename: actor_base_filename + suffix
   const baseFilename = `${actor.base_filename}_${suffix}`;
-  const providerSettings = actor.provider_settings?.[contentType] || { provider: 'elevenlabs' };
+  // Settings are now per-section, not per-actor
+  const providerSettings = sectionData?.provider_settings || { provider: 'inherit' };
 
   const handleSaveSectionName = () => {
     onUpdateSectionName(sectionData.id, sectionName || currentSectionName);
@@ -209,7 +210,7 @@ export default function SectionView({
                 voices={voices}
                 loadingVoices={loadingVoices}
                 onSettingsChange={(newSettings) => {
-                  onUpdateProviderSettings(actor.id, contentType, newSettings);
+                  onUpdateProviderSettings(sectionData.id, newSettings);
                 }}
                 allowInherit={true}
               />
@@ -270,7 +271,7 @@ export default function SectionView({
           variant="contained"
           size="small"
           disabled={sectionComplete || !contentCueId.trim() || creatingContent}
-          onClick={() => onCreateContent(sectionData.actor_id, sectionData.content_type)}
+          onClick={() => onCreateContent(sectionData.actor_id, sectionData.content_type, sectionData.id)}
         >
           {creatingContent ? 'Creating…' : `Add ${toTitleCase(contentType)} Content`}
         </Button>
