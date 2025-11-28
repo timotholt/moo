@@ -3,7 +3,7 @@ import fastifyStatic from '@fastify/static';
 import path, { join } from 'path';
 import { fileURLToPath } from 'url';
 import { getProjectPaths } from './utils/paths.js';
-import { appendJsonl, ensureJsonlFile, readJsonl } from './utils/jsonl.js';
+import { appendJsonl, ensureJsonlFile, readJsonl, writeJsonlAll } from './utils/jsonl.js';
 import type { Actor, Content, Take, GenerationJob, Section } from './types/index.js';
 import { runBatchGeneration } from './services/generation.js';
 import { generateId } from './utils/ids.js';
@@ -131,15 +131,7 @@ fastify.put('/api/actors/:id', async (request, reply) => {
   actors[actorIndex] = updatedActor;
 
   // Write back to file
-  await ensureJsonlFile(paths.catalog.actors);
-  await import('fs-extra').then(async (fsMod) => {
-    const fs = fsMod.default;
-    await fs.writeFile(
-      paths.catalog.actors,
-      actors.map((a) => JSON.stringify(a)).join('\n') + (actors.length ? '\n' : ''),
-      'utf8',
-    );
-  });
+  await writeJsonlAll(paths.catalog.actors, actors);
 
   return { actor: updatedActor };
 });
@@ -168,24 +160,9 @@ fastify.delete('/api/actors/:id', async (request, reply) => {
 
   await fastify.log.debug?.({ remainingActors: remainingActors.length }, 'Actors after delete');
 
-  await import('fs-extra').then(async (fsMod) => {
-    const fs = fsMod.default;
-    await fs.writeFile(
-      paths.catalog.actors,
-      remainingActors.map((a) => JSON.stringify(a)).join('\n') + (remainingActors.length ? '\n' : ''),
-      'utf8',
-    );
-    await fs.writeFile(
-      paths.catalog.content,
-      remainingContent.map((c) => JSON.stringify(c)).join('\n') + (remainingContent.length ? '\n' : ''),
-      'utf8',
-    );
-    await fs.writeFile(
-      paths.catalog.takes,
-      remainingTakes.map((t) => JSON.stringify(t)).join('\n') + (remainingTakes.length ? '\n' : ''),
-      'utf8',
-    );
-  });
+  await writeJsonlAll(paths.catalog.actors, remainingActors);
+  await writeJsonlAll(paths.catalog.content, remainingContent);
+  await writeJsonlAll(paths.catalog.takes, remainingTakes);
 
   reply.code(204);
   return null;
@@ -308,19 +285,8 @@ fastify.delete('/api/content/:id', async (request, reply) => {
   await ensureJsonlFile(paths.catalog.content);
   await ensureJsonlFile(paths.catalog.takes);
 
-  await import('fs-extra').then(async (fsMod) => {
-    const fs = fsMod.default;
-    await fs.writeFile(
-      paths.catalog.content,
-      remainingContent.map((c) => JSON.stringify(c)).join('\n') + (remainingContent.length ? '\n' : ''),
-      'utf8',
-    );
-    await fs.writeFile(
-      paths.catalog.takes,
-      remainingTakes.map((t) => JSON.stringify(t)).join('\n') + (remainingTakes.length ? '\n' : ''),
-      'utf8',
-    );
-  });
+  await writeJsonlAll(paths.catalog.content, remainingContent);
+  await writeJsonlAll(paths.catalog.takes, remainingTakes);
 
   reply.code(204);
   return null;
@@ -498,15 +464,7 @@ fastify.put('/api/sections/:id', async (request, reply) => {
   sections[sectionIndex] = updatedSection;
 
   // Write back to file
-  await ensureJsonlFile(paths.catalog.sections);
-  await import('fs-extra').then(async (fsMod) => {
-    const fs = fsMod.default;
-    await fs.writeFile(
-      paths.catalog.sections,
-      sections.map((s) => JSON.stringify(s)).join('\n') + (sections.length ? '\n' : ''),
-      'utf8',
-    );
-  });
+  await writeJsonlAll(paths.catalog.sections, sections);
 
   return { section: updatedSection };
 });
@@ -545,24 +503,9 @@ fastify.delete('/api/sections/:id', async (request, reply) => {
   await ensureJsonlFile(paths.catalog.content);
   await ensureJsonlFile(paths.catalog.takes);
 
-  await import('fs-extra').then(async (fsMod) => {
-    const fs = fsMod.default;
-    await fs.writeFile(
-      paths.catalog.sections,
-      remainingSections.map(s => JSON.stringify(s)).join('\n') + (remainingSections.length ? '\n' : ''),
-      'utf8',
-    );
-    await fs.writeFile(
-      paths.catalog.content,
-      remainingContent.map(c => JSON.stringify(c)).join('\n') + (remainingContent.length ? '\n' : ''),
-      'utf8',
-    );
-    await fs.writeFile(
-      paths.catalog.takes,
-      remainingTakes.map(t => JSON.stringify(t)).join('\n') + (remainingTakes.length ? '\n' : ''),
-      'utf8',
-    );
-  });
+  await writeJsonlAll(paths.catalog.sections, remainingSections);
+  await writeJsonlAll(paths.catalog.content, remainingContent);
+  await writeJsonlAll(paths.catalog.takes, remainingTakes);
 
   reply.code(204);
   return null;
@@ -607,15 +550,7 @@ fastify.put('/api/content/:id', async (request, reply) => {
   contentItems[contentIndex] = updatedContent;
 
   // Write back to file
-  await ensureJsonlFile(paths.catalog.content);
-  await import('fs-extra').then(async (fsMod) => {
-    const fs = fsMod.default;
-    await fs.writeFile(
-      paths.catalog.content,
-      contentItems.map(c => JSON.stringify(c)).join('\n') + (contentItems.length ? '\n' : ''),
-      'utf8',
-    );
-  });
+  await writeJsonlAll(paths.catalog.content, contentItems);
 
   return { content: updatedContent };
 });
@@ -655,14 +590,7 @@ fastify.put('/api/takes/:id', async (request, reply) => {
   takes[takeIndex] = updatedTake;
 
   // Write back to file
-  await ensureJsonlFile(paths.catalog.takes);
-  const fsMod = await import('fs-extra');
-  const fs = fsMod.default;
-  await fs.writeFile(
-    paths.catalog.takes,
-    takes.map(t => JSON.stringify(t)).join('\n') + (takes.length ? '\n' : ''),
-    'utf8',
-  );
+  await writeJsonlAll(paths.catalog.takes, takes);
 
   return { take: updatedTake };
 });
@@ -1080,13 +1008,7 @@ fastify.post('/api/content/:id/generate', async (request, reply) => {
         next_take_number: nextTakeNumber,
         updated_at: new Date().toISOString(),
       };
-      const fsMod = await import('fs-extra');
-      const fs = fsMod.default;
-      await fs.writeFile(
-        paths.catalog.content,
-        contentItems.map(c => JSON.stringify(c)).join('\n') + (contentItems.length ? '\n' : ''),
-        'utf8',
-      );
+      await writeJsonlAll(paths.catalog.content, contentItems);
     }
 
     return { takes: generatedTakes };
