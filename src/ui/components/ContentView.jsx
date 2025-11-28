@@ -80,6 +80,10 @@ export default function ContentView({
   onTakesGenerated,
   onTakeUpdated,
   onStatusChange,
+  playingContentId,
+  playingTakeId,
+  onPlayRequest,
+  onStopRequest,
   error: parentError 
 }) {
   // Build the base filename for this content item
@@ -111,8 +115,6 @@ export default function ContentView({
   const [takes, setTakes] = useState([]);
   const [loadingTakes, setLoadingTakes] = useState(false);
   const [generatingTakes, setGeneratingTakes] = useState(false);
-  const [playingTakeId, setPlayingTakeId] = useState(null);
-  const [audioElement, setAudioElement] = useState(null);
   const [expandedTakes, setExpandedTakes] = useState({});
   const [playedTakes, setPlayedTakes] = useState({});
 
@@ -200,40 +202,16 @@ export default function ContentView({
     }
   };
 
-  const handlePlayTake = async (take) => {
-    // Stop current audio if playing
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-      setAudioElement(null);
-    }
-    
-    if (playingTakeId === take.id) {
-      setPlayingTakeId(null);
-      return;
-    }
+  const handlePlayTake = (take) => {
+    // Mark as played so (new) tag goes away
+    setPlayedTakes(prev => ({ ...prev, [take.id]: true }));
 
-    try {
-      setPlayingTakeId(take.id);
-      // Mark as played so (new) tag goes away
-      setPlayedTakes(prev => ({ ...prev, [take.id]: true }));
-      // Construct audio URL from take path (normalize backslashes for URL)
-      const audioPath = take.path.replace(/\\/g, '/');
-      const audio = new Audio(`/media/${audioPath}`);
-      audio.onended = () => {
-        setPlayingTakeId(null);
-        setAudioElement(null);
-      };
-      audio.onerror = () => {
-        console.error('Failed to play audio:', take.path);
-        setPlayingTakeId(null);
-        setAudioElement(null);
-      };
-      setAudioElement(audio);
-      await audio.play();
-    } catch (err) {
-      console.error('Failed to play take:', err);
-      setPlayingTakeId(null);
+    const isCurrentlyPlaying = playingContentId === item.id && playingTakeId === take.id;
+
+    if (isCurrentlyPlaying) {
+      if (onStopRequest) onStopRequest();
+    } else if (onPlayRequest) {
+      onPlayRequest(item.id, take);
     }
   };
 

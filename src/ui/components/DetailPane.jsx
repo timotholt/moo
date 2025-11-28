@@ -31,7 +31,11 @@ export default function DetailPane({
   onTakeUpdated,
   blankSpaceConversion,
   capitalizationConversion,
-  onStatusChange
+  onStatusChange,
+  playingContentId,
+  playingTakeId,
+  onPlayRequest,
+  onStopRequest
 }) {
   const actorOps = useActorOperations({ 
     onActorCreated, 
@@ -136,6 +140,10 @@ export default function DetailPane({
           onTakesGenerated={onTakesGenerated}
           onTakeUpdated={onTakeUpdated}
           onStatusChange={onStatusChange}
+          playingContentId={playingContentId}
+          playingTakeId={playingTakeId}
+          onPlayRequest={onPlayRequest}
+          onStopRequest={onStopRequest}
           error={commonError}
         />
       );
