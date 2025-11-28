@@ -1,15 +1,12 @@
 import { join } from 'path';
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Actor, Content, Take } from '../../types/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { validate } from '../../utils/validation.js';
 import { getAudioProvider } from '../../services/provider-factory.js';
 
-type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
-
-export function registerContentRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
-  fastify.get('/api/content', async (request: FastifyRequest) => {
+export function registerContentRoutes(fastify: any, getProjectContext: any) {
+  fastify.get('/api/content', async (request: any) => {
     const { paths } = getProjectContext();
     const contentItems = await readJsonl<Content>(paths.catalog.content);
 
@@ -26,7 +23,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     return { content: filtered };
   });
 
-  fastify.post('/api/content', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/api/content', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
     await ensureJsonlFile(paths.catalog.content);
 
@@ -109,7 +106,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     return result;
   });
 
-  fastify.put('/api/content/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.put('/api/content/:id', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
     
     const { id } = request.params as { id: string };
@@ -152,7 +149,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
     return { content: updatedContent };
   });
 
-  fastify.delete('/api/content/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete('/api/content/:id', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
 
     const { id } = request.params as { id: string };
@@ -174,7 +171,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
   });
 
   // Generate takes for a specific content item
-  fastify.post('/api/content/:id/generate', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.post('/api/content/:id/generate', async (request: any, reply: any) => {
     const { projectRoot, paths } = getProjectContext();
     const { id } = request.params as { id: string };
     const body = request.body as { count?: number } | undefined;
@@ -215,9 +212,8 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
         .replace(/\s+/g, '_')
         .toLowerCase();
       const derivedBaseFilename = `${actorBase}_${content.content_type}_${safeItemId}`;
-      const contentFilename = (content as Content & { filename?: string }).filename;
-      const baseFilename = contentFilename && contentFilename.trim().length > 0
-        ? contentFilename.trim()
+      const baseFilename = (content as any).filename && (content as any).filename.trim().length > 0
+        ? (content as any).filename.trim()
         : derivedBaseFilename;
 
       const generatedTakes: Take[] = [];
@@ -282,7 +278,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
             return { error: 'No ElevenLabs provider configured for sfx' };
           }
 
-          buffer = await provider.generateSFX(textPrompt, {});
+          buffer = await provider.generateSFX(textPrompt, {} as any);
 
           relativePath = join('actors', actor.id, 'sfx', content.id, 'raw', filename);
           mediaDir = join(paths.media, 'actors', actor.id, 'sfx', content.id, 'raw');
@@ -312,7 +308,7 @@ export function registerContentRoutes(fastify: FastifyInstance, getProjectContex
 
         const now = new Date().toISOString();
 
-        let generationParams: Record<string, unknown>;
+        let generationParams: any;
         if (content.content_type === 'dialogue' && dialogSettingsForMetadata) {
           generationParams = {
             provider: 'elevenlabs',

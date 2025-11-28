@@ -1,12 +1,9 @@
 import { join } from 'path';
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Take } from '../../types/index.js';
 import { readJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 
-type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
-
-export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
-  fastify.get('/api/takes', async (request: FastifyRequest) => {
+export function registerTakeRoutes(fastify: any, getProjectContext: any) {
+  fastify.get('/api/takes', async (request: any) => {
     const { paths } = getProjectContext();
     const takes = await readJsonl<Take>(paths.catalog.takes);
 
@@ -18,7 +15,7 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     return { takes: filtered };
   });
 
-  fastify.put('/api/takes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.put('/api/takes/:id', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
     
     const { id } = request.params as { id: string };
@@ -58,7 +55,7 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
   });
 
   // Delete a take
-  fastify.delete('/api/takes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete('/api/takes/:id', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
     
     const { id } = request.params as { id: string };

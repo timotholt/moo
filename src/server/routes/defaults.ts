@@ -1,11 +1,8 @@
 import { join } from 'path';
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
-type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
-
-export function registerDefaultsRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext) {
+export function registerDefaultsRoutes(fastify: any, getProjectContext: any) {
   // Global defaults endpoints
-  fastify.get('/api/defaults', async (_request: FastifyRequest, reply: FastifyReply) => {
+  fastify.get('/api/defaults', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
     const defaultsPath = join(paths.root, 'defaults.json');
     
@@ -46,7 +43,7 @@ export function registerDefaultsRoutes(fastify: FastifyInstance, getProjectConte
     }
   });
 
-  fastify.put('/api/defaults/:contentType', async (request: FastifyRequest<{ Params: { contentType: string } }>, reply: FastifyReply) => {
+  fastify.put('/api/defaults/:contentType', async (request: any, reply: any) => {
     const { paths } = getProjectContext();
     const defaultsPath = join(paths.root, 'defaults.json');
     const contentType = (request.params as { contentType: string }).contentType as 'dialogue' | 'music' | 'sfx';
