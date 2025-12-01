@@ -88,3 +88,24 @@
 {"id":"1764554777970-vrcykj4p6","timestamp":"2025-12-01T02:06:17.970Z","type":"info","message":"Redid: Delete actor: tim6","details":null}
 {"id":"1764554780658-jiunc3kcd","timestamp":"2025-12-01T02:06:20.658Z","type":"info","message":"Undid: Delete actor: tim6","details":null}
 {"id":"1764554827032-q5bbb6lnp","timestamp":"2025-12-01T02:07:07.032Z","type":"info","message":"Deleted: Actors → tim6","details":null}
+{"id":"1764556367518-krzjbzqp3","timestamp":"2025-12-01T02:32:47.518Z","type":"info","message":"Created: Actors → july","details":null}
+{"id":"1764556367520-pogsl76yx","timestamp":"2025-12-01T02:32:47.520Z","type":"info","message":"Created: Actors → august","details":null}
+{"id":"1764556367520-gqxml8uqi","timestamp":"2025-12-01T02:32:47.520Z","type":"info","message":"Created: Actors → september","details":null}
+{"id":"1764556367521-6jrit6di4","timestamp":"2025-12-01T02:32:47.521Z","type":"info","message":"Created: Actors → october","details":null}
+{"id":"1764556376214-wq20c3kmv","timestamp":"2025-12-01T02:32:56.214Z","type":"info","message":"Undid: Create actors: july, august, september, october","details":null}
+{"id":"1764556379328-szsxypmnf","timestamp":"2025-12-01T02:32:59.328Z","type":"info","message":"Redid: Create actors: july, august, september, october","details":null}
+{"id":"1764556383301-rz6q7ivpc","timestamp":"2025-12-01T02:33:03.301Z","type":"info","message":"Created: Actors → october → dialogue","details":null}
+{"id":"1764556384379-4usbq28tt","timestamp":"2025-12-01T02:33:04.379Z","type":"info","message":"Created: Actors → october → dialogue","details":null}
+{"id":"1764556392252-cr4inyxci","timestamp":"2025-12-01T02:33:12.252Z","type":"info","message":"Renamed: Actors → october → Dialogue → week1","details":null}
+{"id":"1764556399182-u1x6m09qo","timestamp":"2025-12-01T02:33:19.182Z","type":"info","message":"Renamed: Actors → october → Dialogue → week2","details":null}
+{"id":"1764556408656-4k93tw1xl","timestamp":"2025-12-01T02:33:28.656Z","type":"info","message":"Created: Actors → october → week2 → 8","details":null}
+{"id":"1764556408659-r3u71w9am","timestamp":"2025-12-01T02:33:28.659Z","type":"info","message":"Created: Actors → october → week2 → 9","details":null}
+{"id":"1764556408660-6n1rsc6gq","timestamp":"2025-12-01T02:33:28.660Z","type":"info","message":"Created: Actors → october → week2 → 10","details":null}
+{"id":"1764556408662-skzuc9pgt","timestamp":"2025-12-01T02:33:28.662Z","type":"info","message":"Created: Actors → october → week2 → 11","details":null}
+{"id":"1764556408664-3h4wb8vuf","timestamp":"2025-12-01T02:33:28.664Z","type":"info","message":"Created: Actors → october → week2 → 12","details":null}
+{"id":"1764556412869-mbuenv3r6","timestamp":"2025-12-01T02:33:32.869Z","type":"info","message":"Undid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764556418891-fxk5zd31i","timestamp":"2025-12-01T02:33:38.891Z","type":"info","message":"Redid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764557497100-3tnvqcbcv","timestamp":"2025-12-01T02:51:37.100Z","type":"info","message":"Deleted: Actors → july","details":null}
+{"id":"1764557503763-t32ntdopl","timestamp":"2025-12-01T02:51:43.763Z","type":"info","message":"Deleted: Actors → august","details":null}
+{"id":"1764557507204-azhu88ov1","timestamp":"2025-12-01T02:51:47.204Z","type":"info","message":"Undid: Delete actor: august","details":null}
+{"id":"1764557513858-hf50ax25f","timestamp":"2025-12-01T02:51:53.858Z","type":"info","message":"Undid: Delete actor: july","details":null}

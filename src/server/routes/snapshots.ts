@@ -157,17 +157,6 @@ export async function saveSnapshot(
   }
 }
 
-/**
- * Legacy function for backwards compatibility
- * Reads catalog internally - prefer saveSnapshot with pre-read data
- */
-export async function saveSnapshotBeforeWrite(
-  paths: ProjectPaths,
-  message: string
-): Promise<void> {
-  const catalog = await readCatalog(paths);
-  return saveSnapshot(paths, message, catalog);
-}
 
 export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext | null) {
   
