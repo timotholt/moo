@@ -131,6 +131,7 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
     let cancelled = false;
     async function load() {
       try {
+        console.log('[Project] Loading project data...');
         setLoading(true);
         const [actorsRes, contentRes, sectionsRes, takesRes] = await Promise.all([
           getActors(), 
@@ -144,10 +145,19 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         setSections(sectionsRes.sections || []);
         setTakes(takesRes.takes || []);
         setError(null);
+        
+        // Log summary
+        const actorCount = actorsRes.actors?.length || 0;
+        const sectionCount = sectionsRes.sections?.length || 0;
+        const cueCount = contentRes.content?.length || 0;
+        const takeCount = takesRes.takes?.length || 0;
+        console.log(`[Project] Loaded: ${actorCount} actors, ${sectionCount} sections, ${cueCount} cues, ${takeCount} takes`);
+        
         // Refresh undo state and logs after project data loads
         undoStack.refreshUndoState();
         reloadLogs();
       } catch (err) {
+        console.error('[Project] Failed to load:', err);
         if (!cancelled) setError(err.message || String(err));
       } finally {
         if (!cancelled) setLoading(false);

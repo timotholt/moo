@@ -64,3 +64,76 @@
 {"id":"1764576547282-lqkk4k0ah","entryType":"log","timestamp":"2025-12-01T08:09:07.282Z","type":"info","message":"system marked actor → ben as complete"}
 {"id":"1764576547295-ycxoiea0p","timestamp":"2025-12-01T08:09:07.295Z","type":"info","message":"user marked actor → ben as complete","details":null}
 {"id":"1764576548304-asz2gdwft","timestamp":"2025-12-01T08:09:08.304Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764576736597-v15djm8x7","timestamp":"2025-12-01T08:12:16.597Z","type":"info","message":"user marked actor → ben → dialogue → 3 as incomplete","details":null}
+{"id":"1764576736647-mit4rkt9e","entryType":"log","timestamp":"2025-12-01T08:12:16.647Z","type":"info","message":"system marked actor → ben → dialogue as incomplete"}
+{"id":"1764576736726-p8kaf7qks","entryType":"log","timestamp":"2025-12-01T08:12:16.726Z","type":"info","message":"system marked actor → ben as incomplete"}
+{"id":"1764576737643-v7xhu9v0w","timestamp":"2025-12-01T08:12:17.643Z","type":"info","message":"user marked actor → ben → dialogue → 3 as complete","details":null}
+{"id":"1764576740888-zmcizd01z","entryType":"log","timestamp":"2025-12-01T08:12:20.888Z","type":"info","message":"system marked actor → ben → dialogue as complete"}
+{"id":"1764576740936-4fgm8fpz8","timestamp":"2025-12-01T08:12:20.936Z","type":"info","message":"user marked actor → ben → dialogue as complete","details":null}
+{"id":"1764576742884-kknprrg32","entryType":"log","timestamp":"2025-12-01T08:12:22.884Z","type":"info","message":"system marked actor → ben as complete"}
+{"id":"1764576742907-s4medhd3b","timestamp":"2025-12-01T08:12:22.907Z","type":"info","message":"user marked actor → ben as complete","details":null}
+{"id":"1764576743923-beoyuq5zs","timestamp":"2025-12-01T08:12:23.923Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764576761076-i7eqcdh0x","timestamp":"2025-12-01T08:12:41.076Z","type":"info","message":"user marked actor → ben → dialogue → 3 as incomplete","details":null}
+{"id":"1764576761123-3jt7ru1bk","entryType":"log","timestamp":"2025-12-01T08:12:41.123Z","type":"info","message":"system marked actor → ben → dialogue as incomplete"}
+{"id":"1764576761186-k0g9maz38","entryType":"log","timestamp":"2025-12-01T08:12:41.187Z","type":"info","message":"system marked actor → ben as incomplete"}
+{"id":"1764576763759-fyev5tee0","timestamp":"2025-12-01T08:12:43.759Z","type":"success","message":"Generated 1 take(s): actor → ben → dialogue → 3","details":null}
+{"id":"1764576775304-qxqlg5ykx","timestamp":"2025-12-01T08:12:55.304Z","type":"info","message":"user marked actor → ben → dialogue → 3 as complete","details":null}
+{"id":"1764576875618-nq32ch2w8","entryType":"log","timestamp":"2025-12-01T08:14:35.618Z","type":"info","message":"system marked actor → ben → dialogue as complete"}
+{"id":"1764576875639-5ssdvbrkk","timestamp":"2025-12-01T08:14:35.639Z","type":"info","message":"user marked actor → ben → dialogue as complete","details":null}
+{"id":"1764576877666-qbn7lrvjm","entryType":"log","timestamp":"2025-12-01T08:14:37.666Z","type":"info","message":"system marked actor → ben as complete"}
+{"id":"1764576877701-3yi6dzdnr","timestamp":"2025-12-01T08:14:37.701Z","type":"info","message":"user marked actor → ben as complete","details":null}
+{"id":"1764576878711-fjyphdptf","timestamp":"2025-12-01T08:14:38.711Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764577097067-9zzivbjib","timestamp":"2025-12-01T08:18:17.067Z","type":"info","message":"user marked actor → ben → dialogue → 3 as incomplete","details":null}
+{"id":"1764577097119-50hzav3fh","entryType":"log","timestamp":"2025-12-01T08:18:17.119Z","type":"info","message":"system marked actor → ben → dialogue as incomplete"}
+{"id":"1764577097210-ms78dy1yb","entryType":"log","timestamp":"2025-12-01T08:18:17.210Z","type":"info","message":"system marked actor → ben as incomplete"}
+{"id":"1764577099373-lgp19b9vf","timestamp":"2025-12-01T08:18:19.373Z","type":"success","message":"Generated 1 take(s): actor → ben → dialogue → 3","details":null}
+{"id":"1764577109977-3z95uuxo0","timestamp":"2025-12-01T08:18:29.977Z","type":"info","message":"user marked actor → ben → dialogue → 3 as complete","details":null}
+{"id":"1764577112472-nmcx7koii","entryType":"log","timestamp":"2025-12-01T08:18:32.472Z","type":"info","message":"system marked actor → ben → dialogue as complete"}
+{"id":"1764577112491-1ivt4jxen","timestamp":"2025-12-01T08:18:32.491Z","type":"info","message":"user marked actor → ben → dialogue as complete","details":null}
+{"id":"1764577116573-ol9gxiy3p","entryType":"log","timestamp":"2025-12-01T08:18:36.573Z","type":"info","message":"system marked actor → ben as complete"}
+{"id":"1764577116588-qc5547mnm","timestamp":"2025-12-01T08:18:36.588Z","type":"info","message":"user marked actor → ben as complete","details":null}
+{"id":"1764577117595-ky8v4zmba","timestamp":"2025-12-01T08:18:37.595Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764577155039-cx62zan8z","timestamp":"2025-12-01T08:19:15.039Z","type":"info","message":"Created: actor → tim","details":null}
+{"id":"1764577167818-5uzpn70zk","timestamp":"2025-12-01T08:19:27.818Z","type":"info","message":"Created: actor → tim → dialogue","details":null}
+{"id":"1764577185161-bhvaah3qo","entryType":"log","timestamp":"2025-12-01T08:19:45.161Z","type":"info","message":"system marked actor → tim as complete"}
+{"id":"1764577185182-rgrfs2gen","timestamp":"2025-12-01T08:19:45.182Z","type":"info","message":"user marked actor → tim as complete","details":null}
+{"id":"1764577186185-2yz7zih05","timestamp":"2025-12-01T08:19:46.185Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764577584252-hz729y816","timestamp":"2025-12-01T08:26:24.252Z","type":"info","message":"Created: actor → tim → dialogue → hi","details":null}
+{"id":"1764577584253-azfcfcs61","timestamp":"2025-12-01T08:26:24.253Z","type":"info","message":"Created: actor → tim → dialogue → no","details":null}
+{"id":"1764577584254-up2mi0lle","timestamp":"2025-12-01T08:26:24.254Z","type":"info","message":"Created: actor → tim → dialogue → what's up","details":null}
+{"id":"1764577588885-4ewwqfrz4","timestamp":"2025-12-01T08:26:28.885Z","type":"success","message":"Generated 1 take(s): actor → tim → dialogue → hi","details":null}
+{"id":"1764577588886-5vumrm7kw","timestamp":"2025-12-01T08:26:28.886Z","type":"info","message":"Generated 1 take(s) (tim_dialogue_hi_v001.wav)","details":null}
+{"id":"1764577591824-iu80wj3jq","timestamp":"2025-12-01T08:26:31.824Z","type":"success","message":"Generated 1 take(s): actor → tim → dialogue → no","details":null}
+{"id":"1764577591825-sjgngbosf","timestamp":"2025-12-01T08:26:31.825Z","type":"info","message":"Generated 1 take(s) (tim_dialogue_no_v001.wav)","details":null}
+{"id":"1764577593494-iu0kfjhoz","timestamp":"2025-12-01T08:26:33.494Z","type":"success","message":"Generated 1 take(s): actor → tim → dialogue → what's up","details":null}
+{"id":"1764577593495-p9xogmmdb","timestamp":"2025-12-01T08:26:33.495Z","type":"info","message":"Generated 1 take(s) (tim_dialog_what's_up_v001.wav)","details":null}
+{"id":"1764577616806-6qlho69xc","timestamp":"2025-12-01T08:26:56.806Z","type":"info","message":"user marked actor → tim → dialogue → what's up as complete","details":null}
+{"id":"1764577621641-hy5a1totx","timestamp":"2025-12-01T08:27:01.642Z","type":"info","message":"user marked actor → tim → dialogue → no as complete","details":null}
+{"id":"1764577625585-r50qchcgl","timestamp":"2025-12-01T08:27:05.585Z","type":"info","message":"user marked actor → tim → dialogue → hi as complete","details":null}
+{"id":"1764577666462-dww8jci31","entryType":"log","timestamp":"2025-12-01T08:27:46.462Z","type":"info","message":"system marked actor → tim → dialogue as complete"}
+{"id":"1764577666479-5bgxo42vm","timestamp":"2025-12-01T08:27:46.479Z","type":"info","message":"user marked actor → tim → dialogue as complete","details":null}
+{"id":"1764577672071-537j0jtic","entryType":"log","timestamp":"2025-12-01T08:27:52.071Z","type":"info","message":"system marked actor → tim → dialogue as incomplete"}
+{"id":"1764577672151-rkyvnt6yu","entryType":"log","timestamp":"2025-12-01T08:27:52.151Z","type":"info","message":"system marked actor → tim as incomplete"}
+{"id":"1764577672236-r6103evyw","timestamp":"2025-12-01T08:27:52.236Z","type":"info","message":"user marked actor → tim → dialogue as incomplete","details":null}
+{"id":"1764577673604-rjv96xjln","entryType":"log","timestamp":"2025-12-01T08:27:53.604Z","type":"info","message":"system marked actor → tim → dialogue as complete"}
+{"id":"1764577673611-xh0y6tshy","timestamp":"2025-12-01T08:27:53.611Z","type":"info","message":"user marked actor → tim → dialogue as complete","details":null}
+{"id":"1764577675872-3gy9o05xe","entryType":"log","timestamp":"2025-12-01T08:27:55.872Z","type":"info","message":"system marked actor → tim → dialogue as incomplete"}
+{"id":"1764577675991-5tvam76n4","entryType":"log","timestamp":"2025-12-01T08:27:55.991Z","type":"info","message":"Update: actor → tim (no changes)"}
+{"id":"1764577676042-f731cnqlr","timestamp":"2025-12-01T08:27:56.042Z","type":"info","message":"user marked actor → tim → dialogue as incomplete","details":null}
+{"id":"1764577682653-8h3d4ipx8","entryType":"log","timestamp":"2025-12-01T08:28:02.653Z","type":"info","message":"system marked actor → tim as complete"}
+{"id":"1764577682665-x7h6rphqt","timestamp":"2025-12-01T08:28:02.665Z","type":"info","message":"user marked actor → tim as complete","details":null}
+{"id":"1764577683667-irlzrdxof","timestamp":"2025-12-01T08:28:03.667Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764577713077-c78zwkq9j","timestamp":"2025-12-01T08:28:33.077Z","type":"info","message":"user marked actor → tim → dialogue → what's up as incomplete","details":null}
+{"id":"1764577713119-mz9uj8qov","entryType":"log","timestamp":"2025-12-01T08:28:33.119Z","type":"info","message":"Update: actor → tim → dialogue (no changes)"}
+{"id":"1764577713270-ledyml436","entryType":"log","timestamp":"2025-12-01T08:28:33.270Z","type":"info","message":"system marked actor → tim as incomplete"}
+{"id":"1764577720111-715gjwwj3","timestamp":"2025-12-01T08:28:40.111Z","type":"info","message":"user marked actor → tim → dialogue → what's up as complete","details":null}
+{"id":"1764577727950-8kmhzp7qd","entryType":"log","timestamp":"2025-12-01T08:28:47.950Z","type":"info","message":"system marked actor → tim as complete"}
+{"id":"1764577727980-5q4w30psm","timestamp":"2025-12-01T08:28:47.980Z","type":"info","message":"user marked actor → tim as complete","details":null}
+{"id":"1764577728986-3r9f57xlg","timestamp":"2025-12-01T08:28:48.986Z","type":"info","message":"All actors in this project are complete.","details":null}
+{"id":"1764577761770-utht6gld4","entryType":"log","timestamp":"2025-12-01T08:29:21.770Z","type":"info","message":"system marked actor → tim as incomplete"}
+{"id":"1764577761781-k7u0nkken","timestamp":"2025-12-01T08:29:21.781Z","type":"info","message":"user marked actor → tim as incomplete","details":null}
+{"id":"1764577771488-z62ukyb7s","entryType":"log","timestamp":"2025-12-01T08:29:31.488Z","type":"info","message":"system marked actor → tim → dialogue as complete"}
+{"id":"1764577771502-fn89oudpd","timestamp":"2025-12-01T08:29:31.502Z","type":"info","message":"user marked actor → tim → dialogue as complete","details":null}
+{"id":"1764577774969-nxuokqufz","entryType":"log","timestamp":"2025-12-01T08:29:34.969Z","type":"info","message":"system marked actor → tim as complete"}
+{"id":"1764577774988-8x4b08b5l","timestamp":"2025-12-01T08:29:34.988Z","type":"info","message":"user marked actor → tim as complete","details":null}
+{"id":"1764577775989-wny3roiz3","timestamp":"2025-12-01T08:29:35.989Z","type":"info","message":"All actors in this project are complete.","details":null}

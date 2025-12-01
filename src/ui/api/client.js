@@ -12,12 +12,14 @@ export function getProviderCredits() {
 }
 
 export async function deleteActor(id) {
+  console.log(`[API] Deleting actor: ${id}`);
   const res = await fetch(`/api/actors/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
   if (!res.ok && res.status !== 204) {
     throw new Error(`Failed to delete actor: ${await res.text()}`);
   }
+  console.log(`[API] Actor deleted`);
 }
 
 export async function deleteContent(id) {
@@ -56,6 +58,7 @@ export async function deleteTake(id) {
 }
 
 export async function generateTakes(contentId, count = 1) {
+  console.log(`[API] Generating ${count} take(s) for content ${contentId}...`);
   const res = await fetch(`/api/content/${encodeURIComponent(contentId)}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -63,9 +66,12 @@ export async function generateTakes(contentId, count = 1) {
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    console.error(`[API] Generate failed:`, data.error || res.status);
     throw new Error(data.error || `Failed to generate takes: ${res.status}`);
   }
-  return res.json();
+  const result = await res.json();
+  console.log(`[API] Generated ${result.takes?.length || 0} take(s)`);
+  return result;
 }
 
 export function getJobs() {
@@ -81,6 +87,7 @@ export async function getVoices() {
 }
 
 export async function createActor(payload) {
+  console.log(`[API] Creating actor:`, payload?.display_name || 'unnamed');
   const res = await fetch('/api/actors', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -89,7 +96,9 @@ export async function createActor(payload) {
   if (!res.ok) {
     throw new Error(`Failed to create actor: ${await res.text()}`);
   }
-  return res.json();
+  const result = await res.json();
+  console.log(`[API] Actor created: ${result.actor?.display_name}`);
+  return result;
 }
 
 export async function updateActor(id, payload) {

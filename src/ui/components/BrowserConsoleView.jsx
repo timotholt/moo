@@ -147,19 +147,21 @@ export default function BrowserConsoleView({ entries, onClear }) {
           Console
         </Typography>
         <Tooltip title="Clear console">
-          <IconButton
-            size="small"
-            onClick={() => setConfirmClearOpen(true)}
-            disabled={entries.length === 0}
-            sx={{ color: 'text.secondary' }}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => setConfirmClearOpen(true)}
+              disabled={entries.length === 0}
+              sx={{ color: 'text.secondary' }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </span>
         </Tooltip>
       </Box>
 
       {/* Clear Console Confirmation Dialog */}
-      <Dialog open={confirmClearOpen} onClose={() => setConfirmClearOpen(false)}>
+      <Dialog open={confirmClearOpen} onClose={() => setConfirmClearOpen(false)} disableRestoreFocus>
         <DialogTitle>Clear Console?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">

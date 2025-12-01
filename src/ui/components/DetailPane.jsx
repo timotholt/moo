@@ -75,9 +75,12 @@ export default function DetailPane({
       return <NoSelectionView error={commonError} />;
 
     case 'actor': {
-      // Actor can only be completed if all of its cues are complete
+      // Actor can only be completed if all of its sections AND cues are complete
+      const actorSections = sections.filter(s => s.actor_id === data.actor.id);
       const actorContent = content.filter(c => c.actor_id === data.actor.id);
-      const canCompleteActor = actorContent.length === 0 || actorContent.every(c => c.all_approved);
+      const allSectionsComplete = actorSections.length === 0 || actorSections.every(s => s.section_complete);
+      const allCuesComplete = actorContent.length === 0 || actorContent.every(c => c.all_approved);
+      const canCompleteActor = allSectionsComplete && allCuesComplete;
 
       // Determine if this actor is currently the last incomplete actor
       const incompleteActors = actors.filter(a => !a.actor_complete);

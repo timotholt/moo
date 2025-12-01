@@ -203,19 +203,21 @@ export default function ConsoleView({ logs, undoRedo, onClearLogs }) {
           </Button>
         )}
         <Tooltip title="Clear history">
-          <IconButton
-            size="small"
-            onClick={() => setConfirmClearOpen(true)}
-            disabled={logs.length === 0}
-            sx={{ color: 'text.secondary' }}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => setConfirmClearOpen(true)}
+              disabled={logs.length === 0}
+              sx={{ color: 'text.secondary' }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </span>
         </Tooltip>
       </Box>
 
       {/* Clear History Confirmation Dialog */}
-      <Dialog open={confirmClearOpen} onClose={() => setConfirmClearOpen(false)}>
+      <Dialog open={confirmClearOpen} onClose={() => setConfirmClearOpen(false)} disableRestoreFocus>
         <DialogTitle>Clear History?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">

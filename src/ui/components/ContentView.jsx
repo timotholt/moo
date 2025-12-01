@@ -280,13 +280,16 @@ export default function ContentView({
         if (onTakesGenerated) {
           onTakesGenerated(result.takes);
         }
+        // Log generated filenames to console and history
+        const filenames = result.takes.map(t => t.filename).join(', ');
+        console.log(`[Generate] Created ${result.takes.length} take(s): ${filenames}`);
+        logInfo(`Generated ${result.takes.length} take(s) (${filenames})`);
       }
     } catch (err) {
       const errorMsg = err.message || String(err);
       setError(errorMsg);
-      if (onLogError) {
-        onLogError(`Generation failed: ${errorMsg}`, { content_id: item.id, cue_id: item.cue_id });
-      }
+      console.error(`[Generate] Failed:`, errorMsg);
+      logError(`Generation failed: ${errorMsg}`);
     } finally {
       setGeneratingTakes(false);
       if (onStatusChange) onStatusChange('');

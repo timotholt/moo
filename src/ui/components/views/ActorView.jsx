@@ -144,7 +144,7 @@ export default function ActorView({
               disabled={actorOps.deleting || (!actor.actor_complete && !canCompleteActor)}
               disabledReason={
                 !actor.actor_complete && !canCompleteActor
-                  ? 'All cues for this actor must be complete before the actor can be marked complete.'
+                  ? 'All sections and cues for this actor must be complete before the actor can be marked complete.'
                   : undefined
               }
               isFinalActor={isLastIncompleteActor}
