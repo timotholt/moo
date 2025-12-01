@@ -14,3 +14,7 @@
 {"id":"1764583956693-kzo3yrjc8","timestamp":"2025-12-01T10:12:36.693Z","type":"info","message":"user rejected actor → ppo → dialogue → backfill3 → ppo_dialogue_backfill3_v008.wav","details":null}
 {"id":"1764583967891-aild2zcb3","timestamp":"2025-12-01T10:12:47.891Z","type":"info","message":"user approved actor → ppo → dialogue → backfill3 → ppo_dialogue_backfill3_v009.wav","details":null}
 {"id":"1764583968860-9ky0lbrgj","timestamp":"2025-12-01T10:12:48.860Z","type":"info","message":"user approved actor → ppo → dialogue → backfill3 → ppo_dialogue_backfill3_v010.wav","details":null}
+{"id":"1764584367420-o3r3v8as1","timestamp":"2025-12-01T10:19:27.420Z","type":"info","message":"user marked actor → ppo → dialogue → backfill3 as complete","details":null}
+{"id":"1764584402842-a6t2qpge2","timestamp":"2025-12-01T10:20:02.842Z","type":"info","message":"user marked actor → ppo → dialogue as complete","details":null}
+{"id":"1764584405456-toiioqg5b","timestamp":"2025-12-01T10:20:05.456Z","type":"info","message":"user marked actor → ppo as complete","details":null}
+{"id":"1764584406466-f5dgzjj9t","timestamp":"2025-12-01T10:20:06.466Z","type":"info","message":"All actors in this project are complete.","details":null}

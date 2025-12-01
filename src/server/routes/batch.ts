@@ -92,30 +92,32 @@ export function registerBatchRoutes(fastify: FastifyInstance, getProjectContext:
         continue;
       }
 
-      // Get min_candidates from section settings, falling back to actor settings
+      // Get settings from section, falling back to actor settings
       // If section provider is 'inherit', use actor settings
       const sectionSettings = section.provider_settings;
       const actorSettings = actor.provider_settings?.[cue.content_type as keyof typeof actor.provider_settings];
-      
-      // Debug logging
-      console.log(`[Backfill] Cue: ${cue.cue_id}`);
-      console.log(`[Backfill]   Section provider: ${sectionSettings?.provider}`);
-      console.log(`[Backfill]   Section min_candidates: ${sectionSettings?.min_candidates}`);
-      console.log(`[Backfill]   Actor min_candidates: ${actorSettings?.min_candidates}`);
       
       const minCandidates = (sectionSettings?.provider !== 'inherit' && sectionSettings?.min_candidates)
         ? sectionSettings.min_candidates
         : (actorSettings?.min_candidates ?? 1);
       
-      console.log(`[Backfill]   Resolved min_candidates: ${minCandidates}`);
+      const minApprovedTakes = (sectionSettings?.provider !== 'inherit' && sectionSettings?.approval_count_default)
+        ? sectionSettings.approval_count_default
+        : (actorSettings?.approval_count_default ?? 1);
 
-      // Count undecided takes (status = 'new')
+      // Count takes by status
       const cueTakes = takes.filter(t => t.content_id === cue.id);
       const undecidedCount = cueTakes.filter(t => t.status === 'new').length;
+      const approvedCount = cueTakes.filter(t => t.status === 'approved').length;
 
-      // Calculate how many to generate
-      const needed = Math.max(0, minCandidates - undecidedCount);
-      console.log(`[Backfill]   Undecided: ${undecidedCount}, Needed: ${needed}`);
+      // Don't backfill if we already have enough approved takes
+      // Otherwise, backfill to meet min_candidates for undecided
+      let needed = 0;
+      if (approvedCount < minApprovedTakes) {
+        needed = Math.max(0, minCandidates - undecidedCount);
+      }
+      
+      console.log(`[Backfill] ${cue.cue_id}: approved=${approvedCount}/${minApprovedTakes}, undecided=${undecidedCount}/${minCandidates}, needed=${needed}`);
 
       const result: BackfillResult = {
         content_id: cue.id,

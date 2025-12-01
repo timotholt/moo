@@ -348,26 +348,26 @@ export default function ProviderSettingsEditor({
                 );
               })()}
 
-              {/* Min Candidates and Approval Count on same line */}
+              {/* Min Approved Takes and Min Take Candidates on same line */}
               <Box sx={{ display: 'flex', gap: '1rem' }}>
                 <TextField
                   size="small"
-                  label="Min Candidates"
-                  type="number"
-                  value={currentSettings.min_candidates || 1}
-                  onChange={(e) => handleChange('min_candidates', parseInt(e.target.value) || 1)}
-                  inputProps={{ min: 1, max: 10 }}
-                  sx={{ width: 140, ...DESIGN_SYSTEM.components.formControl }}
-                />
-
-                <TextField
-                  size="small"
-                  label="Approval Count"
+                  label="Min Approved Takes"
                   type="number"
                   value={currentSettings.approval_count_default || 1}
                   onChange={(e) => handleChange('approval_count_default', parseInt(e.target.value) || 1)}
                   inputProps={{ min: 1, max: 5 }}
-                  sx={{ width: 140, ...DESIGN_SYSTEM.components.formControl }}
+                  sx={{ width: 160, ...DESIGN_SYSTEM.components.formControl }}
+                />
+
+                <TextField
+                  size="small"
+                  label="Min Take Candidates"
+                  type="number"
+                  value={currentSettings.min_candidates || 1}
+                  onChange={(e) => handleChange('min_candidates', parseInt(e.target.value) || 1)}
+                  inputProps={{ min: 1, max: 10 }}
+                  sx={{ width: 160, ...DESIGN_SYSTEM.components.formControl }}
                 />
               </Box>
 

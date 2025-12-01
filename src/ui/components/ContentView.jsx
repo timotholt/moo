@@ -847,7 +847,7 @@ export default function ContentView({
             const voiceMissing = item.content_type === 'dialogue' && (!dialogueProvider || !dialogueProvider.voice_id);
             const disabled = isDisabled || generatingTakes || voiceMissing;
             
-            // Get min_candidates: section settings override actor settings
+            // Get settings: section settings override actor settings
             const section = sections?.find(s => s.id === item.section_id);
             const sectionSettings = section?.provider_settings;
             const actorSettings = actor?.provider_settings?.[item.content_type];
@@ -855,10 +855,18 @@ export default function ContentView({
             const minCandidates = (sectionSettings?.provider !== 'inherit' && sectionSettings?.min_candidates)
               ? sectionSettings.min_candidates
               : (actorSettings?.min_candidates || 1);
+            const minApprovedTakes = (sectionSettings?.provider !== 'inherit' && sectionSettings?.approval_count_default)
+              ? sectionSettings.approval_count_default
+              : (actorSettings?.approval_count_default || 1);
             
-            // Calculate how many undecided takes exist
+            // Calculate counts
             const undecidedCount = takes.filter(t => t.status === 'new').length;
-            const needed = Math.max(0, minCandidates - undecidedCount);
+            const approvedCount = takes.filter(t => t.status === 'approved').length;
+            
+            // Don't backfill if cue is complete or we already have enough approved takes
+            const isComplete = !!item.all_approved;
+            const hasEnoughApproved = approvedCount >= minApprovedTakes;
+            const needed = (isComplete || hasEnoughApproved) ? 0 : Math.max(0, minCandidates - undecidedCount);
 
             // Button 1: Generate 1 Take
             const generate1Button = (
@@ -874,26 +882,53 @@ export default function ContentView({
             );
 
             // Button 2: Backfill N Takes (to meet min_candidates)
-            const backfillButton = needed > 0 ? (
-              <Button
-                variant="outlined"
-                size="small"
-                disabled={disabled}
-                onClick={() => handleGenerateTakesCount(needed)}
-                sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1 }}
-              >
-                {generatingTakes ? 'Generating...' : `Backfill ${needed} Take${needed > 1 ? 's' : ''}`}
-              </Button>
-            ) : (
-              <Button
-                variant="outlined"
-                size="small"
-                disabled
-                sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1, opacity: 0.5 }}
-              >
-                Min Met ({undecidedCount}/{minCandidates})
-              </Button>
-            );
+            let backfillButton;
+            if (isComplete) {
+              backfillButton = (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled
+                  sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1, opacity: 0.5 }}
+                >
+                  Complete
+                </Button>
+              );
+            } else if (hasEnoughApproved) {
+              backfillButton = (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled
+                  sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1, opacity: 0.5 }}
+                >
+                  Approved ({approvedCount}/{minApprovedTakes})
+                </Button>
+              );
+            } else if (needed > 0) {
+              backfillButton = (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled={disabled}
+                  onClick={() => handleGenerateTakesCount(needed)}
+                  sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1 }}
+                >
+                  {generatingTakes ? 'Generating...' : `Backfill ${needed} Take${needed > 1 ? 's' : ''}`}
+                </Button>
+              );
+            } else {
+              backfillButton = (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  disabled
+                  sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1, opacity: 0.5 }}
+                >
+                  Candidates Met ({undecidedCount}/{minCandidates})
+                </Button>
+              );
+            }
 
             if (voiceMissing) {
               return (
