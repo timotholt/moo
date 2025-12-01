@@ -345,7 +345,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
     // Return the restored state
     return {
       success: true,
-      message: `Undid: ${snapshot.message}`,
+      message: `UNDO: ${snapshot.message}`,
       actors: snapshot.actors,
       sections: snapshot.sections,
       content: snapshot.content,
@@ -428,7 +428,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
     // Return the restored state
     return {
       success: true,
-      message: `Redid: ${redoSnapshot.message}`,
+      message: `REDO: ${redoSnapshot.message}`,
       actors: redoSnapshot.actors,
       sections: redoSnapshot.sections,
       content: redoSnapshot.content,

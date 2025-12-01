@@ -167,7 +167,7 @@ export function useCommandHistory({ actors, sections, content, onStateChange }) 
       entryType: EntryType.UNDO,
       timestamp: new Date().toISOString(),
       type: LogType.INFO,
-      message: `Undid: ${entry.message}`,
+      message: `UNDO: ${entry.message}`,
       undoOf: entry.id,
     };
     setHistory(prev => [undoLogEntry, ...prev.map(e => e.id === entry.id ? { ...e, undone: true } : e)]);
@@ -225,7 +225,7 @@ export function useCommandHistory({ actors, sections, content, onStateChange }) 
       entryType: EntryType.REDO,
       timestamp: new Date().toISOString(),
       type: LogType.INFO,
-      message: `Redid: ${entry.message}`,
+      message: `REDO: ${entry.message}`,
       redoOf: entry.id,
     };
     setHistory(prev => [redoLogEntry, ...prev.map(e => e.id === entry.id ? { ...e, undone: false } : e)]);

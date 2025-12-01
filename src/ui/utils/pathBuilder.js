@@ -9,7 +9,7 @@
  * @returns {string}
  */
 export function buildActorPath(actorName) {
-  return `Actors → ${actorName}`;
+  return `actor → ${actorName}`;
 }
 
 /**
@@ -19,7 +19,7 @@ export function buildActorPath(actorName) {
  * @returns {string}
  */
 export function buildSectionPath(actorName, sectionName) {
-  return `Actors → ${actorName} → ${sectionName}`;
+  return `actor → ${actorName} → ${sectionName}`;
 }
 
 /**
@@ -30,7 +30,7 @@ export function buildSectionPath(actorName, sectionName) {
  * @returns {string}
  */
 export function buildContentPath(actorName, sectionName, cueName) {
-  return `Actors → ${actorName} → ${sectionName} → ${cueName}`;
+  return `actor → ${actorName} → ${sectionName} → ${cueName}`;
 }
 
 /**

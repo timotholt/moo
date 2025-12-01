@@ -89,4 +89,20 @@ export function registerHistoryRoutes(fastify: FastifyInstance, getProjectContex
     
     return { success: true, entry: history[entryIndex] };
   });
+
+  // Clear all history entries
+  fastify.delete('/api/history', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const ctx = getProjectContext();
+    if (!ctx) {
+      reply.code(400);
+      return { error: 'No project selected' };
+    }
+    const { paths } = ctx;
+    
+    const historyPath = join(paths.root, 'history.jsonl');
+    // Write empty array to clear the file
+    await writeJsonlAll(historyPath, []);
+    
+    return { success: true };
+  });
 }

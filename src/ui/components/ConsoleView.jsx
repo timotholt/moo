@@ -60,13 +60,13 @@ function LogIcon({ type, message }) {
     return <RecordVoiceOverIcon sx={{ ...iconSx, color: 'success.main' }} />;
   }
   
-  // Checkbox icons for USER-initiated completion messages (Marked Actors → ...)
+  // Checkbox icons for USER-initiated completion messages (Marked actor → ...)
   // Excludes automatic/cascaded messages (those with parenthetical notes like "child cue changed")
   const isAutomatic = message && /\(child .* changed\)/i.test(message);
   
   if (!isAutomatic) {
-    const isPathBasedComplete = message && /^Marked Actors →.*as complete$/i.test(message);
-    const isPathBasedIncomplete = message && /^Marked Actors →.*as incomplete$/i.test(message);
+    const isPathBasedComplete = message && /^Marked actor →.*as complete$/i.test(message);
+    const isPathBasedIncomplete = message && /^Marked actor →.*as incomplete$/i.test(message);
     
     if (isPathBasedComplete) {
       return <CheckBoxIcon sx={{ ...iconSx, color: 'success.main' }} />;
@@ -156,13 +156,17 @@ function LogEntry({ entry }) {
 }
 
 export default function ConsoleView({ logs, undoRedo, onClearLogs }) {
-  const { canUndo, canRedo, undoMessage, redoMessage, undo, redo, undoing } = undoRedo;
+  const { canUndo, canRedo, undoMessage, redoMessage, undo, redo, undoing, refreshUndoState } = undoRedo;
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
-  const handleClearLogs = () => {
+  const handleClearLogs = async () => {
     setConfirmClearOpen(false);
     if (onClearLogs) {
-      onClearLogs();
+      await onClearLogs();
+    }
+    // Refresh undo state since history was cleared
+    if (refreshUndoState) {
+      await refreshUndoState();
     }
   };
   
@@ -220,7 +224,7 @@ export default function ConsoleView({ logs, undoRedo, onClearLogs }) {
         <DialogTitle>Clear History?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
-            This will permanently delete all history entries. This action cannot be undone.
+            This will permanently delete all history entries. Your undo/redo capability will remain intact.
           </Typography>
         </DialogContent>
         <DialogActions>

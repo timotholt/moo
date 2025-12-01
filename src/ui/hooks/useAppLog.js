@@ -96,8 +96,17 @@ export function useAppLog() {
   }, [addLog]);
 
   const clearLogs = useCallback(async () => {
-    setLogs([]);
-    // Note: We don't clear server-side history - it's our undo log
+    try {
+      // Clear server-side history
+      await fetch('/api/history', { method: 'DELETE' });
+      // Clear local state
+      setLogs([]);
+      if (DEBUG_APP_LOG) {
+        console.log('[AppLog] History cleared');
+      }
+    } catch (err) {
+      console.error('[AppLog] Failed to clear history:', err);
+    }
   }, []);
 
   return {
