@@ -15,6 +15,7 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TerminalIcon from '@mui/icons-material/Terminal';
+import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 function nodeKey(type, id) {
   return `${type}:${id}`;
@@ -182,28 +183,12 @@ export default function TreePane({ width, actors, content, sections, takes = [],
           // Define all available sections with their properties
           const allSections = [
             {
-              id: 'defaults',
-              name: 'Defaults',
-              icon: <SettingsIcon sx={{ fontSize: '0.875rem' }} />,
-              nodeType: 'defaults',
-              nodeId: 'providers',
-              order: 0, // Always first
-              children: ['dialogue', 'music', 'sfx'].map((type) => ({
-                id: type,
-                name: `${type.charAt(0).toUpperCase() + type.slice(1)} (ElevenLabs)`,
-                icon: type === 'dialogue' ? <RecordVoiceOverIcon sx={{ fontSize: '0.75rem' }} /> :
-                      type === 'music' ? <MusicNoteIcon sx={{ fontSize: '0.75rem' }} /> : <GraphicEqIcon sx={{ fontSize: '0.75rem' }} />,
-                nodeType: 'provider-default',
-                nodeId: type
-              }))
-            },
-            {
               id: 'actors',
               name: 'Actors',
               icon: <PersonIcon sx={{ fontSize: '0.875rem' }} />,
               nodeType: 'root',
               nodeId: 'project',
-              order: 1, // Alphabetical after Defaults
+              order: 0, // Actors first
               children: null // Special handling for actors
             },
             {
@@ -212,9 +197,25 @@ export default function TreePane({ width, actors, content, sections, takes = [],
               icon: <TerminalIcon sx={{ fontSize: '0.875rem' }} />,
               nodeType: 'console',
               nodeId: 'logs',
-              order: 2, // After Actors
+              order: 1, // After Actors
               children: null, // No children
               noExpand: true // Don't show expand/collapse
+            },
+            {
+              id: 'defaults',
+              name: 'Defaults',
+              icon: <SettingsIcon sx={{ fontSize: '0.875rem' }} />,
+              nodeType: 'defaults',
+              nodeId: 'providers',
+              order: 2, // After Console
+              children: ['dialogue', 'music', 'sfx'].map((type) => ({
+                id: type,
+                name: `${type.charAt(0).toUpperCase() + type.slice(1)} (ElevenLabs)`,
+                icon: type === 'dialogue' ? <RecordVoiceOverIcon sx={{ fontSize: '0.75rem' }} /> :
+                      type === 'music' ? <MusicNoteIcon sx={{ fontSize: '0.75rem' }} /> : <GraphicEqIcon sx={{ fontSize: '0.75rem' }} />,
+                nodeType: 'provider-default',
+                nodeId: type
+              }))
             }
             // Future sections like 'Master', 'Templates', etc. can be added here
           ];
@@ -234,7 +235,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                   pr: 0, 
                   minHeight: '1.125rem',
                   '& .MuiListItemText-root': { margin: 0 },
-                  '& .MuiListItemIcon-root': { minWidth: 'auto' }
+                  '& .MuiListItemIcon-root': { minWidth: 'auto' },
+                  ...DESIGN_SYSTEM.treeItem
                 }}
                 selected={selectedId === nodeKey(section.nodeType, section.nodeId)}
                 onClick={() => handleSelect(section.nodeType, section.nodeId)}
@@ -264,7 +266,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                           pr: 0, 
                           minHeight: '1.125rem',
                           '& .MuiListItemText-root': { margin: 0 },
-                          '& .MuiListItemIcon-root': { minWidth: 'auto' }
+                          '& .MuiListItemIcon-root': { minWidth: 'auto' },
+                          ...DESIGN_SYSTEM.treeItem
                         }}
                         selected={selectedId === nodeKey(child.nodeType, child.nodeId)}
                         onClick={() => handleSelect(child.nodeType, child.nodeId)}
@@ -289,7 +292,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                               pr: 0, 
                               minHeight: '1.125rem',
                               '& .MuiListItemText-root': { margin: 0 },
-                              '& .MuiListItemIcon-root': { minWidth: 'auto' }
+                              '& .MuiListItemIcon-root': { minWidth: 'auto' },
+                              ...DESIGN_SYSTEM.treeItem
                             }}
                             selected={selectedId === nodeKey('actor', actor.id)}
                             onClick={() => handleSelect('actor', actor.id)}
@@ -325,7 +329,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                         pr: 0, 
                                         minHeight: '1.125rem',
                                         '& .MuiListItemText-root': { margin: 0 },
-                                        '& .MuiListItemIcon-root': { minWidth: 'auto' }
+                                        '& .MuiListItemIcon-root': { minWidth: 'auto' },
+                                        ...DESIGN_SYSTEM.treeItem
                                       }}
                                       selected={selectedId === nodeKey(`${sectionType}-section`, sectionItem.id)}
                                       onClick={() => handleSelect(`${sectionType}-section`, sectionItem.id)}
@@ -381,7 +386,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                                   pr: 0, 
                                                   minHeight: '1.125rem',
                                                   '& .MuiListItemText-root': { margin: 0 },
-                                                  '& .MuiListItemIcon-root': { minWidth: 'auto' }
+                                                  '& .MuiListItemIcon-root': { minWidth: 'auto' },
+                                                  ...DESIGN_SYSTEM.treeItem
                                                 }}
                                                 selected={selectedId === nodeKey('content', c.id)}
                                                 onClick={() => handleSelect('content', c.id)}

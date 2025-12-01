@@ -111,6 +111,21 @@ export const DESIGN_SYSTEM = {
       default: 'background.default',
     },
   },
+  
+  // Tree item styles
+  treeItem: {
+    // Selected item styling - bright text on subtle background
+    '&.Mui-selected': {
+      backgroundColor: 'action.selected',
+      '& .MuiListItemText-primary': {
+        color: 'common.white',
+        fontWeight: 500,
+      },
+    },
+    '&.Mui-selected:hover': {
+      backgroundColor: 'action.selected',
+    },
+  },
 };
 
 // Helper function to get consistent sx props

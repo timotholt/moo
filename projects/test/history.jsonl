@@ -109,3 +109,26 @@
 {"id":"1764557503763-t32ntdopl","timestamp":"2025-12-01T02:51:43.763Z","type":"info","message":"Deleted: Actors → august","details":null}
 {"id":"1764557507204-azhu88ov1","timestamp":"2025-12-01T02:51:47.204Z","type":"info","message":"Undid: Delete actor: august","details":null}
 {"id":"1764557513858-hf50ax25f","timestamp":"2025-12-01T02:51:53.858Z","type":"info","message":"Undid: Delete actor: july","details":null}
+{"id":"1764557805239-ozmuiw94r","timestamp":"2025-12-01T02:56:45.239Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764557812538-n8ndn2q53","timestamp":"2025-12-01T02:56:52.538Z","type":"info","message":"Undid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764557815099-y3270cynp","timestamp":"2025-12-01T02:56:55.099Z","type":"info","message":"Redid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764557823061-7hwfzyz1o","timestamp":"2025-12-01T02:57:03.061Z","type":"info","message":"Redid: Update content: october → week2 → 12","details":null}
+{"id":"1764558229119-c8hz34pr8","timestamp":"2025-12-01T03:03:49.119Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764558230459-oigkpm0bc","timestamp":"2025-12-01T03:03:50.459Z","type":"info","message":"Redid: Update content: october → week2 → 12","details":null}
+{"id":"1764558231750-b100ulyao","timestamp":"2025-12-01T03:03:51.750Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764558233603-mjpbc8k97","timestamp":"2025-12-01T03:03:53.603Z","type":"info","message":"Undid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764558234676-g4m3f6ss4","timestamp":"2025-12-01T03:03:54.676Z","type":"info","message":"Undid: Rename section: october → dialogue → week2","details":null}
+{"id":"1764558235515-8n7h36cn7","timestamp":"2025-12-01T03:03:55.515Z","type":"info","message":"Undid: Rename section: october → dialogue → week1","details":null}
+{"id":"1764558237050-ur28jgzm7","timestamp":"2025-12-01T03:03:57.050Z","type":"info","message":"Redid: Rename section: october → dialogue → week1","details":null}
+{"id":"1764558237651-7ru308n0k","timestamp":"2025-12-01T03:03:57.651Z","type":"info","message":"Redid: Rename section: october → dialogue → week2","details":null}
+{"id":"1764558238234-t1og4jy71","timestamp":"2025-12-01T03:03:58.234Z","type":"info","message":"Redid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764558260082-rcqqvfidg","timestamp":"2025-12-01T03:04:20.082Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764558260768-2wlbi60ob","timestamp":"2025-12-01T03:04:20.768Z","type":"info","message":"Redid: Update content: october → week2 → 12","details":null}
+{"id":"1764558266133-emz21hdb7","timestamp":"2025-12-01T03:04:26.133Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764558269070-o3fhps8al","timestamp":"2025-12-01T03:04:29.070Z","type":"info","message":"Undid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764558269909-wl1t3y7h3","timestamp":"2025-12-01T03:04:29.909Z","type":"info","message":"Redid: Create content: october → week2 → 5 cues","details":null}
+{"id":"1764558273923-c0huesuoz","timestamp":"2025-12-01T03:04:33.923Z","type":"info","message":"Redid: Update content: october → week2 → 12","details":null}
+{"id":"1764558275751-f4hwodliv","timestamp":"2025-12-01T03:04:35.751Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764558276531-sf90i778t","timestamp":"2025-12-01T03:04:36.531Z","type":"info","message":"Redid: Update content: october → week2 → 12","details":null}
+{"id":"1764558295821-xxw7xwj5y","timestamp":"2025-12-01T03:04:55.821Z","type":"info","message":"Undid: Update content: october → week2 → 12","details":null}
+{"id":"1764558296472-t0issrtnw","timestamp":"2025-12-01T03:04:56.472Z","type":"info","message":"Redid: Update content: october → week2 → 12","details":null}

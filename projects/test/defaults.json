@@ -2,7 +2,7 @@
   "dialogue": {
     "provider": "elevenlabs",
     "batch_generate": 1,
-    "approval_count_default": 1,
+    "approval_count_default": 2,
     "stability": 0.5,
     "similarity_boost": 0.75,
     "voice_id": "4tRn1lSkEn13EVTuqb0g"

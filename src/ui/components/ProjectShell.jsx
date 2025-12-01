@@ -48,12 +48,12 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
   // Application logging (persisted to server)
   const { logs, loading: logsLoading, logInfo, logSuccess, logError, logWarning, clearLogs, reloadLogs } = useAppLog();
 
-  // Handle state restored from undo
+  // Handle state restored from undo - keep console selected
   const handleStateRestored = useCallback((restoredState) => {
     setActors(restoredState.actors);
     setSections(restoredState.sections);
     setContent(restoredState.content);
-    setSelectedNode(null);
+    // Don't change selection - keep user on Console view
     logInfo(restoredState.message);
   }, [logInfo]);
 
@@ -190,10 +190,7 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         sx={{
           width: '6px',
           cursor: 'col-resize',
-          backgroundColor: isResizing ? 'primary.main' : 'transparent',
-          '&:hover': {
-            backgroundColor: 'action.hover',
-          },
+          backgroundColor: 'divider',
           flexShrink: 0,
           zIndex: 1,
         }}

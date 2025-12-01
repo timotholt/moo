@@ -141,6 +141,35 @@ export default function App() {
           body: {
             lineHeight: 'normal', // Override Material-UI's default 1.5 line-height
           },
+          // Custom scrollbar styling - subtle and semi-transparent
+          '*::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '*::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '*::-webkit-scrollbar-thumb': {
+            background: themeMode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.2)' 
+              : 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '4px',
+            '&:hover': {
+              background: themeMode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.3)' 
+                : 'rgba(0, 0, 0, 0.3)',
+            },
+          },
+          '*::-webkit-scrollbar-corner': {
+            background: 'transparent',
+          },
+          // Firefox scrollbar styling
+          '*': {
+            scrollbarWidth: 'thin',
+            scrollbarColor: themeMode === 'dark'
+              ? 'rgba(255, 255, 255, 0.2) transparent'
+              : 'rgba(0, 0, 0, 0.2) transparent',
+          },
         }}
       />
       <Box sx={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>

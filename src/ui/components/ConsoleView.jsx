@@ -97,9 +97,16 @@ function LogEntry({ entry }) {
 export default function ConsoleView({ logs, undoRedo }) {
   const { canUndo, canRedo, undoMessage, redoMessage, undo, redo, undoing } = undoRedo;
   return (
-    <Box sx={{ flexGrow: 1, overflow: 'auto', p: DESIGN_SYSTEM.spacing.containerPadding, minWidth: 0 }}>
+    <Box sx={{ 
+      flexGrow: 1, 
+      overflow: 'hidden', // No outer scrollbar
+      p: DESIGN_SYSTEM.spacing.containerPadding, 
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-        <Typography variant="h6" sx={{ ...DESIGN_SYSTEM.typography.pageTitle, flexGrow: 1 }}>
+        <Typography variant="h6" sx={{ ...DESIGN_SYSTEM.typography.pageTitle, flexGrow: 1, color: 'text.secondary' }}>
           Console
         </Typography>
         {canUndo && (
@@ -133,13 +140,13 @@ export default function ConsoleView({ logs, undoRedo }) {
 
       <Box
         sx={{
-          mt: 2,
+          mt: 1,
           border: 1,
           borderColor: 'divider',
           borderRadius: 1,
-          maxHeight: 'calc(100vh - 200px)',
+          flexGrow: 1,
           overflow: 'auto',
-          bgcolor: 'background.paper',
+          bgcolor: 'background.default',
         }}
       >
         {logs.length === 0 ? (
