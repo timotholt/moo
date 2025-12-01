@@ -167,18 +167,6 @@ export function registerActorRoutes(fastify: FastifyInstance, getProjectContext:
       updatedActor as unknown as Record<string, unknown>
     );
     await saveSnapshot(paths, snapshotMessage, catalog);
-    
-    // Add history log entry for the update
-    const historyEntry = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      entryType: 'log',
-      timestamp: new Date().toISOString(),
-      type: 'info',
-      message: snapshotMessage,
-    };
-    const historyPath = join(paths.root, 'history.jsonl');
-    await ensureJsonlFile(historyPath);
-    await appendJsonl(historyPath, historyEntry);
 
     // Validate the updated actor
     const validation = validate('actor', updatedActor);

@@ -119,9 +119,16 @@ function buildSnapshotMessage(
     return `Rename actor: ${options.renameFrom} → ${options.renameTo}`;
   }
   
-  // For completion changes, use "system marked" format
-  if (diff.changes.length === 1 && diff.changes[0].startsWith('marked as ')) {
-    return `system ${diff.changes[0].replace('marked as ', `marked ${path} as `)}`;
+  // For completion changes:
+  // - "marked as incomplete" = system cascade (parent marked incomplete when child is)
+  // - "marked as complete" = user action, but UI already logs this, so use generic format
+  //   to avoid duplicate "user marked" entries in history
+  if (diff.changes.length === 1 && diff.changes[0] === 'marked as incomplete') {
+    return `system marked ${path} as incomplete`;
+  }
+  if (diff.changes.length === 1 && diff.changes[0] === 'marked as complete') {
+    // Don't duplicate the UI's "user marked" log - use a different format for undo message
+    return `Mark complete: ${path}`;
   }
   
   // For single change, be specific
