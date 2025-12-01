@@ -18,6 +18,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
 import CompleteButton from './CompleteButton.jsx';
+import { buildSectionPath } from '../utils/pathBuilder.js';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
@@ -40,6 +41,7 @@ export default function SectionView({
   onDeleteSection,
   error,
   canCompleteSection = true,
+  onLogInfo,
 }) {
   const [editingSectionName, setEditingSectionName] = useState(false);
   const [sectionName, setSectionName] = useState('');
@@ -79,6 +81,24 @@ export default function SectionView({
   };
 
   const subtitle = `actor: ${actor?.display_name || 'unknown'} • type: ${contentType}`;
+
+  const handleToggleSectionComplete = async () => {
+    const nextComplete = !sectionComplete;
+    if (onToggleSectionComplete) {
+      await onToggleSectionComplete(sectionData.id, nextComplete);
+    }
+    // Status-only log for section completion/incompletion using full path
+    if (onLogInfo) {
+      const actorName = actor?.display_name || 'Unknown';
+      const sectionName = currentSectionName || sectionData.id;
+      const path = buildSectionPath(actorName, sectionName);
+      if (nextComplete) {
+        onLogInfo(`Marked ${path} as complete`);
+      } else {
+        onLogInfo(`Marked ${path} as incomplete`);
+      }
+    }
+  };
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: DESIGN_SYSTEM.spacing.containerPadding, minWidth: 0 }}>
@@ -127,7 +147,7 @@ export default function SectionView({
           rightActions={
             <CompleteButton
               isComplete={sectionComplete}
-              onToggle={() => onToggleSectionComplete && onToggleSectionComplete(sectionData.id, !sectionComplete)}
+              onToggle={handleToggleSectionComplete}
               disabled={!sectionComplete && !canCompleteSection}
               disabledReason={
                 !sectionComplete && !canCompleteSection

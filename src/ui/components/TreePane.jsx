@@ -221,8 +221,8 @@ export default function TreePane({ width, actors, content, sections, takes = [],
               children: null // Special handling for actors
             },
             {
-              id: 'console',
-              name: 'console',
+              id: 'history',
+              name: 'history',
               icon: <TerminalIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />,
               nodeType: 'console',
               nodeId: 'logs',
@@ -236,7 +236,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
               icon: <SettingsIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />,
               nodeType: 'defaults',
               nodeId: 'providers',
-              order: 2, // After Console
+              order: 2, // After History
               children: ['dialogue', 'music', 'sfx'].map((type) => ({
                 id: type,
                 name: `${type} (elevenlabs)`,

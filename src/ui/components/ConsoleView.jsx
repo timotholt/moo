@@ -1,26 +1,80 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Tooltip from '@mui/material/Tooltip';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import IndeterminateCheckBoxIcon from '@mui/icons-material/IndeterminateCheckBox';
 import ErrorIcon from '@mui/icons-material/Error';
 import WarningIcon from '@mui/icons-material/Warning';
 import InfoIcon from '@mui/icons-material/Info';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
+import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import GraphicEqIcon from '@mui/icons-material/GraphicEq';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { LOG_TYPE } from '../hooks/useAppLog.js';
 
-function formatTime(isoString) {
+function formatDateTime(isoString) {
   const date = new Date(isoString);
+  const now = new Date();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
   const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const seconds = date.getSeconds().toString().padStart(2, '0');
-  return `${hours}:${minutes}:${seconds}`;
+  
+  // Include year only if different from current year
+  const datePart = date.getFullYear() !== now.getFullYear()
+    ? `${month}/${day}/${date.getFullYear()}`
+    : `${month}/${day}`;
+  
+  return `${datePart} ${hours}:${minutes}:${seconds}`;
 }
 
-function LogIcon({ type }) {
+function LogIcon({ type, message }) {
   const iconSx = { fontSize: '0.875rem' };
+  
+  // Generated sound files show content-type specific icons
+  const isGeneratedSound = message && /^Generated \d+ take/i.test(message);
+  if (isGeneratedSound) {
+    // Check the path for content type (section name indicates type)
+    if (/→ dialogue →/i.test(message)) {
+      return <RecordVoiceOverIcon sx={{ ...iconSx, color: 'success.main' }} />;
+    }
+    if (/→ music →/i.test(message)) {
+      return <MusicNoteIcon sx={{ ...iconSx, color: 'success.main' }} />;
+    }
+    if (/→ sfx →/i.test(message)) {
+      return <GraphicEqIcon sx={{ ...iconSx, color: 'success.main' }} />;
+    }
+    // Fallback to dialogue icon if type not detected
+    return <RecordVoiceOverIcon sx={{ ...iconSx, color: 'success.main' }} />;
+  }
+  
+  // Checkbox icons for USER-initiated completion messages (Marked Actors → ...)
+  // Excludes automatic/cascaded messages (those with parenthetical notes like "child cue changed")
+  const isAutomatic = message && /\(child .* changed\)/i.test(message);
+  
+  if (!isAutomatic) {
+    const isPathBasedComplete = message && /^Marked Actors →.*as complete$/i.test(message);
+    const isPathBasedIncomplete = message && /^Marked Actors →.*as incomplete$/i.test(message);
+    
+    if (isPathBasedComplete) {
+      return <CheckBoxIcon sx={{ ...iconSx, color: 'success.main' }} />;
+    }
+    if (isPathBasedIncomplete) {
+      return <IndeterminateCheckBoxIcon sx={{ ...iconSx, color: 'warning.main' }} />;
+    }
+  }
   
   switch (type) {
     case LOG_TYPE.SUCCESS:
@@ -56,13 +110,13 @@ function LogEntry({ entry }) {
       onClick={() => entry.details && setExpanded(!expanded)}
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        <LogIcon type={entry.type} />
+        <LogIcon type={entry.type} message={entry.message} />
         <Typography
           variant="caption"
           color="text.secondary"
           sx={{ fontFamily: 'monospace', fontSize: '0.7rem', flexShrink: 0 }}
         >
-          {formatTime(entry.timestamp)}
+          {formatDateTime(entry.timestamp)}
         </Typography>
         <Typography
           variant="body2"
@@ -101,8 +155,16 @@ function LogEntry({ entry }) {
   );
 }
 
-export default function ConsoleView({ logs, undoRedo }) {
+export default function ConsoleView({ logs, undoRedo, onClearLogs }) {
   const { canUndo, canRedo, undoMessage, redoMessage, undo, redo, undoing } = undoRedo;
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+
+  const handleClearLogs = () => {
+    setConfirmClearOpen(false);
+    if (onClearLogs) {
+      onClearLogs();
+    }
+  };
   
   return (
     <Box sx={{ 
@@ -115,7 +177,7 @@ export default function ConsoleView({ logs, undoRedo }) {
     }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
         <Typography variant="h6" sx={{ ...DESIGN_SYSTEM.typography.pageTitle, flexGrow: 1, color: 'text.secondary' }}>
-          Console
+          History
         </Typography>
         {canUndo && (
           <Button
@@ -141,7 +203,33 @@ export default function ConsoleView({ logs, undoRedo }) {
             {undoing ? '...' : 'Redo'}
           </Button>
         )}
+        <Tooltip title="Clear history">
+          <IconButton
+            size="small"
+            onClick={() => setConfirmClearOpen(true)}
+            disabled={logs.length === 0}
+            sx={{ color: 'text.secondary' }}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Box>
+
+      {/* Clear History Confirmation Dialog */}
+      <Dialog open={confirmClearOpen} onClose={() => setConfirmClearOpen(false)}>
+        <DialogTitle>Clear History?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will permanently delete all history entries. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmClearOpen(false)}>Cancel</Button>
+          <Button onClick={handleClearLogs} color="error" variant="contained">
+            Clear History
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Typography
         variant="caption"
         color="text.secondary"

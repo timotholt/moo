@@ -60,7 +60,8 @@ export default function DetailPane({
     onContentCreated, 
     onSectionCreated, 
     onActorUpdated, 
-    onSectionUpdated
+    onSectionUpdated,
+    onLogInfo
   });
 
   const { view, data } = useViewRouter({ selectedNode, actors, content, sections });
@@ -75,6 +76,12 @@ export default function DetailPane({
       // Actor can only be completed if all of its cues are complete
       const actorContent = content.filter(c => c.actor_id === data.actor.id);
       const canCompleteActor = actorContent.length === 0 || actorContent.every(c => c.all_approved);
+
+      // Determine if this actor is currently the last incomplete actor
+      const incompleteActors = actors.filter(a => !a.actor_complete);
+      const isLastIncompleteActor =
+        incompleteActors.length === 1 && incompleteActors[0].id === data.actor.id;
+
       return (
         <ActorView 
           actor={data.actor}
@@ -83,6 +90,8 @@ export default function DetailPane({
           dataOps={dataOps}
           error={commonError}
           canCompleteActor={canCompleteActor}
+          isLastIncompleteActor={isLastIncompleteActor}
+          onLogInfo={onLogInfo}
         />
       );
     }
@@ -120,6 +129,7 @@ export default function DetailPane({
           onDeleteSection={() => onSectionDeleted && onSectionDeleted(data.sectionData.id)}
           error={commonError}
           canCompleteSection={canCompleteSection}
+          onLogInfo={onLogInfo}
         />
       );
     }
@@ -142,6 +152,7 @@ export default function DetailPane({
           key={data.item.id}
           item={data.item}
           actor={contentActor}
+          sections={sections}
           onContentDeleted={onContentDeleted}
           onContentUpdated={onContentUpdated}
           onSectionUpdated={onSectionUpdated}
@@ -185,6 +196,7 @@ export default function DetailPane({
         <ConsoleView 
           logs={logs}
           undoRedo={undoRedo}
+          onClearLogs={onClearLogs}
         />
       );
 

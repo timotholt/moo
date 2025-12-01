@@ -12,6 +12,7 @@ import ProviderSettingsDisplay from '../ProviderSettingsDisplay.jsx';
 import SectionManagement from '../SectionManagement.jsx';
 import CompleteButton from '../CompleteButton.jsx';
 import { DESIGN_SYSTEM } from '../../theme/designSystem.js';
+import { buildActorPath } from '../../utils/pathBuilder.js';
 
 export default function ActorView({ 
   actor, 
@@ -20,6 +21,8 @@ export default function ActorView({
   dataOps, 
   error,
   canCompleteActor = true,
+  isLastIncompleteActor = false,
+  onLogInfo,
 }) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editingDisplayName, setEditingDisplayName] = useState(false);
@@ -114,7 +117,27 @@ export default function ActorView({
               isComplete={actor.actor_complete}
               onToggle={async () => {
                 try {
-                  await actorOps.updateActor(actor.id, { actor_complete: !actor.actor_complete });
+                  const wasComplete = actor.actor_complete;
+                  const nextComplete = !actor.actor_complete;
+                  await actorOps.updateActor(actor.id, { actor_complete: nextComplete });
+
+                  // Status-only logs for actor completion/incompletion using full path
+                  if (onLogInfo) {
+                    const actorName = actor.display_name || actor.id;
+                    const path = buildActorPath(actorName);
+                    if (nextComplete) {
+                      onLogInfo(`Marked ${path} as complete`);
+                    } else {
+                      onLogInfo(`Marked ${path} as incomplete`);
+                    }
+                  }
+
+                  // Additional milestone logs when completing (delay to ensure it appears after user action in log)
+                  if (!wasComplete && nextComplete && onLogInfo && isLastIncompleteActor) {
+                    setTimeout(() => {
+                      onLogInfo('All actors in this project are complete.');
+                    }, 1000);
+                  }
                 } catch (err) {
                   // Error handled by hook
                 }
@@ -125,6 +148,7 @@ export default function ActorView({
                   ? 'All cues for this actor must be complete before the actor can be marked complete.'
                   : undefined
               }
+              isFinalActor={isLastIncompleteActor}
               itemType="actor"
             />
           }

@@ -30,6 +30,7 @@ import { deleteContent, updateContent, updateSection, updateActor, getTakes, upd
 import CompleteButton from './CompleteButton.jsx';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
+import { buildContentPath, buildSectionPath, buildActorPath, getSectionName } from '../utils/pathBuilder.js';
 
 // Local storage key for LLM settings (same as SettingsDialog)
 const LLM_STORAGE_KEY = 'vofoundry-llm-settings';
@@ -81,6 +82,7 @@ function applyCapitalizationConversion(str, conversion) {
 export default function ContentView({ 
   item, 
   actor,
+  sections,
   onContentDeleted,
   onContentUpdated,
   onSectionUpdated,
@@ -496,8 +498,22 @@ export default function ContentView({
                     onContentUpdated(result.content);
                   }
 
+                  // Status-only log for cue completion using full path
+                  if (onLogInfo) {
+                    const actorName = actor?.display_name || 'Unknown';
+                    const sectionName = getSectionName(item.section_id, sections);
+                    const cueName = item.cue_id || item.id;
+                    const path = buildContentPath(actorName, sectionName, cueName);
+                    if (nextAllApproved) {
+                      onLogInfo(`Marked ${path} as complete`);
+                    } else {
+                      onLogInfo(`Marked ${path} as incomplete`);
+                    }
+                  }
+
                   // If this cue is being marked incomplete, also mark its parent
                   // section and actor as incomplete, to keep the hierarchy in sync.
+                  // Note: We don't log these cascaded changes here - the diff describer handles that.
                   if (!nextAllApproved) {
                     try {
                       if (item.section_id) {

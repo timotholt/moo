@@ -9,7 +9,8 @@ export function useDataOperations({
   onContentCreated, 
   onSectionCreated, 
   onActorUpdated, 
-  onSectionUpdated
+  onSectionUpdated,
+  onLogInfo
 }) {
   const [contentPrompt, setContentPrompt] = useState('');
   const [contentCueId, setContentCueId] = useState('');
@@ -256,6 +257,7 @@ export function useDataOperations({
             const actorResult = await updateActor(actorId, { actor_complete: false });
             if (actorResult && actorResult.actor && onActorUpdated) {
               onActorUpdated(actorResult.actor);
+              // Note: We don't log cascaded changes here - the diff describer handles that.
             }
           } catch (actorErr) {
             // Surface actor update errors through the same error channel
