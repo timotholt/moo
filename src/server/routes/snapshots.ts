@@ -127,8 +127,8 @@ function buildSnapshotMessage(
     return `system marked ${path} as incomplete`;
   }
   if (diff.changes.length === 1 && diff.changes[0] === 'marked as complete') {
-    // Don't duplicate the UI's "user marked" log - use a different format for undo message
-    return `Mark complete: ${path}`;
+    // Use same format as UI for consistent undo message
+    return `user marked ${path} as complete`;
   }
   
   // For single change, be specific
