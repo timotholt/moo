@@ -67,17 +67,20 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     const section = content ? catalog.sections.find(s => s.id === content.section_id) : null;
     
     // Build descriptive message with diff
-    const changes = describeChanges(
+    const diff = describeChanges(
       currentTake as unknown as Record<string, unknown>,
       updatedTake as unknown as Record<string, unknown>
     );
     
+    // Format the change description
+    let changeDesc = diff.changes.length > 0 ? diff.changes[0] : 'updated';
+    
     let snapshotMessage = '';
     if (actor && content) {
       const sectionName = section?.name || content.content_type;
-      snapshotMessage = `${actor.display_name} → ${sectionName} → ${content.cue_id}: ${changes}`;
+      snapshotMessage = `${actor.display_name} → ${sectionName} → ${content.cue_id} → ${currentTake.filename}: ${changeDesc}`;
     } else {
-      snapshotMessage = `Take ${currentTake.filename || id}: ${changes}`;
+      snapshotMessage = `Take ${currentTake.filename || id}: ${changeDesc}`;
     }
     
     await saveSnapshot(paths, snapshotMessage, catalog);

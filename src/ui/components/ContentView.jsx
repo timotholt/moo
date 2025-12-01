@@ -243,6 +243,8 @@ export default function ContentView({
   const handleTakeStatus = async (takeId, status) => {
     try {
       if (onStatusChange) onStatusChange('Processing');
+      const take = takes.find(t => t.id === takeId);
+      const previousStatus = take?.status || 'new';
       const result = await updateTake(takeId, { status });
       if (result.take) {
         setTakes(prev => prev.map(t => t.id === takeId ? result.take : t));
@@ -254,9 +256,21 @@ export default function ContentView({
         if (result.content && onContentUpdated) {
           onContentUpdated(result.content);
         }
+        // Log the status change to history
+        const filename = result.take.filename || takeId;
+        if (status === 'approved') {
+          logInfo(`Approved take: ${filename}`);
+        } else if (status === 'rejected') {
+          logInfo(`Rejected take: ${filename}`);
+        } else if (status === 'new' && previousStatus === 'approved') {
+          logInfo(`Unapproved take: ${filename}`);
+        } else if (status === 'new' && previousStatus === 'rejected') {
+          logInfo(`Unrejected take: ${filename}`);
+        }
       }
     } catch (err) {
       setError(err.message || String(err));
+      logError(`Failed to update take status: ${err.message || String(err)}`);
     } finally {
       if (onStatusChange) onStatusChange('');
     }

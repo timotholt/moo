@@ -20,6 +20,8 @@ import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { LOG_TYPE } from '../hooks/useAppLog.js';
 
@@ -69,6 +71,22 @@ function LogIcon({ type, message }) {
   }
   if (isUserIncomplete) {
     return <IndeterminateCheckBoxIcon sx={{ ...iconSx, color: 'warning.main' }} />;
+  }
+  
+  // Thumb icons for take approval/rejection
+  const isApproved = message && /^Approved take:/i.test(message);
+  const isRejected = message && /^Rejected take:/i.test(message);
+  const isUnapproved = message && /^Unapproved take:/i.test(message);
+  const isUnrejected = message && /^Unrejected take:/i.test(message);
+  
+  if (isApproved) {
+    return <ThumbUpIcon sx={{ ...iconSx, color: 'success.main' }} />;
+  }
+  if (isRejected) {
+    return <ThumbDownIcon sx={{ ...iconSx, color: 'error.main' }} />;
+  }
+  if (isUnapproved || isUnrejected) {
+    return <InfoIcon sx={{ ...iconSx, color: 'text.secondary' }} />;
   }
   
   switch (type) {
