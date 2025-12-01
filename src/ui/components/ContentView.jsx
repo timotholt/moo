@@ -505,9 +505,9 @@ export default function ContentView({
                     const cueName = item.cue_id || item.id;
                     const path = buildContentPath(actorName, sectionName, cueName);
                     if (nextAllApproved) {
-                      onLogInfo(`Marked ${path} as complete`);
+                      onLogInfo(`user marked ${path} as complete`);
                     } else {
-                      onLogInfo(`Marked ${path} as incomplete`);
+                      onLogInfo(`user marked ${path} as incomplete`);
                     }
                   }
 

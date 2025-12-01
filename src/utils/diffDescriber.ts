@@ -134,14 +134,15 @@ export function describeChanges(
       changedFields.push(label);
       
       // Special handling for completion flags
+      // Note: These return just the action - the caller adds the path prefix
       if (key === 'all_approved') {
-        changes.push(newVal ? 'Marked cue as complete' : 'Marked cue as incomplete');
+        changes.push(newVal ? 'marked as complete' : 'marked as incomplete');
       }
       else if (key === 'actor_complete') {
-        changes.push(newVal ? 'Marked actor as complete' : 'Marked actor as incomplete');
+        changes.push(newVal ? 'marked as complete' : 'marked as incomplete');
       }
       else if (key === 'section_complete') {
-        changes.push(newVal ? 'Marked section as complete' : 'Marked section as incomplete');
+        changes.push(newVal ? 'marked as complete' : 'marked as incomplete');
       }
       // Special handling for take status (approved/rejected)
       else if (key === 'status') {

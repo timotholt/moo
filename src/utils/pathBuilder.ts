@@ -12,7 +12,7 @@ export interface PathContext {
  * Build a display path for an actor
  */
 export function buildActorPath(actorName: string): string {
-  return `Actors → ${actorName}`;
+  return `actor → ${actorName}`;
 }
 
 /**
@@ -25,7 +25,7 @@ export function buildSectionPath(
 ): string {
   const actor = ctx.actors?.find(a => a.id === actorId);
   const actorName = actor?.display_name || 'Unknown';
-  return `Actors → ${actorName} → ${sectionName}`;
+  return `actor → ${actorName} → ${sectionName}`;
 }
 
 /**
@@ -41,7 +41,7 @@ export function buildContentPath(
   const section = ctx.sections?.find(s => s.id === sectionId);
   const actorName = actor?.display_name || 'Unknown';
   const sectionName = section?.name || section?.content_type || 'Unknown';
-  return `Actors → ${actorName} → ${sectionName} → ${cueName}`;
+  return `actor → ${actorName} → ${sectionName} → ${cueName}`;
 }
 
 /**

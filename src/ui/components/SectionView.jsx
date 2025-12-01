@@ -93,9 +93,9 @@ export default function SectionView({
       const sectionName = currentSectionName || sectionData.id;
       const path = buildSectionPath(actorName, sectionName);
       if (nextComplete) {
-        onLogInfo(`Marked ${path} as complete`);
+        onLogInfo(`user marked ${path} as complete`);
       } else {
-        onLogInfo(`Marked ${path} as incomplete`);
+        onLogInfo(`user marked ${path} as incomplete`);
       }
     }
   };

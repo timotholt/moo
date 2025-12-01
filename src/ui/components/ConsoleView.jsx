@@ -60,20 +60,15 @@ function LogIcon({ type, message }) {
     return <RecordVoiceOverIcon sx={{ ...iconSx, color: 'success.main' }} />;
   }
   
-  // Checkbox icons for USER-initiated completion messages (Marked actor → ...)
-  // Excludes automatic/cascaded messages (those with parenthetical notes like "child cue changed")
-  const isAutomatic = message && /\(child .* changed\)/i.test(message);
+  // Checkbox icons for USER-initiated completion messages (user marked ...)
+  const isUserComplete = message && /^user marked .* as complete$/i.test(message);
+  const isUserIncomplete = message && /^user marked .* as incomplete$/i.test(message);
   
-  if (!isAutomatic) {
-    const isPathBasedComplete = message && /^Marked actor →.*as complete$/i.test(message);
-    const isPathBasedIncomplete = message && /^Marked actor →.*as incomplete$/i.test(message);
-    
-    if (isPathBasedComplete) {
-      return <CheckBoxIcon sx={{ ...iconSx, color: 'success.main' }} />;
-    }
-    if (isPathBasedIncomplete) {
-      return <IndeterminateCheckBoxIcon sx={{ ...iconSx, color: 'warning.main' }} />;
-    }
+  if (isUserComplete) {
+    return <CheckBoxIcon sx={{ ...iconSx, color: 'success.main' }} />;
+  }
+  if (isUserIncomplete) {
+    return <IndeterminateCheckBoxIcon sx={{ ...iconSx, color: 'warning.main' }} />;
   }
   
   switch (type) {

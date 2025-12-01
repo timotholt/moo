@@ -126,9 +126,9 @@ export default function ActorView({
                     const actorName = actor.display_name || actor.id;
                     const path = buildActorPath(actorName);
                     if (nextComplete) {
-                      onLogInfo(`Marked ${path} as complete`);
+                      onLogInfo(`user marked ${path} as complete`);
                     } else {
-                      onLogInfo(`Marked ${path} as incomplete`);
+                      onLogInfo(`user marked ${path} as incomplete`);
                     }
                   }
 

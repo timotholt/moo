@@ -1,9 +1,9 @@
-{"id":"1764572618509-xfndpgvrb","timestamp":"2025-12-01T07:03:38.509Z","type":"info","message":"Undid: august → dialogue2 → 2: Marked cue as complete","details":null}
-{"id":"1764572713752-r7cq092am","timestamp":"2025-12-01T07:05:13.752Z","type":"info","message":"Marked Actors → august → dialogue2 → 2 as complete","details":null}
-{"id":"1764572716174-dfxm57t8s","entryType":"log","timestamp":"2025-12-01T07:05:16.174Z","type":"info","message":"august → dialogue2: Marked section as complete"}
-{"id":"1764572716184-kcvin54p6","timestamp":"2025-12-01T07:05:16.184Z","type":"info","message":"Marked Actors → august → dialogue2 as complete","details":null}
-{"id":"1764572718606-ht5un36vx","entryType":"log","timestamp":"2025-12-01T07:05:18.606Z","type":"info","message":"august: Marked actor as complete"}
-{"id":"1764572718628-gj85575a9","timestamp":"2025-12-01T07:05:18.628Z","type":"info","message":"Marked Actors → august as complete","details":null}
-{"id":"1764572719632-doa0oky0c","timestamp":"2025-12-01T07:05:19.632Z","type":"info","message":"All actors in this project are complete.","details":null}
-{"id":"1764572751510-81oaxwyoi","timestamp":"2025-12-01T07:05:51.510Z","type":"info","message":"Undid: august: Marked actor as complete","details":null}
-{"id":"1764572752724-j21zefgtt","timestamp":"2025-12-01T07:05:52.724Z","type":"info","message":"Redid: august: Marked actor as complete","details":null}
+{"id":"1764573596645-dikiqwdt0","timestamp":"2025-12-01T07:19:56.645Z","type":"info","message":"user marked actor → october → week2 → 12 as incomplete","details":null}
+{"id":"1764573596675-59tiar7kt","entryType":"log","timestamp":"2025-12-01T07:19:56.676Z","type":"info","message":"system marked actor → october → week2 as incomplete"}
+{"id":"1764573596732-14nit0li7","entryType":"log","timestamp":"2025-12-01T07:19:56.732Z","type":"info","message":"system marked actor → october as incomplete"}
+{"id":"1764573606817-aq0hh7wp5","timestamp":"2025-12-01T07:20:06.817Z","type":"info","message":"user marked actor → october → week2 → 12 as complete","details":null}
+{"id":"1764573613800-ra3r4kppa","entryType":"log","timestamp":"2025-12-01T07:20:13.800Z","type":"info","message":"system marked actor → october → week2 as complete"}
+{"id":"1764573613811-vfa1yldth","timestamp":"2025-12-01T07:20:13.811Z","type":"info","message":"user marked actor → october → week2 as complete","details":null}
+{"id":"1764573615525-29vt8wbty","entryType":"log","timestamp":"2025-12-01T07:20:15.525Z","type":"info","message":"system marked actor → october as complete"}
+{"id":"1764573615538-j1j8qqixf","timestamp":"2025-12-01T07:20:15.538Z","type":"info","message":"user marked actor → october as complete","details":null}
+{"id":"1764573616544-7m8it80o9","timestamp":"2025-12-01T07:20:16.544Z","type":"info","message":"All actors in this project are complete.","details":null}

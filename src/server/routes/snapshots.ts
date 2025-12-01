@@ -111,11 +111,16 @@ export function snapshotMessageForSectionUpdate(
   oldSection: Record<string, unknown>,
   newSection: Record<string, unknown>
 ): string {
-  const path = buildSectionPath(actorId, sectionName, ctx).replace('Actors → ', '');
+  const path = buildSectionPath(actorId, sectionName, ctx);
   const diff = describeChanges(oldSection, newSection);
   
   if (!diff.hasChanges) {
     return `Update: ${path} (no changes)`;
+  }
+  
+  // For completion changes, use "system marked" format
+  if (diff.changes.length === 1 && diff.changes[0].startsWith('marked as ')) {
+    return `system ${diff.changes[0].replace('marked as ', `marked ${path} as `)}`;
   }
   
   // For single change, be specific
@@ -136,9 +141,10 @@ export function snapshotMessageForActorUpdate(
   newActor: Record<string, unknown>
 ): string {
   const diff = describeChanges(oldActor, newActor);
+  const path = `actor → ${actorName}`;
   
   if (!diff.hasChanges) {
-    return `Update actor: ${actorName} (no changes)`;
+    return `Update: ${path} (no changes)`;
   }
   
   // Check for rename specifically
@@ -146,13 +152,18 @@ export function snapshotMessageForActorUpdate(
     return `Rename actor: ${oldActor.display_name} → ${newActor.display_name}`;
   }
   
+  // For completion changes, use "system marked" format
+  if (diff.changes.length === 1 && diff.changes[0].startsWith('marked as ')) {
+    return `system ${diff.changes[0].replace('marked as ', `marked ${path} as `)}`;
+  }
+  
   // For single change, be specific
   if (diff.changes.length === 1) {
-    return `${actorName}: ${diff.changes[0]}`;
+    return `${path}: ${diff.changes[0]}`;
   }
   
   // For multiple changes, use summary
-  return `Update: ${actorName} (${diff.summary.toLowerCase()})`;
+  return `Update: ${path} (${diff.summary.toLowerCase()})`;
 }
 
 /**
@@ -166,11 +177,16 @@ export function snapshotMessageForContentUpdate(
   oldContent: Record<string, unknown>,
   newContent: Record<string, unknown>
 ): string {
-  const path = buildContentPath(actorId, sectionId, cueName, ctx).replace('Actors → ', '');
+  const path = buildContentPath(actorId, sectionId, cueName, ctx);
   const diff = describeChanges(oldContent, newContent);
   
   if (!diff.hasChanges) {
     return `Update: ${path} (no changes)`;
+  }
+  
+  // For completion changes, use "system marked" format
+  if (diff.changes.length === 1 && diff.changes[0].startsWith('marked as ')) {
+    return `system ${diff.changes[0].replace('marked as ', `marked ${path} as `)}`;
   }
   
   // For single change, be specific
