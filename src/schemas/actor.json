@@ -36,7 +36,7 @@
                         "voice_id": {
                             "type": "string"
                         },
-                        "batch_generate": {
+                        "min_candidates": {
                             "type": "integer",
                             "minimum": 1
                         },
@@ -70,7 +70,7 @@
                                 "inherit"
                             ]
                         },
-                        "batch_generate": {
+                        "min_candidates": {
                             "type": "integer",
                             "minimum": 1
                         },
@@ -94,7 +94,7 @@
                                 "inherit"
                             ]
                         },
-                        "batch_generate": {
+                        "min_candidates": {
                             "type": "integer",
                             "minimum": 1
                         },

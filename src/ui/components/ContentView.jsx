@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -26,7 +26,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { deleteContent, updateContent, updateSection, updateActor, getTakes, updateTake, generateTakes, deleteTake } from '../api/client.js';
+import { deleteContent, updateContent, updateSection, updateActor, updateTake, generateTakes, deleteTake } from '../api/client.js';
 import CompleteButton from './CompleteButton.jsx';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
@@ -84,6 +84,7 @@ export default function ContentView({
   item, 
   actor,
   sections,
+  allTakes = [],
   onContentDeleted,
   onContentUpdated,
   onSectionUpdated,
@@ -128,9 +129,19 @@ export default function ContentView({
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState('');
   
-  // Takes
-  const [takes, setTakes] = useState([]);
-  const [loadingTakes, setLoadingTakes] = useState(false);
+  // Takes - filter from allTakes prop, with local state for optimistic updates
+  const filteredTakes = useMemo(() => 
+    (allTakes || []).filter(t => t.content_id === item.id),
+    [allTakes, item.id]
+  );
+  const [localTakes, setLocalTakes] = useState([]);
+  // Merge: use filteredTakes as base, overlay any local additions
+  const takes = useMemo(() => {
+    // If we have local takes that aren't in filtered yet (optimistic), include them
+    const filteredIds = new Set(filteredTakes.map(t => t.id));
+    const localOnly = localTakes.filter(t => !filteredIds.has(t.id));
+    return [...filteredTakes, ...localOnly];
+  }, [filteredTakes, localTakes]);
   const [generatingTakes, setGeneratingTakes] = useState(false);
   const [expandedTakes, setExpandedTakes] = useState({});
   const [editingCueId, setEditingCueId] = useState(false);
@@ -168,24 +179,9 @@ export default function ContentView({
   // Compute effective filename (custom or auto-generated)
   const effectiveFilename = filename || baseFilename;
 
-  // Load takes for this content
+  // Clear local takes when switching items (they'll come from allTakes prop)
   useEffect(() => {
-    let cancelled = false;
-    async function loadTakes() {
-      try {
-        setLoadingTakes(true);
-        const result = await getTakes(item.id);
-        if (!cancelled) {
-          setTakes(result.takes || []);
-        }
-      } catch (err) {
-        console.error('Failed to load takes:', err);
-      } finally {
-        if (!cancelled) setLoadingTakes(false);
-      }
-    }
-    loadTakes();
-    return () => { cancelled = true; };
+    setLocalTakes([]);
   }, [item.id]);
 
   const handleConfirmDeleteContent = async () => {
@@ -247,7 +243,7 @@ export default function ContentView({
       const previousStatus = take?.status || 'new';
       const result = await updateTake(takeId, { status });
       if (result.take) {
-        setTakes(prev => prev.map(t => t.id === takeId ? result.take : t));
+        setLocalTakes(prev => prev.map(t => t.id === takeId ? result.take : t));
         // Notify parent to update tree view
         if (onTakeUpdated) {
           onTakeUpdated(result.take);
@@ -280,16 +276,15 @@ export default function ContentView({
     }
   };
 
-  const handleGenerateTakes = async () => {
-    if (sectionComplete || generatingTakes) return;
-    const count = actor?.provider_settings?.[item.content_type]?.batch_generate || 1;
+  const handleGenerateTakesCount = async (count) => {
+    if (sectionComplete || generatingTakes || count <= 0) return;
     try {
       setGeneratingTakes(true);
       setError(null);
-      if (onStatusChange) onStatusChange(`Generating take 1 of ${count}`);
+      if (onStatusChange) onStatusChange(`Generating ${count} take${count > 1 ? 's' : ''}...`);
       const result = await generateTakes(item.id, count);
       if (result.takes && result.takes.length > 0) {
-        setTakes(prev => [...prev, ...result.takes]);
+        setLocalTakes(prev => [...prev, ...result.takes]);
         // Notify parent to update tree view
         if (onTakesGenerated) {
           onTakesGenerated(result.takes);
@@ -318,7 +313,7 @@ export default function ContentView({
       if (onStatusChange) onStatusChange('Processing');
       const take = takes.find(t => t.id === takeId);
       await deleteTake(takeId);
-      setTakes(prev => prev.filter(t => t.id !== takeId));
+      setLocalTakes(prev => prev.filter(t => t.id !== takeId));
       logInfo(`Take deleted: ${take?.filename || takeId}`);
     } catch (err) {
       const errorMsg = err.message || String(err);
@@ -682,12 +677,7 @@ export default function ContentView({
           </Box>
         </Box>
         
-        {loadingTakes ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 2 }}>
-            <CircularProgress size={16} />
-            <Typography variant="body2">Loading takes...</Typography>
-          </Box>
-        ) : takes.length === 0 ? (
+        {takes.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={DESIGN_SYSTEM.typography.body}>
             No takes yet. Generate audio to create takes.
           </Typography>
@@ -850,27 +840,58 @@ export default function ContentView({
           </List>
         )}
         
-        {/* Generate Takes Button at bottom */}
-        <Box sx={{ mt: 2 }}>
+        {/* Generate Takes Buttons at bottom */}
+        <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
           {(() => {
             const dialogueProvider = actor?.provider_settings?.dialogue;
             const voiceMissing = item.content_type === 'dialogue' && (!dialogueProvider || !dialogueProvider.voice_id);
             const disabled = isDisabled || generatingTakes || voiceMissing;
-            const batchCount = actor?.provider_settings?.[item.content_type]?.batch_generate || 1;
-            const label = generatingTakes
-              ? 'Generating takes...'
-              : `Generate ${batchCount} Take${batchCount > 1 ? 's' : ''}`;
+            
+            // Get min_candidates: section settings override actor settings
+            const section = sections?.find(s => s.id === item.section_id);
+            const sectionSettings = section?.provider_settings;
+            const actorSettings = actor?.provider_settings?.[item.content_type];
+            // Use section setting if not 'inherit', otherwise fall back to actor setting
+            const minCandidates = (sectionSettings?.provider !== 'inherit' && sectionSettings?.min_candidates)
+              ? sectionSettings.min_candidates
+              : (actorSettings?.min_candidates || 1);
+            
+            // Calculate how many undecided takes exist
+            const undecidedCount = takes.filter(t => t.status === 'new').length;
+            const needed = Math.max(0, minCandidates - undecidedCount);
 
-            const button = (
+            // Button 1: Generate 1 Take
+            const generate1Button = (
               <Button
                 variant="outlined"
                 size="small"
-                fullWidth
                 disabled={disabled}
-                onClick={handleGenerateTakes}
-                sx={{ ...DESIGN_SYSTEM.typography.small }}
+                onClick={() => handleGenerateTakesCount(1)}
+                sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1 }}
               >
-                {label}
+                {generatingTakes ? 'Generating...' : 'Generate 1 Take'}
+              </Button>
+            );
+
+            // Button 2: Backfill N Takes (to meet min_candidates)
+            const backfillButton = needed > 0 ? (
+              <Button
+                variant="outlined"
+                size="small"
+                disabled={disabled}
+                onClick={() => handleGenerateTakesCount(needed)}
+                sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1 }}
+              >
+                {generatingTakes ? 'Generating...' : `Backfill ${needed} Take${needed > 1 ? 's' : ''}`}
+              </Button>
+            ) : (
+              <Button
+                variant="outlined"
+                size="small"
+                disabled
+                sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1, opacity: 0.5 }}
+              >
+                Min Met ({undecidedCount}/{minCandidates})
               </Button>
             );
 
@@ -880,12 +901,20 @@ export default function ContentView({
                   title="Select a default dialogue voice in Provider settings before generating takes."
                   arrow
                 >
-                  <span>{button}</span>
+                  <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
+                    <span style={{ flex: 1 }}>{generate1Button}</span>
+                    <span style={{ flex: 1 }}>{backfillButton}</span>
+                  </Box>
                 </Tooltip>
               );
             }
 
-            return button;
+            return (
+              <>
+                {generate1Button}
+                {backfillButton}
+              </>
+            );
           })()}
         </Box>
         

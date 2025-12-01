@@ -17,7 +17,8 @@ import { useViewRouter } from '../hooks/useViewRouter.js';
 export default function DetailPane({ 
   actors, 
   content, 
-  sections, 
+  sections,
+  takes, 
   selectedNode, 
   expandNode, 
   onActorCreated, 
@@ -147,6 +148,7 @@ export default function DetailPane({
           item={data.item}
           actor={contentActor}
           sections={sections}
+          allTakes={takes}
           onContentDeleted={onContentDeleted}
           onContentUpdated={onContentUpdated}
           onSectionUpdated={onSectionUpdated}

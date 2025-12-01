@@ -27,20 +27,20 @@ export interface Actor {
             provider: 'elevenlabs' | 'manual' | 'inherit';
             voice_id?: string;
             model_id?: string;
-            batch_generate?: number;
+            min_candidates?: number;
             approval_count_default?: number;
             stability?: number;
             similarity_boost?: number;
         };
         music?: {
             provider: 'elevenlabs' | 'manual' | 'inherit';
-            batch_generate?: number;
+            min_candidates?: number;
             approval_count_default?: number;
             duration_seconds?: number;
         };
         sfx?: {
             provider: 'elevenlabs' | 'manual' | 'inherit';
-            batch_generate?: number;
+            min_candidates?: number;
             approval_count_default?: number;
         };
     };
@@ -76,7 +76,7 @@ export interface Section {
         provider: 'elevenlabs' | 'manual' | 'inherit';
         voice_id?: string;
         model_id?: string;
-        batch_generate?: number;
+        min_candidates?: number;
         approval_count_default?: number;
         stability?: number;
         similarity_boost?: number;

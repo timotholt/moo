@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import { GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
@@ -7,7 +7,7 @@ import ProjectShell from './components/ProjectShell.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import AudioPlayerBar from './components/AudioPlayerBar.jsx';
 import WelcomeScreen from './components/WelcomeScreen.jsx';
-import { getProviderCredits } from './api/client.js';
+import { getProviderCredits, backfillTakes } from './api/client.js';
 
 // Font size multipliers
 const FONT_SIZE_SCALES = {
@@ -33,6 +33,10 @@ export default function App() {
   const [statusText, setStatusText] = useState('');
   const [providerCredits, setProviderCredits] = useState('');
   const [currentProject, setCurrentProject] = useState(null);
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  
+  // Reference to ProjectShell for reloading data after backfill
+  const projectShellRef = useRef(null);
 
   // Global audio player state
   const [currentTake, setCurrentTake] = useState(null);
@@ -75,6 +79,34 @@ export default function App() {
     setAudioUrl(null);
     setIsPlaying(false);
   }, [currentProject]);
+
+  // Handle backfill all incomplete cues
+  const handleBackfillAll = useCallback(async () => {
+    if (backfillRunning) return;
+    setBackfillRunning(true);
+    setStatusText('Backfilling all incomplete cues...');
+    try {
+      const result = await backfillTakes();
+      console.log('[Backfill] Result:', result);
+      if (result.total_generated > 0) {
+        setStatusText(`Backfill complete: generated ${result.total_generated} take(s)`);
+        // Reload project data to show new takes
+        if (projectShellRef.current?.reloadData) {
+          await projectShellRef.current.reloadData();
+        }
+      } else {
+        setStatusText('Backfill complete: no takes needed');
+      }
+      // Clear status after a delay
+      setTimeout(() => setStatusText(''), 3000);
+    } catch (err) {
+      console.error('[Backfill] Error:', err);
+      setStatusText(`Backfill failed: ${err.message}`);
+      setTimeout(() => setStatusText(''), 5000);
+    } finally {
+      setBackfillRunning(false);
+    }
+  }, [backfillRunning]);
 
   // Save settings to localStorage
   useEffect(() => {
@@ -206,10 +238,13 @@ export default function App() {
           onCapitalizationConversionChange={setCapitalizationConversion}
           currentProject={currentProject}
           onProjectChange={setCurrentProject}
+          onBackfillAll={handleBackfillAll}
+          backfillRunning={backfillRunning}
         />
         {currentProject ? (
           <ProjectShell 
             key={currentProject?.name || 'no-project'}
+            ref={projectShellRef}
             currentProject={currentProject}
             blankSpaceConversion={blankSpaceConversion} 
             capitalizationConversion={capitalizationConversion}

@@ -282,3 +282,47 @@ export async function switchProject(name) {
   }
   return res.json();
 }
+
+// Batch operations
+
+/**
+ * Preview what backfill would generate without actually generating
+ * @param {Object} options - Filter options
+ * @param {string} [options.actorId] - Limit to specific actor
+ * @param {string} [options.sectionId] - Limit to specific section
+ * @param {string} [options.contentId] - Limit to specific cue
+ */
+export async function previewBackfillTakes(options = {}) {
+  const params = new URLSearchParams();
+  if (options.actorId) params.set('actor_id', options.actorId);
+  if (options.sectionId) params.set('section_id', options.sectionId);
+  if (options.contentId) params.set('content_id', options.contentId);
+  
+  const url = `/api/batch/backfill-takes/preview${params.toString() ? '?' + params : ''}`;
+  console.log(`[API] Preview backfill: ${url}`);
+  return fetchJson(url);
+}
+
+/**
+ * Backfill takes to meet minimum candidates for incomplete cues
+ * @param {Object} options - Filter options
+ * @param {string} [options.actorId] - Limit to specific actor
+ * @param {string} [options.sectionId] - Limit to specific section
+ * @param {string} [options.contentId] - Limit to specific cue
+ */
+export async function backfillTakes(options = {}) {
+  const params = new URLSearchParams();
+  if (options.actorId) params.set('actor_id', options.actorId);
+  if (options.sectionId) params.set('section_id', options.sectionId);
+  if (options.contentId) params.set('content_id', options.contentId);
+  
+  const url = `/api/batch/backfill-takes${params.toString() ? '?' + params : ''}`;
+  console.log(`[API] Backfill takes: ${url}`);
+  
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || `Failed to backfill takes: ${res.status}`);
+  }
+  return res.json();
+}

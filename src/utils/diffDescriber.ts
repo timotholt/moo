@@ -18,7 +18,7 @@ const FIELD_LABELS: Record<string, string> = {
   base_filename: 'filename',
   voice_id: 'voice',
   model_id: 'model',
-  batch_generate: 'batch size',
+  min_candidates: 'minimum candidates',
   approval_count_default: 'approval count',
   similarity_boost: 'similarity',
   duration_seconds: 'duration',

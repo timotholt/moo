@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TreePane from './TreePane.jsx';
@@ -16,7 +16,7 @@ import {
   getSectionName 
 } from '../utils/pathBuilder.js';
 
-export default function ProjectShell({ blankSpaceConversion, capitalizationConversion, onStatusChange, onCreditsRefresh, onPlayTake, onStopPlayback, currentPlayingTakeId }) {
+const ProjectShell = forwardRef(function ProjectShell({ blankSpaceConversion, capitalizationConversion, onStatusChange, onCreditsRefresh, onPlayTake, onStopPlayback, currentPlayingTakeId }, ref) {
   const [actors, setActors] = useState([]);
   const [content, setContent] = useState([]);
   const [sections, setSections] = useState([]); // Track sections separately from content
@@ -127,38 +127,50 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
     };
   }, [isResizing]);
 
+  // Reusable data loading function
+  const reloadData = useCallback(async () => {
+    try {
+      console.log('[Project] Reloading project data...');
+      const [actorsRes, contentRes, sectionsRes, takesRes] = await Promise.all([
+        getActors(), 
+        getContent(), 
+        getSections(),
+        getTakes()
+      ]);
+      setActors(actorsRes.actors || []);
+      setContent(contentRes.content || []);
+      setSections(sectionsRes.sections || []);
+      setTakes(takesRes.takes || []);
+      setError(null);
+      
+      // Log summary
+      const actorCount = actorsRes.actors?.length || 0;
+      const sectionCount = sectionsRes.sections?.length || 0;
+      const cueCount = contentRes.content?.length || 0;
+      const takeCount = takesRes.takes?.length || 0;
+      console.log(`[Project] Loaded: ${actorCount} actors, ${sectionCount} sections, ${cueCount} cues, ${takeCount} takes`);
+      
+      // Refresh undo state and logs after project data loads
+      undoStack.refreshUndoState();
+      reloadLogs();
+    } catch (err) {
+      console.error('[Project] Failed to load:', err);
+      setError(err.message || String(err));
+    }
+  }, [undoStack, reloadLogs]);
+
+  // Expose reloadData to parent via ref
+  useImperativeHandle(ref, () => ({
+    reloadData
+  }), [reloadData]);
+
+  // Initial load
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        console.log('[Project] Loading project data...');
         setLoading(true);
-        const [actorsRes, contentRes, sectionsRes, takesRes] = await Promise.all([
-          getActors(), 
-          getContent(), 
-          getSections(),
-          getTakes()
-        ]);
-        if (cancelled) return;
-        setActors(actorsRes.actors || []);
-        setContent(contentRes.content || []);
-        setSections(sectionsRes.sections || []);
-        setTakes(takesRes.takes || []);
-        setError(null);
-        
-        // Log summary
-        const actorCount = actorsRes.actors?.length || 0;
-        const sectionCount = sectionsRes.sections?.length || 0;
-        const cueCount = contentRes.content?.length || 0;
-        const takeCount = takesRes.takes?.length || 0;
-        console.log(`[Project] Loaded: ${actorCount} actors, ${sectionCount} sections, ${cueCount} cues, ${takeCount} takes`);
-        
-        // Refresh undo state and logs after project data loads
-        undoStack.refreshUndoState();
-        reloadLogs();
-      } catch (err) {
-        console.error('[Project] Failed to load:', err);
-        if (!cancelled) setError(err.message || String(err));
+        await reloadData();
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -227,6 +239,7 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         actors={actors}
         content={content}
         sections={sections}
+        takes={takes}
         selectedNode={selectedNode}
         expandNode={expandNode}
         onActorCreated={(actor) => {
@@ -335,4 +348,6 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
       </Box>
     </AppProvider>
   );
-}
+});
+
+export default ProjectShell;

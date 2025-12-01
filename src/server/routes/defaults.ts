@@ -7,19 +7,19 @@ export function registerDefaultsRoutes(fastify: FastifyInstance, getProjectConte
   const DEFAULTS: Record<string, Record<string, unknown>> = {
     dialogue: { 
       provider: 'elevenlabs', 
-      batch_generate: 1, 
+      min_candidates: 1, 
       approval_count_default: 1, 
       stability: 0.5, 
       similarity_boost: 0.75 
     },
     music: { 
       provider: 'elevenlabs', 
-      batch_generate: 1, 
+      min_candidates: 1, 
       approval_count_default: 1 
     },
     sfx: { 
       provider: 'elevenlabs', 
-      batch_generate: 1, 
+      min_candidates: 1, 
       approval_count_default: 1 
     }
   };

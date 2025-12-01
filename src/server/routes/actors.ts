@@ -51,9 +51,9 @@ export function registerActorRoutes(fastify: FastifyInstance, getProjectContext:
     // Load global defaults
     const defaultsPath = join(paths.root, 'defaults.json');
     let globalDefaults: Record<string, Record<string, unknown>> = {
-      dialogue: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1, stability: 0.5, similarity_boost: 0.75 },
-      music: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
-      sfx: { provider: 'elevenlabs', batch_generate: 1, approval_count_default: 1 },
+      dialogue: { provider: 'elevenlabs', min_candidates: 1, approval_count_default: 1, stability: 0.5, similarity_boost: 0.75 },
+      music: { provider: 'elevenlabs', min_candidates: 1, approval_count_default: 1 },
+      sfx: { provider: 'elevenlabs', min_candidates: 1, approval_count_default: 1 },
     };
 
     try {

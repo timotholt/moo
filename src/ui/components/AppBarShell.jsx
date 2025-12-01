@@ -3,8 +3,11 @@ import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import SettingsIcon from '@mui/icons-material/Settings';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import SettingsDialog from './SettingsDialog.jsx';
 import ProjectSelector from './ProjectSelector.jsx';
 
@@ -18,7 +21,9 @@ export default function AppBarShell({
   capitalizationConversion,
   onCapitalizationConversionChange,
   currentProject,
-  onProjectChange
+  onProjectChange,
+  onBackfillAll,
+  backfillRunning
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -38,6 +43,23 @@ export default function AppBarShell({
             onProjectChange={onProjectChange}
           />
           <Box sx={{ flexGrow: 1 }} />
+          {/* Batch Operations */}
+          {currentProject && (
+            <Tooltip title="Generate takes for all incomplete cues to meet minimum candidates">
+              <span>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AutoFixHighIcon />}
+                  onClick={onBackfillAll}
+                  disabled={backfillRunning}
+                  sx={{ mr: 1, fontSize: '0.75rem', py: 0.25 }}
+                >
+                  {backfillRunning ? 'Backfilling...' : 'Backfill All'}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
           <IconButton
             size="small"
             onClick={() => setSettingsOpen(true)}

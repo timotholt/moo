@@ -11,11 +11,11 @@ function sanitizeProviderSettings(settings, contentType) {
   
   let validKeys;
   if (contentType === 'dialogue') {
-    validKeys = ['provider', 'voice_id', 'model_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost'];
+    validKeys = ['provider', 'voice_id', 'model_id', 'min_candidates', 'approval_count_default', 'stability', 'similarity_boost'];
   } else if (contentType === 'music') {
-    validKeys = ['provider', 'batch_generate', 'approval_count_default', 'duration_seconds'];
+    validKeys = ['provider', 'min_candidates', 'approval_count_default', 'duration_seconds'];
   } else {
-    validKeys = ['provider', 'batch_generate', 'approval_count_default'];
+    validKeys = ['provider', 'min_candidates', 'approval_count_default'];
   }
   
   const sanitized = {};

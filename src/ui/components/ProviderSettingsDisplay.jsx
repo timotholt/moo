@@ -43,7 +43,7 @@ export default function ProviderSettingsDisplay({ actor }) {
             </Typography>
             {actor.provider_settings?.dialogue?.provider === 'elevenlabs' && (
               <Typography variant="body2" color="text.secondary" sx={DESIGN_SYSTEM.typography.caption}>
-                Batch: {actor.provider_settings.dialogue.batch_generate || 1} • 
+                Min: {actor.provider_settings.dialogue.min_candidates || 1} • 
                 Approval: {actor.provider_settings.dialogue.approval_count_default || 1} • 
                 Stability: {actor.provider_settings.dialogue.stability || 0.5} • 
                 Similarity: {actor.provider_settings.dialogue.similarity_boost || 0.75}
@@ -59,7 +59,7 @@ export default function ProviderSettingsDisplay({ actor }) {
             <Typography variant="body2" color="text.secondary" sx={DESIGN_SYSTEM.typography.caption}>
               Provider: {actor.provider_settings?.music?.provider || 'manual'}
               {actor.provider_settings?.music?.provider === 'elevenlabs' && (
-                <> • Batch: {actor.provider_settings.music.batch_generate || 1} • 
+                <> • Min: {actor.provider_settings.music.min_candidates || 1} • 
                 Approval: {actor.provider_settings.music.approval_count_default || 1}</>
               )}
             </Typography>
@@ -73,7 +73,7 @@ export default function ProviderSettingsDisplay({ actor }) {
             <Typography variant="body2" color="text.secondary" sx={DESIGN_SYSTEM.typography.caption}>
               Provider: {actor.provider_settings?.sfx?.provider || 'manual'}
               {actor.provider_settings?.sfx?.provider === 'elevenlabs' && (
-                <> • Batch: {actor.provider_settings.sfx.batch_generate || 1} • 
+                <> • Min: {actor.provider_settings.sfx.min_candidates || 1} • 
                 Approval: {actor.provider_settings.sfx.approval_count_default || 1}</>
               )}
             </Typography>

@@ -18,20 +18,20 @@ import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 const DEFAULT_SETTINGS = {
   dialogue: {
     provider: 'elevenlabs',
-    batch_generate: 1,
+    min_candidates: 1,
     approval_count_default: 1,
     stability: 0.5,
     similarity_boost: 0.75,
   },
   music: {
     provider: 'elevenlabs',
-    batch_generate: 1,
+    min_candidates: 1,
     approval_count_default: 1,
     duration_seconds: 30,
   },
   sfx: {
     provider: 'elevenlabs',
-    batch_generate: 1,
+    min_candidates: 1,
     approval_count_default: 1,
   }
 };
@@ -93,7 +93,7 @@ export default function ProviderSettingsEditor({
     if (!rawSettings || rawSettings.provider === 'inherit') {
       return { provider: 'inherit' };
     }
-    const validKeys = ['provider', 'voice_id', 'model_id', 'batch_generate', 'approval_count_default', 'stability', 'similarity_boost', 'duration_seconds'];
+    const validKeys = ['provider', 'voice_id', 'model_id', 'min_candidates', 'approval_count_default', 'stability', 'similarity_boost', 'duration_seconds'];
     const sanitized = {};
     for (const key of validKeys) {
       if (rawSettings[key] !== undefined) {
@@ -348,14 +348,14 @@ export default function ProviderSettingsEditor({
                 );
               })()}
 
-              {/* Batch Generate and Approval Count on same line */}
+              {/* Min Candidates and Approval Count on same line */}
               <Box sx={{ display: 'flex', gap: '1rem' }}>
                 <TextField
                   size="small"
-                  label="Batch Generate"
+                  label="Min Candidates"
                   type="number"
-                  value={currentSettings.batch_generate || 1}
-                  onChange={(e) => handleChange('batch_generate', parseInt(e.target.value) || 1)}
+                  value={currentSettings.min_candidates || 1}
+                  onChange={(e) => handleChange('min_candidates', parseInt(e.target.value) || 1)}
                   inputProps={{ min: 1, max: 10 }}
                   sx={{ width: 140, ...DESIGN_SYSTEM.components.formControl }}
                 />

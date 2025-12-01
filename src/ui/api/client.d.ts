@@ -22,3 +22,33 @@ export function createSection(payload: Record<string, unknown>): Promise<{ secti
 export function updateSection(id: string, payload: Record<string, unknown>): Promise<{ section: unknown }>;
 export function deleteSection(id: string): Promise<void>;
 export function updateTake(id: string, payload: Record<string, unknown>): Promise<{ take: unknown }>;
+export function switchProject(name: string): Promise<unknown>;
+
+// Batch operations
+export interface BackfillOptions {
+  actorId?: string;
+  sectionId?: string;
+  contentId?: string;
+}
+
+export interface BackfillResult {
+  content_id: string;
+  cue_id: string;
+  actor_name: string;
+  section_name: string;
+  current_undecided: number;
+  min_candidates: number;
+  needed: number;
+  generated: number;
+  error?: string;
+}
+
+export interface BackfillResponse {
+  success: boolean;
+  total_generated: number;
+  items: BackfillResult[];
+  errors: string[];
+}
+
+export function previewBackfillTakes(options?: BackfillOptions): Promise<BackfillResponse>;
+export function backfillTakes(options?: BackfillOptions): Promise<BackfillResponse>;

@@ -49,7 +49,7 @@ export default function ProviderDefaultsView({
 
   const currentDefaults = defaults?.[contentType] || {
     provider: 'elevenlabs',
-    batch_generate: 1,
+    min_candidates: 1,
     approval_count_default: 1,
     stability: contentType === 'dialogue' ? 0.5 : undefined,
     similarity_boost: contentType === 'dialogue' ? 0.75 : undefined
