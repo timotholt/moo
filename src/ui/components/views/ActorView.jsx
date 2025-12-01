@@ -13,7 +13,7 @@ import SectionManagement from '../SectionManagement.jsx';
 import CompleteButton from '../CompleteButton.jsx';
 import { DESIGN_SYSTEM } from '../../theme/designSystem.js';
 import { buildActorPath } from '../../utils/pathBuilder.js';
-import { useLog } from '../../contexts/LogContext.jsx';
+import { useLog } from '../../contexts/AppContext.jsx';
 
 export default function ActorView({ 
   actor, 

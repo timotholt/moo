@@ -45,6 +45,8 @@
     "@types/csv-parse": "^1.2.5",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.19.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.15.0",
     "@typescript-eslint/parser": "^8.15.0",
     "@vitejs/plugin-react": "^4.3.4",

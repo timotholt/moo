@@ -31,8 +31,7 @@ import CompleteButton from './CompleteButton.jsx';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { buildContentPath, buildSectionPath, buildActorPath, getSectionName } from '../utils/pathBuilder.js';
-import { useLog } from '../contexts/LogContext.jsx';
-import { usePlayback } from '../contexts/PlaybackContext.jsx';
+import { useLog, usePlayback, useStatus, useCredits } from '../contexts/AppContext.jsx';
 
 // Local storage key for LLM settings (same as SettingsDialog)
 const LLM_STORAGE_KEY = 'vofoundry-llm-settings';
@@ -94,12 +93,12 @@ export default function ContentView({
   capitalizationConversion = 'lowercase',
   onTakesGenerated,
   onTakeUpdated,
-  onStatusChange,
-  onCreditsRefresh,
   error: parentError 
 }) {
   const { logInfo, logError } = useLog();
   const { playingTakeId, onPlayRequest, onStopRequest, playedTakes, onTakePlayed } = usePlayback();
+  const { onStatusChange } = useStatus();
+  const { onCreditsRefresh } = useCredits();
   // Build the base filename for this content item
   // Strip trailing underscore from actor.base_filename and apply conversions to cue_id
   const actorBase = stripTrailingUnderscore(actor?.base_filename || 'unknown');
@@ -277,10 +276,9 @@ export default function ContentView({
         if (onTakesGenerated) {
           onTakesGenerated(result.takes);
         }
-        // Log generated filenames to console and history
+        // Log to browser console (history log is handled by ProjectShell.onTakesGenerated)
         const filenames = result.takes.map(t => t.filename).join(', ');
         console.log(`[Generate] Created ${result.takes.length} take(s): ${filenames}`);
-        logInfo(`Generated ${result.takes.length} take(s) (${filenames})`);
       }
     } catch (err) {
       const errorMsg = err.message || String(err);

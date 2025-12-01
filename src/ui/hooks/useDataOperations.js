@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { updateActor } from '../api/client.js';
-import { useVoices } from './useVoices.js';
+import { useVoices } from './useVoices.ts';
 import { useSectionOperations } from './useSectionOperations.js';
 import { useContentOperations } from './useContentOperations.js';
 

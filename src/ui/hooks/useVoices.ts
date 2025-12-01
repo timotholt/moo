@@ -1,13 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getVoices } from '../api/client.js';
 
+interface Voice {
+  voice_id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface SelectedNode {
+  type: string;
+  id: string;
+}
+
+interface Actor {
+  id: string;
+  display_name: string;
+  provider_settings?: Record<string, { provider?: string }>;
+}
+
+interface Section {
+  id: string;
+  actor_id: string;
+  content_type: string;
+}
+
+interface UseVoicesProps {
+  selectedNode: SelectedNode | null;
+  actors: Actor[];
+  sections: Section[];
+}
+
+interface UseVoicesReturn {
+  voices: Voice[];
+  loadingVoices: boolean;
+  voiceError: string | null;
+  loadVoices: () => Promise<void>;
+}
+
 /**
  * Hook for loading and managing ElevenLabs voices
  */
-export function useVoices({ selectedNode, actors, sections }) {
-  const [voices, setVoices] = useState([]);
+export function useVoices({ selectedNode, actors, sections }: UseVoicesProps): UseVoicesReturn {
+  const [voices, setVoices] = useState<Voice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
-  const [voiceError, setVoiceError] = useState(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Determine if voices are needed based on current selection
   const needsVoices = useCallback(() => {
@@ -33,13 +69,13 @@ export function useVoices({ selectedNode, actors, sections }) {
       setLoadingVoices(true);
       setVoiceError(null);
       const result = await getVoices();
-      setVoices(result.voices || []);
+      setVoices((result.voices || []) as Voice[]);
       if (!result.voices || result.voices.length === 0) {
         setVoiceError('No voices available from ElevenLabs');
       }
     } catch (err) {
       console.error('Failed to load voices:', err);
-      let errorMessage = err.message || String(err);
+      let errorMessage = (err as Error).message || String(err);
       
       if (errorMessage.includes('missing_permissions') || errorMessage.includes('voices_read')) {
         errorMessage = 'ElevenLabs API key is missing voices_read permission. Please check your API key permissions in the ElevenLabs dashboard.';

@@ -33,8 +33,6 @@ export default function DetailPane({
   onTakeUpdated,
   blankSpaceConversion,
   capitalizationConversion,
-  onStatusChange,
-  onCreditsRefresh,
   logs,
   onClearLogs,
   undoRedo,
@@ -158,8 +156,6 @@ export default function DetailPane({
           capitalizationConversion={capitalizationConversion}
           onTakesGenerated={onTakesGenerated}
           onTakeUpdated={onTakeUpdated}
-          onStatusChange={onStatusChange}
-          onCreditsRefresh={onCreditsRefresh}
           error={commonError}
         />
       );

@@ -21,7 +21,7 @@ import CompleteButton from './CompleteButton.jsx';
 import { buildSectionPath } from '../utils/pathBuilder.js';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
-import { useLog } from '../contexts/LogContext.jsx';
+import { useLog } from '../contexts/AppContext.jsx';
 
 export default function SectionView({ 
   sectionData,
