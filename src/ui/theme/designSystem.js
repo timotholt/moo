@@ -112,13 +112,57 @@ export const DESIGN_SYSTEM = {
     },
   },
   
-  // Tree item styles
+  // Tree item styles with status color classes
   treeItem: {
-    // Selected item styling - bright text on subtle background
+    // Green status colors
+    '&.status-green': {
+      '& .MuiListItemText-primary': { color: 'success.main' },
+      '& .MuiListItemIcon-root svg': { color: 'success.main' },
+    },
+    '&.status-green:hover, &.status-green.Mui-selected': {
+      '& .MuiListItemText-primary': { color: 'success.light' },
+      '& .MuiListItemIcon-root svg': { color: 'success.light' },
+    },
+    // Red status colors
+    '&.status-red': {
+      '& .MuiListItemText-primary': { color: 'error.main' },
+      '& .MuiListItemIcon-root svg': { color: 'error.main' },
+    },
+    '&.status-red:hover, &.status-red.Mui-selected': {
+      '& .MuiListItemText-primary': { color: 'error.light' },
+      '& .MuiListItemIcon-root svg': { color: 'error.light' },
+    },
+    // Yellow status colors
+    '&.status-yellow': {
+      '& .MuiListItemText-primary': { color: 'warning.main' },
+      '& .MuiListItemIcon-root svg': { color: 'warning.main' },
+    },
+    '&.status-yellow:hover, &.status-yellow.Mui-selected': {
+      '& .MuiListItemText-primary': { color: 'warning.light' },
+      '& .MuiListItemIcon-root svg': { color: 'warning.light' },
+    },
+    // Gray status colors
+    '&.status-gray': {
+      '& .MuiListItemText-primary': { color: 'text.disabled' },
+      '& .MuiListItemIcon-root svg': { color: 'text.disabled' },
+    },
+    '&.status-gray:hover, &.status-gray.Mui-selected': {
+      '& .MuiListItemText-primary': { color: 'common.white' },
+      '& .MuiListItemIcon-root svg': { color: 'common.white' },
+    },
+    // White status colors
+    '&.status-white': {
+      '& .MuiListItemText-primary': { color: 'text.secondary' },
+      '& .MuiListItemIcon-root svg': { color: 'text.secondary' },
+    },
+    '&.status-white:hover, &.status-white.Mui-selected': {
+      '& .MuiListItemText-primary': { color: 'common.white' },
+      '& .MuiListItemIcon-root svg': { color: 'common.white' },
+    },
+    // Selected item styling
     '&.Mui-selected': {
       backgroundColor: 'action.selected',
       '& .MuiListItemText-primary': {
-        color: 'common.white',
         fontWeight: 500,
       },
     },

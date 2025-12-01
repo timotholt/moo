@@ -24,6 +24,18 @@ function nodeKey(type, id) {
 // Status priority: red (3) > yellow (2) > gray (1) > green (0)
 const STATUS_PRIORITY = { green: 0, gray: 1, yellow: 2, red: 3 };
 
+// Get CSS class name for status color
+function getStatusClass(color) {
+  const classMap = {
+    'success.main': 'status-green',
+    'error.main': 'status-red',
+    'warning.main': 'status-yellow',
+    'text.disabled': 'status-gray',
+    'text.secondary': 'status-white',
+  };
+  return classMap[color] || 'status-default';
+}
+
 function getContentStatus(content, takes = []) {
   const contentTakes = takes.filter(t => t.content_id === content.id);
   const approvedCount = contentTakes.filter(t => t.status === 'approved').length;
@@ -201,7 +213,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
           const allSections = [
             {
               id: 'actors',
-              name: 'Actors',
+              name: 'actors',
               icon: <PersonIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />,
               nodeType: 'root',
               nodeId: 'project',
@@ -210,7 +222,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
             },
             {
               id: 'console',
-              name: 'Console',
+              name: 'console',
               icon: <TerminalIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />,
               nodeType: 'console',
               nodeId: 'logs',
@@ -220,14 +232,14 @@ export default function TreePane({ width, actors, content, sections, takes = [],
             },
             {
               id: 'defaults',
-              name: 'Defaults',
+              name: 'defaults',
               icon: <SettingsIcon sx={{ fontSize: '0.875rem', color: 'text.secondary' }} />,
               nodeType: 'defaults',
               nodeId: 'providers',
               order: 2, // After Console
               children: ['dialogue', 'music', 'sfx'].map((type) => ({
                 id: type,
-                name: `${type.charAt(0).toUpperCase() + type.slice(1)} (ElevenLabs)`,
+                name: `${type} (elevenlabs)`,
                 icon: type === 'dialogue' ? <RecordVoiceOverIcon sx={{ fontSize: '0.75rem', color: 'text.secondary' }} /> :
                       type === 'music' ? <MusicNoteIcon sx={{ fontSize: '0.75rem', color: 'text.secondary' }} /> : <GraphicEqIcon sx={{ fontSize: '0.75rem', color: 'text.secondary' }} />,
                 nodeType: 'provider-default',
@@ -246,6 +258,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
           return sortedSections.map((section) => (
             <React.Fragment key={section.id}>
               <ListItemButton
+                className="status-gray"
                 sx={{ 
                   py: '0.125rem', 
                   pl: '0.5rem',
@@ -266,10 +279,6 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                   primaryTypographyProps={{
                     fontSize: '0.9rem',
                     lineHeight: '1rem',
-                    color:
-                      selectedId === nodeKey(section.nodeType, section.nodeId)
-                        ? undefined
-                        : 'text.secondary',
                   }}
                 />
                 {!section.noExpand && (
@@ -287,6 +296,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                     section.children.map((child) => (
                       <ListItemButton
                         key={child.id}
+                        className="status-gray"
                         sx={{ 
                           pl: '1.5rem', 
                           py: 0, 
@@ -307,7 +317,6 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                           primaryTypographyProps={{ 
                             fontSize: '0.9rem', 
                             lineHeight: '1rem',
-                            color: selectedId === nodeKey(child.nodeType, child.nodeId) ? undefined : 'text.secondary'
                           }} 
                         />
                       </ListItemButton>
@@ -320,6 +329,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                       return (
                         <Box key={actor.id}>
                           <ListItemButton
+                            className={getStatusClass(actorStatus.color)}
                             sx={{ 
                               pl: '1.5rem', 
                               py: 0, 
@@ -327,13 +337,13 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                               minHeight: '1.125rem',
                               '& .MuiListItemText-root': { margin: 0 },
                               '& .MuiListItemIcon-root': { minWidth: 'auto' },
-                              ...DESIGN_SYSTEM.treeItem
+                              ...DESIGN_SYSTEM.treeItem,
                             }}
                             selected={selectedId === nodeKey('actor', actor.id)}
                             onClick={() => handleSelect('actor', actor.id)}
                           >
                             <ListItemIcon sx={{ minWidth: 'auto', mr: '0.25rem' }}>
-                              <PersonIcon sx={{ fontSize: '0.75rem', color: actorStatus.color }} />
+                              <PersonIcon sx={{ fontSize: '0.75rem' }} />
                             </ListItemIcon>
                             <ListItemText
                               primary={actor.display_name}
@@ -341,7 +351,6 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                 fontSize: '0.9rem',
                                 lineHeight: '1rem',
                                 fontWeight: 400,
-                                color: selectedId === nodeKey('actor', actor.id) ? 'text.primary' : actorStatus.color,
                               }}
                             />
                             <Box onClick={(e) => { e.stopPropagation(); handleToggle(actorKey); }} sx={{ display: 'flex', alignItems: 'center', p: 0, m: 0 }}>
@@ -355,16 +364,17 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                 const sectionType = sectionItem.content_type;
                                 const sectionStatus = getSectionStatus(sectionItem, content, takes);
 
-                                const sectionIcon = sectionType === 'dialogue' ? <RecordVoiceOverIcon sx={{ fontSize: '0.75rem', color: sectionStatus.color }} /> :
-                                                  sectionType === 'music' ? <MusicNoteIcon sx={{ fontSize: '0.75rem', color: sectionStatus.color }} /> : <GraphicEqIcon sx={{ fontSize: '0.75rem', color: sectionStatus.color }} />;
+                                const sectionIcon = sectionType === 'dialogue' ? <RecordVoiceOverIcon sx={{ fontSize: '0.75rem' }} /> :
+                                                  sectionType === 'music' ? <MusicNoteIcon sx={{ fontSize: '0.75rem' }} /> : <GraphicEqIcon sx={{ fontSize: '0.75rem' }} />;
                                 const sectionKey = `section-${sectionItem.id}`;
                                 
                                 // Use the section item for custom name
-                                const displayName = sectionItem?.name || (sectionType.charAt(0).toUpperCase() + sectionType.slice(1));
+                                const displayName = sectionItem?.name || sectionType;
 
                                 return (
                                   <Box key={sectionItem.id}>
                                     <ListItemButton
+                                      className={getStatusClass(sectionStatus.color)}
                                       sx={{ 
                                         pl: '2.5rem', 
                                         py: 0, 
@@ -372,7 +382,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                         minHeight: '1.125rem',
                                         '& .MuiListItemText-root': { margin: 0 },
                                         '& .MuiListItemIcon-root': { minWidth: 'auto' },
-                                        ...DESIGN_SYSTEM.treeItem
+                                        ...DESIGN_SYSTEM.treeItem,
                                       }}
                                       selected={selectedId === nodeKey(`${sectionType}-section`, sectionItem.id)}
                                       onClick={() => handleSelect(`${sectionType}-section`, sectionItem.id)}
@@ -380,7 +390,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                       <ListItemIcon sx={{ minWidth: 'auto', mr: '0.25rem' }}>
                                         {sectionIcon}
                                       </ListItemIcon>
-                                      <ListItemText primary={displayName} primaryTypographyProps={{ fontSize: '0.9rem', lineHeight: '1rem', fontWeight: 400, color: selectedId === nodeKey(`${sectionType}-section`, sectionItem.id) ? 'text.primary' : sectionStatus.color }} />
+                                      <ListItemText primary={displayName} primaryTypographyProps={{ fontSize: '0.9rem', lineHeight: '1rem', fontWeight: 400 }} />
                                       <Box onClick={(e) => { e.stopPropagation(); handleToggle(sectionKey); }} sx={{ display: 'flex', alignItems: 'center', p: 0, m: 0 }}>
                                         {expanded[sectionKey] ? <ExpandLess sx={{ fontSize: '0.75rem' }} /> : <ExpandMore sx={{ fontSize: '0.75rem' }} />}
                                       </Box>
@@ -412,16 +422,16 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                             const contentTakesForPlaying = takes.filter(t => t.content_id === c.id);
                                             const isPlaying = contentTakesForPlaying.some(t => t.id === playingTakeId);
 
-                                            const iconColor = isPlaying ? 'common.white' : contentStatus.color;
                                             const contentIcon = sectionType === 'dialogue'
-                                              ? <RecordVoiceOverIcon sx={{ fontSize: '0.625rem', color: iconColor }} />
+                                              ? <RecordVoiceOverIcon sx={{ fontSize: '0.625rem' }} />
                                               : sectionType === 'music'
-                                                ? <MusicNoteIcon sx={{ fontSize: '0.625rem', color: iconColor }} />
-                                                : <GraphicEqIcon sx={{ fontSize: '0.625rem', color: iconColor }} />;
+                                                ? <MusicNoteIcon sx={{ fontSize: '0.625rem' }} />
+                                                : <GraphicEqIcon sx={{ fontSize: '0.625rem' }} />;
 
                                             return (
                                               <ListItemButton
                                                 key={c.id}
+                                                className={isPlaying ? 'status-white' : getStatusClass(contentStatus.color)}
                                                 sx={{ 
                                                   pl: '3.5rem', 
                                                   py: 0, 
@@ -429,7 +439,7 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                                   minHeight: '1.125rem',
                                                   '& .MuiListItemText-root': { margin: 0 },
                                                   '& .MuiListItemIcon-root': { minWidth: 'auto' },
-                                                  ...DESIGN_SYSTEM.treeItem
+                                                  ...DESIGN_SYSTEM.treeItem,
                                                 }}
                                                 selected={selectedId === nodeKey('content', c.id)}
                                                 onClick={() => handleSelect('content', c.id)}
@@ -443,7 +453,6 @@ export default function TreePane({ width, actors, content, sections, takes = [],
                                                     fontSize: '0.9rem',
                                                     lineHeight: '1rem',
                                                     fontWeight: 400,
-                                                    color: selectedId === nodeKey('content', c.id) ? 'text.primary' : contentStatus.color
                                                   }} 
                                                 />
                                               </ListItemButton>

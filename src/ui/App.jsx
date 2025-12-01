@@ -128,8 +128,24 @@ export default function App() {
         mode: themeMode,
         ...(themeMode === 'dark' && {
           text: {
-            primary: 'rgba(255, 255, 255, 0.7)', // Soft white as default
-            secondary: 'rgba(255, 255, 255, 0.7)', // Soft white
+            primary: 'hsla(0, 0%, 100%, 0.7)', // Soft white as default
+            secondary: 'hsla(0, 0%, 100%, 0.7)', // Soft white
+            disabled: 'hsla(0, 0%, 100%, 0.38)', // Gray for disabled/no takes
+          },
+          success: {
+            main: 'hsla(123, 38%, 57%, 0.8)', // Softer green
+            light: 'hsla(123, 38%, 72%, 1)', // Bright green for hover/selected
+          },
+          error: {
+            main: 'hsla(4, 60%, 58%, 0.7)', // Softer red with moderate saturation
+            light: 'hsla(4, 60%, 72%, 1)', // Bright red for hover/selected
+          },
+          warning: {
+            main: 'hsl(32, 100%, 45%)', // Darker yellow, full saturation
+            light: 'hsl(32, 100%, 60%)', // Bright yellow for hover/selected
+          },
+          common: {
+            white: 'hsla(0, 0%, 100%, 1)', // Bright white for hover/selected
           },
         }),
       },
