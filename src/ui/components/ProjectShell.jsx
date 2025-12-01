@@ -199,30 +199,40 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         expandNode={expandNode}
         onActorCreated={(actor) => {
           setActors((prev) => [...prev, actor]);
-          logInfo(`Actor created: ${actor.display_name}`);
+          logInfo(`Created: Actors → ${actor.display_name}`);
           undoStack.refreshUndoState();
         }}
         onContentCreated={(item) => {
           setContent((prev) => [...prev, item]);
-          logInfo(`Content created: ${item.cue_id} (${item.content_type})`);
+          // Build path: Actor → Section → Cue
+          const itemActor = actors.find(a => a.id === item.actor_id);
+          const itemSection = sections.find(s => s.id === item.section_id);
+          const actorName = itemActor?.display_name || 'Unknown';
+          const sectionName = itemSection?.name || item.content_type;
+          logInfo(`Created: Actors → ${actorName} → ${sectionName} → ${item.cue_id}`);
           undoStack.refreshUndoState();
         }}
         onSectionCreated={(section) => {
           setSections((prev) => [...prev, section]);
-          logInfo(`Section created: ${section.name || section.content_type}`);
+          const sectionActor = actors.find(a => a.id === section.actor_id);
+          const actorName = sectionActor?.display_name || 'Unknown';
+          const sectionName = section.name || section.content_type;
+          logInfo(`Created: Actors → ${actorName} → ${sectionName}`);
           undoStack.refreshUndoState();
         }}
         onActorUpdated={(updatedActor, oldName) => {
           setActors((prev) => prev.map(a => a.id === updatedActor.id ? updatedActor : a));
           if (oldName && oldName !== updatedActor.display_name) {
-            logInfo(`Actor renamed: ${oldName} → ${updatedActor.display_name}`);
+            logInfo(`Renamed: Actors → ${oldName} → ${updatedActor.display_name}`);
             undoStack.refreshUndoState();
           }
         }}
         onSectionUpdated={(updatedSection, oldName) => {
           setSections((prev) => prev.map(s => s.id === updatedSection.id ? updatedSection : s));
           if (oldName && oldName !== updatedSection.name) {
-            logInfo(`Section renamed: ${oldName} → ${updatedSection.name}`);
+            const sectionActor = actors.find(a => a.id === updatedSection.actor_id);
+            const actorName = sectionActor?.display_name || 'Unknown';
+            logInfo(`Renamed: Actors → ${actorName} → ${oldName} → ${updatedSection.name}`);
             undoStack.refreshUndoState();
           }
         }}
@@ -232,20 +242,28 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
           setContent((prev) => prev.filter((c) => c.actor_id !== id));
           setSections((prev) => prev.filter((s) => s.actor_id !== id));
           setSelectedNode(null);
-          logInfo(`Actor deleted: ${actor?.display_name || id}`);
+          logInfo(`Deleted: Actors → ${actor?.display_name || id}`);
           undoStack.refreshUndoState();
         }}
         onContentDeleted={(id) => {
           const item = content.find(c => c.id === id);
+          const itemActor = actors.find(a => a.id === item?.actor_id);
+          const itemSection = sections.find(s => s.id === item?.section_id);
+          const actorName = itemActor?.display_name || 'Unknown';
+          const sectionName = itemSection?.name || item?.content_type || 'Unknown';
           setContent((prev) => prev.filter((c) => c.id !== id));
           setSelectedNode(null);
-          logInfo(`Content deleted: ${item?.cue_id || id}`);
+          logInfo(`Deleted: Actors → ${actorName} → ${sectionName} → ${item?.cue_id || id}`);
           undoStack.refreshUndoState();
         }}
         onContentUpdated={(updatedContent, oldCueId) => {
           setContent((prev) => prev.map(c => c.id === updatedContent.id ? updatedContent : c));
           if (oldCueId && oldCueId !== updatedContent.cue_id) {
-            logInfo(`Cue renamed: ${oldCueId} → ${updatedContent.cue_id}`);
+            const itemActor = actors.find(a => a.id === updatedContent.actor_id);
+            const itemSection = sections.find(s => s.id === updatedContent.section_id);
+            const actorName = itemActor?.display_name || 'Unknown';
+            const sectionName = itemSection?.name || updatedContent.content_type;
+            logInfo(`Renamed: Actors → ${actorName} → ${sectionName} → ${oldCueId} → ${updatedContent.cue_id}`);
             undoStack.refreshUndoState();
           }
         }}
@@ -253,7 +271,13 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
           setTakes((prev) => [...prev, ...newTakes]);
           if (newTakes.length > 0) {
             const take = newTakes[0];
-            logSuccess(`Generated ${newTakes.length} take(s)`, { filename: take.filename, content_id: take.content_id });
+            const takeContent = content.find(c => c.id === take.content_id);
+            const takeActor = actors.find(a => a.id === takeContent?.actor_id);
+            const takeSection = sections.find(s => s.id === takeContent?.section_id);
+            const actorName = takeActor?.display_name || 'Unknown';
+            const sectionName = takeSection?.name || takeContent?.content_type || 'Unknown';
+            const cueName = takeContent?.cue_id || 'Unknown';
+            logSuccess(`Generated ${newTakes.length} take(s): Actors → ${actorName} → ${sectionName} → ${cueName}`);
           }
         }}
         onTakeUpdated={(updatedTake) => {
@@ -262,12 +286,15 @@ export default function ProjectShell({ blankSpaceConversion, capitalizationConve
         onSectionDeleted={async (sectionId) => {
           try {
             const section = sections.find(s => s.id === sectionId);
+            const actor = actors.find(a => a.id === section?.actor_id);
+            const sectionName = section?.name || section?.content_type || 'Unknown';
+            const actorName = actor?.display_name || 'Unknown';
             await deleteSection(sectionId);
             setSections((prev) => prev.filter((s) => s.id !== sectionId));
             // Only delete content belonging to THIS specific section
             setContent((prev) => prev.filter((c) => c.section_id !== sectionId));
             if (selectedNode?.id === sectionId) setSelectedNode(null);
-            logInfo(`Section deleted: ${section?.name || sectionId}`);
+            logInfo(`Deleted: Actors → ${actorName} → ${sectionName}`);
             undoStack.refreshUndoState();
           } catch (err) {
             setError(err.message || String(err));
