@@ -66,9 +66,20 @@ export interface Content {
     updated_at: string;
 }
 
+export interface Scene {
+    id: string;
+    name: string;
+    description?: string;
+    order?: number; // For sorting scenes
+    tags?: string[];
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Section {
     id: string;
     actor_id: string;
+    scene_id?: string; // Optional - sections can belong to a scene
     content_type: ContentType;
     name?: string; // Custom section name like "Story Dialog", "Combat Dialog"
     section_complete?: boolean;

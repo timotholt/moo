@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scene",
+  "description": "A scene groups related sections together (e.g., Act 1, Chapter 2)",
+  "type": "object",
+  "required": ["id", "name", "created_at", "updated_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name for the scene"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the scene"
+    },
+    "order": {
+      "type": "integer",
+      "description": "Sort order for scenes",
+      "minimum": 0
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional tags for filtering"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

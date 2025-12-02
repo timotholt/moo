@@ -30,8 +30,16 @@ import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 // Icon Mapping
 // ============================================================================
 
-function getIconForType(iconType, fieldValue) {
+function getIconForType(iconType, fieldValue, contentType) {
   const iconStyle = { fontSize: '0.75rem' };
+  
+  // For leaves (takes), use content type to determine icon
+  if (iconType === 'leaf' || iconType === undefined) {
+    if (contentType === 'dialogue') return <RecordVoiceOverIcon sx={iconStyle} />;
+    if (contentType === 'music') return <MusicNoteIcon sx={iconStyle} />;
+    if (contentType === 'sfx') return <GraphicEqIcon sx={iconStyle} />;
+    return <AudioFileIcon sx={iconStyle} />;
+  }
   
   switch (iconType) {
     case 'person':
@@ -142,7 +150,7 @@ function TreeNode({
         onClick={handleClick}
       >
         <ListItemIcon sx={{ minWidth: 'auto', mr: '0.25rem' }}>
-          {getIconForType(node.icon, node.fieldValue)}
+          {getIconForType(node.icon, node.fieldValue, isLeaf ? node.data?.content_type : null)}
         </ListItemIcon>
         <ListItemText
           primary={displayText}

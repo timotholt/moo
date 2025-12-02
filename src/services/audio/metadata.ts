@@ -38,11 +38,13 @@ export interface VofoundryMetadata {
   content_id: string;            // Parent content/cue ID
   actor_id: string;              // Actor ID
   section_id: string;            // Section ID
+  scene_id?: string;             // Scene ID (optional)
   
   // Human-readable fields (map to standard tags)
   cue_id: string;                // Cue identifier → title
   actor_name?: string;           // Actor display name → artist
   section_name?: string;         // Section name → album
+  scene_name?: string;           // Scene name (e.g., "Act 1")
   content_type: string;          // dialogue | music | sfx → genre
   take_number: string;           // Take number → track
   status: string;                // new | approved | rejected | hidden
@@ -112,6 +114,7 @@ const WAV_TAG_MAP = {
   cue_id: 'INAM',           // title
   actor_name: 'IART',       // artist
   section_name: 'IPRD',     // product/album
+  scene_name: 'ISBJ',       // subject (scene name)
   content_type: 'IGNR',     // genre
   take_number: 'IPRT',      // track number
   prompt: 'ICMT',           // comment
@@ -154,6 +157,7 @@ async function readWavMetadata(filePath: string): Promise<Partial<VofoundryMetad
       if (ids.content_id) metadata.content_id = ids.content_id;
       if (ids.actor_id) metadata.actor_id = ids.actor_id;
       if (ids.section_id) metadata.section_id = ids.section_id;
+      if (ids.scene_id) metadata.scene_id = ids.scene_id;
       if (ids.updated_at) metadata.updated_at = ids.updated_at;
       if (ids.stability) metadata.stability = ids.stability;
       if (ids.similarity_boost) metadata.similarity_boost = ids.similarity_boost;
@@ -196,6 +200,7 @@ async function writeWavMetadata(
   if (metadata.content_id) ids.content_id = metadata.content_id;
   if (metadata.actor_id) ids.actor_id = metadata.actor_id;
   if (metadata.section_id) ids.section_id = metadata.section_id;
+  if (metadata.scene_id) ids.scene_id = metadata.scene_id;
   if (metadata.updated_at) ids.updated_at = metadata.updated_at;
   if (metadata.stability) ids.stability = metadata.stability;
   if (metadata.similarity_boost) ids.similarity_boost = metadata.similarity_boost;
@@ -225,6 +230,7 @@ const FFMPEG_TAG_MAP = {
   cue_id: 'title',
   actor_name: 'artist',
   section_name: 'album',
+  scene_name: 'album_artist',  // Use album_artist for scene
   content_type: 'genre',
   take_number: 'track',
   prompt: 'comment',
@@ -237,6 +243,7 @@ const FFMPEG_TAG_MAP = {
   content_id: 'VOFOUNDRY_CONTENT_ID',
   actor_id: 'VOFOUNDRY_ACTOR_ID',
   section_id: 'VOFOUNDRY_SECTION_ID',
+  scene_id: 'VOFOUNDRY_SCENE_ID',
   updated_at: 'VOFOUNDRY_UPDATED_AT',
   stability: 'VOFOUNDRY_STABILITY',
   similarity_boost: 'VOFOUNDRY_SIMILARITY_BOOST',
@@ -451,6 +458,8 @@ export function buildMetadataFromTake(
   context?: {
     actor_name?: string;
     section_name?: string;
+    scene_id?: string;
+    scene_name?: string;
   }
 ): VofoundryMetadata {
   const genParams = take.generation_params || {};
@@ -460,10 +469,12 @@ export function buildMetadataFromTake(
     content_id: take.content_id,
     actor_id: content.actor_id,
     section_id: content.section_id,
+    scene_id: context?.scene_id,
     content_type: content.content_type,
     cue_id: content.cue_id,
     actor_name: context?.actor_name,
     section_name: context?.section_name,
+    scene_name: context?.scene_name,
     take_number: String(take.take_number),
     status: take.status,
     prompt: content.prompt,

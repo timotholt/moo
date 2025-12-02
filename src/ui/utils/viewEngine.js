@@ -50,6 +50,17 @@ export const PRESET_VIEWS = {
       { field: 'content_id', displayField: 'cue_id', icon: 'content' },
     ]
   },
+  'by-scene': {
+    id: 'by-scene',
+    name: 'By Scene',
+    description: 'Group by scene (Act 1, Act 2, etc.)',
+    levels: [
+      { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
+      { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
+      { field: 'section_id', displayField: 'section_name', icon: 'folder' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content' },
+    ]
+  },
   'flat': {
     id: 'flat',
     name: 'All Cues',
@@ -72,17 +83,20 @@ export const PRESET_VIEWS = {
  * @param {Array} sections - Section records
  * @param {Array} content - Content/cue records
  * @param {Array} takes - Take records
+ * @param {Array} scenes - Scene records (optional)
  * @returns {Array} Denormalized asset records
  */
-export function buildAssetIndex(actors, sections, content, takes) {
+export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
   const actorsById = new Map(actors.map(a => [a.id, a]));
   const sectionsById = new Map(sections.map(s => [s.id, s]));
   const contentById = new Map(content.map(c => [c.id, c]));
+  const scenesById = new Map(scenes.map(sc => [sc.id, sc]));
   
   return takes.map(take => {
     const c = contentById.get(take.content_id);
     const s = c ? sectionsById.get(c.section_id) : null;
     const a = c ? actorsById.get(c.actor_id) : null;
+    const sc = s?.scene_id ? scenesById.get(s.scene_id) : null;
     
     return {
       // Take fields
@@ -107,6 +121,10 @@ export function buildAssetIndex(actors, sections, content, takes) {
       section_id: c?.section_id,
       section_name: s?.name || 'Unknown Section',
       
+      // Scene fields (optional - may be null/undefined)
+      scene_id: s?.scene_id || null,
+      scene_name: sc?.name || null,
+      
       // Actor fields
       actor_id: c?.actor_id,
       actor_name: a?.display_name || 'Unknown Actor',
@@ -116,6 +134,7 @@ export function buildAssetIndex(actors, sections, content, takes) {
       _content: c,
       _section: s,
       _actor: a,
+      _scene: sc,
     };
   });
 }
@@ -186,9 +205,16 @@ export function groupByLevels(items, levels, depth = 0) {
   const level = levels[depth];
   const groups = new Map();
   
+  // Special key for items missing this field
+  const UNASSIGNED_KEY = '__unassigned__';
+  
   // Group items by the current level's field
   for (const item of items) {
-    const key = String(item[level.field] ?? 'unknown');
+    const rawValue = item[level.field];
+    // Treat null, undefined, empty string as "unassigned"
+    const key = (rawValue === null || rawValue === undefined || rawValue === '') 
+      ? UNASSIGNED_KEY 
+      : String(rawValue);
     if (!groups.has(key)) {
       groups.set(key, []);
     }
@@ -200,7 +226,9 @@ export function groupByLevels(items, levels, depth = 0) {
   for (const [key, children] of groups) {
     // Determine display label
     let label = key;
-    if (level.labelMap && level.labelMap[key]) {
+    if (key === UNASSIGNED_KEY) {
+      label = 'Unassigned';
+    } else if (level.labelMap && level.labelMap[key]) {
       label = level.labelMap[key];
     } else if (level.displayField && children[0]) {
       label = children[0][level.displayField] || key;
