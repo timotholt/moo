@@ -3,7 +3,14 @@
  * 
  * Supports dynamic views that group assets by any metadata field.
  * Views are defined as a chain of "group by" operations.
+ * 
+ * Asset Types:
+ * - audio: cues → takes (dialogue, music, sfx)
+ * - clip: references → files (images, video)
+ * - script: scripts → documents (txt, pdf, doc)
  */
+
+import { ASSET_TYPES, getAssetTypeForContent, getFileIcon } from './assetTypes.js';
 
 // ============================================================================
 // Preset View Definitions
@@ -14,6 +21,7 @@ export const PRESET_VIEWS = {
     id: 'by-status',
     name: 'By Status',
     description: 'Group by approval status',
+    assetTypes: ['audio'],  // Which asset types this view shows
     levels: [
       { field: 'status', icon: 'status', labelMap: {
         'approved': 'Approved',
@@ -22,51 +30,84 @@ export const PRESET_VIEWS = {
         'hidden': 'Hidden',
       }},
       { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
-      { field: 'content_id', displayField: 'cue_id', icon: 'content' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
     ]
   },
   'by-type': {
     id: 'by-type',
     name: 'By Type',
-    description: 'Group by content type (dialogue, music, sfx)',
+    description: 'Group by content type (dialogue, music, sfx, etc.)',
+    assetTypes: ['audio', 'clip', 'script'],  // Mixed view
     levels: [
       { field: 'content_type', icon: 'type', labelMap: {
         'dialogue': 'Dialogue',
         'music': 'Music',
         'sfx': 'Sound Effects',
+        'image': 'Images',
+        'video': 'Video',
+        'storyboard': 'Storyboards',
+        'script': 'Scripts',
+        'notes': 'Notes',
       }},
       { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
       { field: 'section_id', displayField: 'section_name', icon: 'folder' },
-      { field: 'content_id', displayField: 'cue_id', icon: 'content' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
     ]
   },
   'by-section': {
     id: 'by-section',
     name: 'By Section',
     description: 'Group by section first',
+    assetTypes: ['audio'],
     levels: [
       { field: 'section_id', displayField: 'section_name', icon: 'folder' },
       { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
-      { field: 'content_id', displayField: 'cue_id', icon: 'content' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
     ]
   },
   'by-scene': {
     id: 'by-scene',
     name: 'By Scene',
     description: 'Group by scene (Act 1, Act 2, etc.)',
+    assetTypes: ['audio', 'clip', 'script'],
     levels: [
       { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
       { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
       { field: 'section_id', displayField: 'section_name', icon: 'folder' },
-      { field: 'content_id', displayField: 'cue_id', icon: 'content' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
+    ]
+  },
+  'vo-session': {
+    id: 'vo-session',
+    name: 'VO Session',
+    description: 'Voice-over session: Actor → Scene → Section → Cue',
+    assetTypes: ['audio'],
+    levels: [
+      { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
+      { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
+      { field: 'section_id', displayField: 'section_name', icon: 'folder' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
+    ]
+  },
+  'film-production': {
+    id: 'film-production',
+    name: 'Film Production',
+    description: 'Traditional film: Scene → Section → Actor → Cue',
+    assetTypes: ['audio', 'clip'],
+    levels: [
+      { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
+      { field: 'section_id', displayField: 'section_name', icon: 'folder' },
+      { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
     ]
   },
   'flat': {
     id: 'flat',
     name: 'All Cues',
     description: 'Flat list of all cues',
+    assetTypes: ['audio', 'clip', 'script'],
     levels: [
-      { field: 'content_id', displayField: 'cue_id', icon: 'content' },
+      { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true },
     ]
   },
 };
@@ -128,6 +169,10 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
       // Actor fields
       actor_id: c?.actor_id,
       actor_name: a?.display_name || 'Unknown Actor',
+      
+      // Asset type info
+      asset_type: getAssetTypeForContent(c?.content_type)?.id || 'audio',
+      leaf_type: getAssetTypeForContent(c?.content_type)?.leafType || 'take',
       
       // Original records for reference
       _take: take,
@@ -194,12 +239,24 @@ export function groupByLevels(items, levels, depth = 0) {
   
   // If we've exhausted all levels, return items as leaves
   if (depth >= levels.length) {
-    return items.map(item => ({
-      type: 'leaf',
-      id: item.id,
-      label: item.filename || `Take ${item.take_number}`,
-      data: item,
-    }));
+    return items.map(item => {
+      // Determine leaf label based on asset type
+      const assetType = ASSET_TYPES[item.asset_type] || ASSET_TYPES.audio;
+      let label = item.filename;
+      if (!label) {
+        label = `${assetType.leafType} ${item.take_number || item.id}`;
+      }
+      
+      return {
+        type: 'leaf',
+        id: item.id,
+        label,
+        leafType: item.leaf_type || 'take',
+        assetType: item.asset_type || 'audio',
+        fileIcon: getFileIcon(item.filename || ''),
+        data: item,
+      };
+    });
   }
   
   const level = levels[depth];

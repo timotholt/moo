@@ -24,20 +24,42 @@ import NewReleasesIcon from '@mui/icons-material/NewReleases';
 import CancelIcon from '@mui/icons-material/Cancel';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AudioFileIcon from '@mui/icons-material/AudioFile';
+import ImageIcon from '@mui/icons-material/Image';
+import VideoFileIcon from '@mui/icons-material/VideoFile';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import ArticleIcon from '@mui/icons-material/Article';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 
 // ============================================================================
 // Icon Mapping
 // ============================================================================
 
-function getIconForType(iconType, fieldValue, contentType) {
+function getIconForType(iconType, fieldValue, contentType, fileIcon) {
   const iconStyle = { fontSize: '0.75rem' };
   
-  // For leaves (takes), use content type to determine icon
+  // For leaves, use fileIcon if provided, otherwise content type
   if (iconType === 'leaf' || iconType === undefined) {
+    // File-specific icons
+    if (fileIcon) {
+      switch (fileIcon) {
+        case 'audioFile': return <AudioFileIcon sx={iconStyle} />;
+        case 'imageFile': return <ImageIcon sx={iconStyle} />;
+        case 'videoFile': return <VideoFileIcon sx={iconStyle} />;
+        case 'pdfFile': return <PictureAsPdfIcon sx={iconStyle} />;
+        case 'wordFile': return <ArticleIcon sx={iconStyle} />;
+        case 'textFile': return <DescriptionIcon sx={iconStyle} />;
+        case 'file': return <InsertDriveFileIcon sx={iconStyle} />;
+      }
+    }
+    // Fall back to content type
     if (contentType === 'dialogue') return <RecordVoiceOverIcon sx={iconStyle} />;
     if (contentType === 'music') return <MusicNoteIcon sx={iconStyle} />;
     if (contentType === 'sfx') return <GraphicEqIcon sx={iconStyle} />;
+    if (contentType === 'image' || contentType === 'storyboard') return <ImageIcon sx={iconStyle} />;
+    if (contentType === 'video') return <VideoFileIcon sx={iconStyle} />;
+    if (contentType === 'script' || contentType === 'notes') return <DescriptionIcon sx={iconStyle} />;
     return <AudioFileIcon sx={iconStyle} />;
   }
   
@@ -50,10 +72,14 @@ function getIconForType(iconType, fieldValue, contentType) {
     case 'record':
       return <RecordVoiceOverIcon sx={iconStyle} />;
     case 'type':
+      // Content type icons
       if (fieldValue === 'dialogue') return <RecordVoiceOverIcon sx={iconStyle} />;
       if (fieldValue === 'music') return <MusicNoteIcon sx={iconStyle} />;
       if (fieldValue === 'sfx') return <GraphicEqIcon sx={iconStyle} />;
-      return <AudioFileIcon sx={iconStyle} />;
+      if (fieldValue === 'image' || fieldValue === 'storyboard') return <ImageIcon sx={iconStyle} />;
+      if (fieldValue === 'video') return <VideoFileIcon sx={iconStyle} />;
+      if (fieldValue === 'script' || fieldValue === 'notes') return <DescriptionIcon sx={iconStyle} />;
+      return <InsertDriveFileIcon sx={iconStyle} />;
     case 'status':
       if (fieldValue === 'approved') return <CheckCircleIcon sx={{ ...iconStyle, color: 'success.main' }} />;
       if (fieldValue === 'new') return <NewReleasesIcon sx={{ ...iconStyle, color: 'warning.main' }} />;
@@ -61,7 +87,7 @@ function getIconForType(iconType, fieldValue, contentType) {
       if (fieldValue === 'hidden') return <VisibilityOffIcon sx={iconStyle} />;
       return <AudioFileIcon sx={iconStyle} />;
     default:
-      return <AudioFileIcon sx={iconStyle} />;
+      return <InsertDriveFileIcon sx={iconStyle} />;
   }
 }
 
@@ -150,7 +176,12 @@ function TreeNode({
         onClick={handleClick}
       >
         <ListItemIcon sx={{ minWidth: 'auto', mr: '0.25rem' }}>
-          {getIconForType(node.icon, node.fieldValue, isLeaf ? node.data?.content_type : null)}
+          {getIconForType(
+            node.icon, 
+            node.fieldValue, 
+            isLeaf ? node.data?.content_type : null,
+            isLeaf ? node.fileIcon : null
+          )}
         </ListItemIcon>
         <ListItemText
           primary={displayText}
