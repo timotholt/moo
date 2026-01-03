@@ -98,14 +98,15 @@ export default function DetailPane(props) {
                 <Match when={viewData().view === 'console'}>
                     <BrowserConsoleView
                         entries={props.consoleEntries}
-                        onClear={() => {/* logic handled via context or prop if needed but simple log clear is fine */ }}
+                        onClear={props.onClearConsole}
                     />
                 </Match>
 
                 <Match when={viewData().view === 'history'}>
                     <HistoryView
                         logs={props.logs}
-                        onClearLogs={async () => {/* implement clear if desired */ }}
+                        undoRedo={props.undoRedo}
+                        onClearLogs={props.onClearLogs}
                     />
                 </Match>
 

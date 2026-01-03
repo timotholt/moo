@@ -170,6 +170,18 @@ export default function App() {
                     body: {
                         lineHeight: 'normal',
                     },
+                    // FIX: Force SUID icons to standard size if internal style injection fails
+                    '.MuiSvgIcon-root': {
+                        width: '1em !important',
+                        height: '1em !important',
+                        display: 'inline-block',
+                        fontSize: 'inherit',
+                        flexShrink: 0,
+                        userSelect: 'none',
+                    },
+                    '.MuiListItemIcon-root': {
+                        minWidth: 'auto !important',
+                    },
                     // Custom scrollbar styling
                     '*::-webkit-scrollbar': {
                         width: '8px',

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, onMount, Show } from 'solid-js';
+import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
 import { Box, Typography } from '@suid/material';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
@@ -87,29 +87,33 @@ export default function ProjectShell(props) {
     const handleMouseDown = (e) => {
         e.preventDefault();
         setIsResizing(true);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
     };
 
-    createEffect(() => {
-        if (!isResizing()) return;
+    const handleMouseMove = (e) => {
+        if (!isResizing() || !containerRef) return;
+        const containerRect = containerRef.getBoundingClientRect();
+        const newWidth = e.clientX - containerRect.left;
+        setTreePaneWidth(Math.max(200, Math.min(500, newWidth)));
+    };
 
-        const handleMouseMove = (e) => {
-            if (!containerRef) return;
-            const containerRect = containerRef.getBoundingClientRect();
-            const newWidth = e.clientX - containerRect.left;
-            setTreePaneWidth(Math.max(200, Math.min(500, newWidth)));
-        };
-
-        const handleMouseUp = () => {
+    const handleMouseUp = () => {
+        if (isResizing()) {
             setIsResizing(false);
-        };
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    };
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+    onMount(() => {
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    });
 
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
+    onCleanup(() => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
     });
 
     // Reusable data loading function
@@ -221,7 +225,10 @@ export default function ProjectShell(props) {
                             selectedNode={selectedNode()}
                             expandNode={expandNode()}
                             logs={appLog.logs()}
+                            onClearLogs={appLog.clearLogs}
+                            undoRedo={undoStack}
                             consoleEntries={consoleCapture.entries()}
+                            onClearConsole={consoleCapture.clearEntries}
                             blankSpaceConversion={props.blankSpaceConversion}
                             capitalizationConversion={props.capitalizationConversion}
                             onExpandNode={setExpandNode}

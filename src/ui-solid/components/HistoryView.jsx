@@ -115,15 +115,35 @@ export default function HistoryView(props) {
                 <Typography variant="h6" sx={{ flexGrow: 1, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     History
                 </Typography>
-                <Show when={props.undoRedo?.canUndo}>
-                    <Button variant="outlined" size="small" startIcon={<UndoIcon />} onClick={props.undoRedo.undo} disabled={props.undoRedo.undoing}>
-                        Undo
-                    </Button>
+                <Show when={props.undoRedo?.canUndo?.()}>
+                    <Tooltip title={props.undoRedo.undoMessage() || 'Undo'}>
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<UndoIcon />}
+                                onClick={props.undoRedo.undo}
+                                disabled={props.undoRedo.undoing()}
+                            >
+                                {props.undoRedo.undoing() ? '...' : 'Undo'}
+                            </Button>
+                        </span>
+                    </Tooltip>
                 </Show>
-                <Show when={props.undoRedo?.canRedo}>
-                    <Button variant="outlined" size="small" startIcon={<RedoIcon />} onClick={props.undoRedo.redo} disabled={props.undoRedo.undoing}>
-                        Redo
-                    </Button>
+                <Show when={props.undoRedo?.canRedo?.()}>
+                    <Tooltip title={props.undoRedo.redoMessage() || 'Redo'}>
+                        <span>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<RedoIcon />}
+                                onClick={props.undoRedo.redo}
+                                disabled={props.undoRedo.undoing()}
+                            >
+                                {props.undoRedo.undoing() ? '...' : 'Redo'}
+                            </Button>
+                        </span>
+                    </Tooltip>
                 </Show>
                 <Tooltip title="Clear history">
                     <span>
@@ -144,6 +164,18 @@ export default function HistoryView(props) {
                     <Button onClick={handleClearLogs} color="error" variant="contained">Clear</Button>
                 </DialogActions>
             </Dialog>
+
+            <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontSize: '0.7rem', mb: 0.5, display: 'block' }}
+            >
+                {props.undoRedo?.canUndo?.()
+                    ? `Undo: ${props.undoRedo.undoMessage() || 'last action'}`
+                    : props.undoRedo?.canRedo?.()
+                        ? `Redo: ${props.undoRedo.redoMessage() || 'last action'}`
+                        : 'Activity log'}
+            </Typography>
 
             <Box sx={{ mt: 1, border: 1, borderColor: 'divider', borderRadius: 1, flexGrow: 1, overflow: 'auto' }}>
                 <Show when={props.logs.length > 0} fallback={<Box sx={{ p: 2, textAlign: 'center' }}><Typography variant="body2" color="text.secondary">No activity yet.</Typography></Box>}>
