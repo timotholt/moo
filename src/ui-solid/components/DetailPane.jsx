@@ -1,212 +1,158 @@
-import { Show, Switch, Match, createMemo } from 'solid-js';
-import { Box, Typography, Paper } from '@suid/material';
-import { useApp } from '../contexts/AppContext.jsx';
+import { createMemo, Show, Switch, Match } from 'solid-js';
+import { Box, Typography } from '@suid/material';
+import NoSelectionView from './NoSelectionView.jsx';
+import SectionView from './SectionView.jsx';
+import ContentView from './ContentView.jsx';
+import ProviderDefaultsView from './ProviderDefaultsView.jsx';
+import ActorView from './views/ActorView.jsx';
+import RootView from './views/RootView.jsx';
+import DefaultsView from './views/DefaultsView.jsx';
+import HistoryView from './HistoryView.jsx';
+import BrowserConsoleView from './BrowserConsoleView.jsx';
+import { useActorOperations } from '../hooks/useActorOperations.jsx';
+import { useDataOperations } from '../hooks/useDataOperations.jsx';
 
 export default function DetailPane(props) {
-    const app = useApp();
+    // props: actors, content, sections, takes, selectedNode, expandNode, 
+    //        onExpandNode, onRefresh, logs, consoleEntries, blankSpaceConversion, capitalizationConversion
 
-    const selectedData = createMemo(() => {
-        if (!props.selectedNode) return null;
+    const actorOps = useActorOperations({
+        onActorCreated: props.onRefresh,
+        onActorUpdated: props.onRefresh,
+        onActorDeleted: props.onRefresh,
+        expandNode: props.onExpandNode
+    });
+
+    const dataOps = useDataOperations({
+        actors: props.actors,
+        sections: props.sections,
+        selectedNode: props.selectedNode,
+        expandNode: props.onExpandNode,
+        onContentCreated: props.onRefresh,
+        onSectionCreated: props.onRefresh,
+        onActorUpdated: props.onRefresh,
+        onSectionUpdated: props.onRefresh,
+        onSectionDeleted: props.onRefresh,
+        deleteActor: actorOps.deleteActor
+    });
+
+    const viewData = createMemo(() => {
+        if (!props.selectedNode) return { view: 'welcome' };
 
         const { type, id } = props.selectedNode;
 
         switch (type) {
-            case 'actor':
-                return { type, data: props.actors.find(a => a.id === id) };
-            case 'content':
-                return { type, data: props.content.find(c => c.id === id) };
+            case 'root':
+                return { view: 'root' };
+            case 'defaults':
+                return { view: 'defaults' };
+            case 'provider-default':
+                return { view: 'provider-default', contentType: id };
+            case 'console':
+                return { view: 'console' };
+            case 'history':
+                return { view: 'history' };
+            case 'actor': {
+                const actor = props.actors.find(a => a.id === id);
+                return { view: 'actor', actor };
+            }
             case 'dialogue-section':
             case 'music-section':
-            case 'sfx-section':
-                return { type: 'section', data: props.sections.find(s => s.id === id) };
-            case 'console':
-                return { type: 'console', data: props.consoleEntries };
-            case 'history':
-                return { type: 'history', data: props.logs };
-            case 'provider-default':
-                return { type: 'provider-default', contentType: id };
-            case 'defaults':
-                return { type: 'defaults', data: null };
-            case 'root':
-                return { type: 'root', data: null };
+            case 'sfx-section': {
+                const section = props.sections.find(s => s.id === id);
+                const actor = props.actors.find(a => a.id === section?.actor_id);
+                const contentType = type.split('-')[0];
+                return { view: 'section', section, actor, contentType };
+            }
+            case 'content': {
+                const item = props.content.find(c => c.id === id);
+                const actor = props.actors.find(a => a.id === item?.actor_id);
+                return { view: 'content', item, actor };
+            }
             default:
-                return null;
+                return { view: 'welcome' };
         }
     });
 
+    const commonError = () => dataOps.error() || actorOps.error();
+
     return (
-        <Box sx={{ flexGrow: 1, overflow: 'auto', p: 2, minWidth: 0 }}>
-            <Show
-                when={selectedData()}
-                fallback={
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                        <Typography color="text.secondary">
-                            Select an item from the tree to view details.
-                        </Typography>
-                    </Box>
-                }
-            >
-                <Switch>
-                    <Match when={selectedData().type === 'actor'}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h5" gutterBottom>
-                                Actor: {selectedData().data?.display_name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                ID: {selectedData().data?.id}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                                <strong>Base Filename:</strong> {selectedData().data?.base_filename || 'N/A'}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                                <strong>Voice ID:</strong> {selectedData().data?.voice_id || 'N/A'}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                                <strong>Complete:</strong> {selectedData().data?.actor_complete ? 'Yes' : 'No'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                                Full actor editing UI will be added in next iteration
-                            </Typography>
-                        </Paper>
-                    </Match>
+        <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+            <Switch fallback={
+                <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography color="text.secondary">Select an item to view details.</Typography>
+                </Box>
+            }>
+                <Match when={viewData().view === 'welcome'}>
+                    <NoSelectionView error={commonError()} />
+                </Match>
 
-                    <Match when={selectedData().type === 'section'}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h5" gutterBottom>
-                                Section: {selectedData().data?.name || selectedData().data?.content_type}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                Type: {selectedData().data?.content_type}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                                <strong>Actor ID:</strong> {selectedData().data?.actor_id}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                                <strong>Complete:</strong> {selectedData().data?.section_complete ? 'Yes' : 'No'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                                Full section editing UI will be added in next iteration
-                            </Typography>
-                        </Paper>
-                    </Match>
+                <Match when={viewData().view === 'root'}>
+                    <RootView actorOps={actorOps} error={commonError()} />
+                </Match>
 
-                    <Match when={selectedData().type === 'content'}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h5" gutterBottom>
-                                Content: {selectedData().data?.cue_id}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                Type: {selectedData().data?.content_type}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
-                                <strong>Text:</strong> {selectedData().data?.text || 'N/A'}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 1 }}>
-                                <strong>All Approved:</strong> {selectedData().data?.all_approved ? 'Yes' : 'No'}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
-                                <strong>Takes:</strong> {props.takes.filter(t => t.content_id === selectedData().data?.id).length}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                                Full content editing and take management UI will be added in next iteration
-                            </Typography>
-                        </Paper>
-                    </Match>
+                <Match when={viewData().view === 'defaults'}>
+                    <DefaultsView />
+                </Match>
 
-                    <Match when={selectedData().type === 'console'}>
-                        <Paper sx={{ p: 2, maxHeight: '80vh', overflow: 'auto' }}>
-                            <Typography variant="h5" gutterBottom>
-                                Browser Console
-                            </Typography>
-                            <Box component="pre" sx={{ fontSize: '0.75rem', whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-                                <Show
-                                    when={props.consoleEntries && props.consoleEntries.length > 0}
-                                    fallback={<Typography color="text.secondary">No console entries</Typography>}
-                                >
-                                    {props.consoleEntries.map((entry, i) => (
-                                        <Box key={i} sx={{ mb: 0.5, color: entry.level === 'error' ? 'error.main' : entry.level === 'warn' ? 'warning.main' : 'text.primary' }}>
-                                            [{entry.level}] {entry.message}
-                                        </Box>
-                                    ))}
-                                </Show>
-                            </Box>
-                        </Paper>
-                    </Match>
+                <Match when={viewData().view === 'console'}>
+                    <BrowserConsoleView
+                        entries={props.consoleEntries}
+                        onClear={() => {/* logic handled via context or prop if needed but simple log clear is fine */ }}
+                    />
+                </Match>
 
-                    <Match when={selectedData().type === 'history'}>
-                        <Paper sx={{ p: 2, maxHeight: '80vh', overflow: 'auto' }}>
-                            <Typography variant="h5" gutterBottom>
-                                History
-                            </Typography>
-                            <Box sx={{ fontSize: '0.875rem' }}>
-                                <Show
-                                    when={props.logs && props.logs.length > 0}
-                                    fallback={<Typography color="text.secondary">No history entries</Typography>}
-                                >
-                                    {props.logs.map((log, i) => (
-                                        <Box key={i} sx={{ mb: 1, pb: 1, borderBottom: 1, borderColor: 'divider' }}>
-                                            <Typography variant="caption" color="text.secondary">
-                                                {new Date(log.timestamp).toLocaleString()}
-                                            </Typography>
-                                            <Typography variant="body2" sx={{ color: log.type === 'error' ? 'error.main' : log.type === 'success' ? 'success.main' : 'text.primary' }}>
-                                                {log.message}
-                                            </Typography>
-                                        </Box>
-                                    ))}
-                                </Show>
-                            </Box>
-                        </Paper>
-                    </Match>
+                <Match when={viewData().view === 'history'}>
+                    <HistoryView
+                        logs={props.logs}
+                        onClearLogs={async () => {/* implement clear if desired */ }}
+                    />
+                </Match>
 
-                    <Match when={selectedData().type === 'provider-default'}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h5" gutterBottom>
-                                Provider Defaults: {selectedData().contentType}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Configure default settings for {selectedData().contentType} content type.
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                                Provider defaults UI will be added in next iteration
-                            </Typography>
-                        </Paper>
-                    </Match>
+                <Match when={viewData().view === 'provider-default'}>
+                    <ProviderDefaultsView
+                        contentType={viewData().contentType}
+                        voices={dataOps.voices}
+                        loadingVoices={dataOps.loadingVoices}
+                        error={commonError()}
+                    />
+                </Match>
 
-                    <Match when={selectedData().type === 'defaults'}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h5" gutterBottom>
-                                Defaults
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Configure default provider settings for all content types.
-                            </Typography>
-                        </Paper>
-                    </Match>
+                <Match when={viewData().view === 'actor'}>
+                    <ActorView
+                        actor={viewData().actor}
+                        sections={props.sections}
+                        operations={dataOps}
+                    />
+                </Match>
 
-                    <Match when={selectedData().type === 'root'}>
-                        <Paper sx={{ p: 2 }}>
-                            <Typography variant="h5" gutterBottom>
-                                Project Overview
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
-                                <strong>Actors:</strong> {props.actors.length}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
-                                <strong>Sections:</strong> {props.sections.length}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
-                                <strong>Content Items:</strong> {props.content.length}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mb: 2 }}>
-                                <strong>Takes:</strong> {props.takes.length}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                                Actor creation and project management UI will be added in next iteration
-                            </Typography>
-                        </Paper>
-                    </Match>
-                </Switch>
-            </Show>
+                <Match when={viewData().view === 'section'}>
+                    <SectionView
+                        sectionData={viewData().section}
+                        actor={viewData().actor}
+                        contentType={viewData().contentType}
+                        operations={dataOps}
+                    />
+                </Match>
+
+                <Match when={viewData().view === 'content'}>
+                    <ContentView
+                        item={viewData().item}
+                        actor={viewData().actor}
+                        sections={props.sections}
+                        allTakes={props.takes}
+                        onContentUpdated={props.onRefresh}
+                        onSectionUpdated={props.onRefresh}
+                        onActorUpdated={props.onRefresh}
+                        onContentDeleted={props.onRefresh}
+                        onTakesGenerated={props.onRefresh}
+                        onTakeUpdated={props.onRefresh}
+                        blankSpaceConversion={props.blankSpaceConversion}
+                        capitalizationConversion={props.capitalizationConversion}
+                        error={commonError()}
+                    />
+                </Match>
+            </Switch>
         </Box>
     );
 }

@@ -1,4 +1,5 @@
-import { Button, Tooltip } from '@suid/material';
+import { Button } from '@suid/material';
+import Tooltip from './Tooltip.jsx';
 
 // Simple, dependency-free confetti effect centered around a target element.
 let completeButtonConfettiStylesInjected = false;

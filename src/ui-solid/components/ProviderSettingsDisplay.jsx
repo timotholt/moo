@@ -1,6 +1,7 @@
 import { createSignal, Show, For } from 'solid-js';
-import { Box, Typography, Collapse } from '@suid/material';
+import { Box, Typography } from '@suid/material';
 import { ExpandLess, ExpandMore } from '@suid/icons-material';
+import Collapse from './Collapse.jsx';
 
 export default function ProviderSettingsDisplay(props) {
     const [expanded, setExpanded] = createSignal(false);

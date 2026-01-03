@@ -224,6 +224,8 @@ export default function ProjectShell(props) {
                             consoleEntries={consoleCapture.entries()}
                             blankSpaceConversion={props.blankSpaceConversion}
                             capitalizationConversion={props.capitalizationConversion}
+                            onExpandNode={setExpandNode}
+                            onRefresh={reloadData}
                         />
                     </Box>
                 </AppProvider>

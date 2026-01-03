@@ -124,6 +124,21 @@ export function useSectionOperations(props) {
         }
     };
 
+    const deleteSectionById = async (sectionId) => {
+        try {
+            setCreating(true);
+            setError(null);
+            await deleteSection(sectionId);
+            if (props.onSectionDeleted) {
+                props.onSectionDeleted(sectionId);
+            }
+        } catch (err) {
+            setError(err.message || String(err));
+        } finally {
+            creating(false);
+        }
+    };
+
     return {
         creating,
         error,
@@ -132,5 +147,6 @@ export function useSectionOperations(props) {
         updateProviderSettings: updateSectionProviderSettings,
         updateSectionName,
         toggleSectionComplete,
+        deleteSection: deleteSectionById,
     };
 }

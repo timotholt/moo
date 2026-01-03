@@ -1,9 +1,10 @@
 import { createSignal, createEffect, onMount, For, Show } from 'solid-js';
 import {
     Box, Typography, TextField, Select, MenuItem, FormControl,
-    InputLabel, Slider, Stack, Button, CircularProgress
+    InputLabel, Stack, Button, CircularProgress
 } from '@suid/material';
 import { PlayArrow as PlayArrowIcon } from '@suid/icons-material';
+import Slider from './Slider.jsx';
 import { previewVoice } from '../api/client.js';
 
 // Default settings by content type

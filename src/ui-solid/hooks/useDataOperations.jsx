@@ -70,6 +70,8 @@ export function useDataOperations(props) {
         updateBaseFilename,
         updateDisplayName,
         toggleSectionComplete: sectionOps.toggleSectionComplete,
+        deleteSection: sectionOps.deleteSection,
+        deleteActor: props.deleteActor || (() => { }), // Need to ensure it's passed or used from useActorOperations
 
         // Expose voice loader for refresh if needed
         loadVoices: voiceOps.loadVoices

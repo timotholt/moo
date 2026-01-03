@@ -1,12 +1,13 @@
 import { createSignal, Show } from 'solid-js';
 import {
     Box, Typography, TextField, Stack, Button,
-    Collapse, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
+    Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
 } from '@suid/material';
 import { ExpandMore, ExpandLess } from '@suid/icons-material';
-import DetailHeader from '../DetailHeader.jsx';
-import CompleteButton from '../CompleteButton.jsx';
-import ProviderSettingsEditor from '../ProviderSettingsEditor.jsx';
+import Collapse from './Collapse.jsx';
+import DetailHeader from './DetailHeader.jsx';
+import CompleteButton from './CompleteButton.jsx';
+import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
 
 export default function SectionView(props) {
     // props: sectionData, actor, contentType, operations (useDataOperations result)
