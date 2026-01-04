@@ -10,6 +10,7 @@ import DefaultsView from './views/DefaultsView.jsx';
 import HistoryView from './HistoryView.jsx';
 import BrowserConsoleView from './BrowserConsoleView.jsx';
 import ViewConfigView from './ViewConfigView.jsx';
+import GroupView from './views/GroupView.jsx';
 import { PRESET_VIEWS } from '../utils/viewEngine.js';
 import { useActorOperations } from '../hooks/useActorOperations.jsx';
 import { useDataOperations } from '../hooks/useDataOperations.jsx';
@@ -185,12 +186,17 @@ export default function DetailPane(props) {
                     />
                 </Match>
                 <Match when={viewData().view === 'view-group'}>
-                    <Box sx={{ p: 4, textAlign: 'center' }}>
-                        <Typography variant="h6" gutterBottom>Group View</Typography>
-                        <Typography color="text.secondary">
-                            Selecting a group in the tree shows a summary. This view is under development.
-                        </Typography>
-                    </Box>
+                    <GroupView
+                        groupNode={props.selectedNode}
+                        data={{
+                            actors: props.actors,
+                            sections: props.sections,
+                            scenes: props.scenes || [], // Assuming scenes might be passed or empty
+                            content: props.content,
+                            takes: props.takes
+                        }}
+                        operations={dataOps}
+                    />
                 </Match>
             </Switch>
         </Box>

@@ -6,7 +6,7 @@ import {
 import DetailHeader from '../DetailHeader.jsx';
 import CompleteButton from '../CompleteButton.jsx';
 import SectionManagement from '../SectionManagement.jsx';
-import ProviderSettingsDisplay from '../ProviderSettingsDisplay.jsx';
+import ProviderSettingsEditor from '../ProviderSettingsEditor.jsx';
 
 export default function ActorView(props) {
     // props: actor, sections, operations (useDataOperations result)
@@ -93,8 +93,27 @@ export default function ActorView(props) {
                     </Typography>
                 </Box>
 
-                {/* Provider Settings (Read Only) */}
-                <ProviderSettingsDisplay actor={props.actor} />
+                {/* Provider Settings (Defaults) */}
+                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+                    <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
+                        <Typography variant="subtitle2">Default Voice Settings (Dialogue)</Typography>
+                    </Box>
+                    <Box sx={{ p: 2 }}>
+                        <ProviderSettingsEditor
+                            contentType="dialogue"
+                            settings={props.actor.provider_settings?.dialogue}
+                            voices={props.operations.voices()}
+                            loadingVoices={props.operations.loadingVoices()}
+                            allowInherit={true}
+                            onSettingsChange={(settings) => {
+                                const current = props.actor.provider_settings || {};
+                                props.operations.updateActor(props.actor.id, {
+                                    provider_settings: { ...current, dialogue: settings }
+                                });
+                            }}
+                        />
+                    </Box>
+                </Box>
 
                 {/* Section Management */}
                 <SectionManagement
