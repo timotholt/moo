@@ -1,7 +1,7 @@
-import { createSignal, createMemo, For } from 'solid-js';
+import { createSignal, createMemo, For, createEffect } from 'solid-js';
 import {
     Box, Typography, TextField, Button, List, IconButton, Paper, Divider,
-    ToggleButtonGroup, ToggleButton
+    ToggleButtonGroup, ToggleButton, Select, MenuItem, FormControl, InputLabel, Stack
 } from '@suid/material';
 import ArrowUpwardIcon from '@suid/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@suid/icons-material/ArrowDownward';
@@ -21,6 +21,14 @@ export default function ViewConfigView(props) {
 
     const [name, setName] = createSignal(props.view.name);
     const [levels, setLevels] = createSignal([...props.view.levels]);
+    const [filters, setFilters] = createSignal(Array.isArray(props.view.filter) ? [...props.view.filter] : []);
+
+    // Reset signals when switching views
+    createEffect(() => {
+        setName(props.view.name);
+        setLevels([...props.view.levels]);
+        setFilters(Array.isArray(props.view.filter) ? [...props.view.filter] : []);
+    });
 
     const displayTitle = createMemo(() => getStickyName({ name: name(), levels: levels() }));
 
@@ -28,7 +36,8 @@ export default function ViewConfigView(props) {
         props.onUpdate({
             ...props.view,
             name: name(),
-            levels: levels()
+            levels: levels(),
+            filter: filters()
         });
     };
 
@@ -56,6 +65,18 @@ export default function ViewConfigView(props) {
             isTerminal: dim.isTerminal,
             labelMap: dim.labelMap
         }]);
+    };
+
+    const addFilter = () => {
+        setFilters([...filters(), { field: 'status', op: 'ne', value: 'approved' }]);
+    };
+
+    const removeFilter = (idx) => {
+        setFilters(filters().filter((_, i) => i !== idx));
+    };
+
+    const updateFilter = (idx, patch) => {
+        setFilters(filters().map((f, i) => i === idx ? { ...f, ...patch } : f));
     };
 
     const availableDimensions = createMemo(() => {
@@ -179,6 +200,79 @@ export default function ViewConfigView(props) {
                             )}
                         </For>
                     </Box>
+                </Box>
+            </Paper>
+
+            <Paper sx={{ p: 3, mt: 3, borderRadius: '8px' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Filters (Selection Criteria)
+                    </Typography>
+                    <Button size="small" startIcon={<AddIcon />} onClick={addFilter}>
+                        Add Rule
+                    </Button>
+                </Box>
+
+                <Show when={filters().length > 0} fallback={
+                    <Typography sx={{ py: 2, textAlign: 'center', color: 'text.disabled', fontStyle: 'italic', fontSize: '0.85rem' }}>
+                        No filters active. Showing all project items.
+                    </Typography>
+                }>
+                    <Stack spacing={2}>
+                        <For each={filters()}>
+                            {(filter, idx) => (
+                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                    <FormControl size="small" sx={{ width: 140 }}>
+                                        <InputLabel>Field</InputLabel>
+                                        <Select
+                                            value={filter.field}
+                                            label="Field"
+                                            onChange={(e) => updateFilter(idx(), { field: e.target.value })}
+                                        >
+                                            <For each={DIMENSIONS}>
+                                                {(dim) => <MenuItem value={dim.id}>{dim.name}</MenuItem>}
+                                            </For>
+                                        </Select>
+                                    </FormControl>
+
+                                    <FormControl size="small" sx={{ width: 120 }}>
+                                        <InputLabel>Operator</InputLabel>
+                                        <Select
+                                            value={filter.op}
+                                            label="Operator"
+                                            onChange={(e) => updateFilter(idx(), { op: e.target.value })}
+                                        >
+                                            <MenuItem value="eq">is</MenuItem>
+                                            <MenuItem value="ne">is not</MenuItem>
+                                            <MenuItem value="contains">contains</MenuItem>
+                                            <MenuItem value="regex">regex</MenuItem>
+                                        </Select>
+                                    </FormControl>
+
+                                    <TextField
+                                        size="small"
+                                        label="Value"
+                                        sx={{ flexGrow: 1 }}
+                                        value={filter.value}
+                                        onInput={(e) => updateFilter(idx(), { value: e.target.value })}
+                                    />
+
+                                    <IconButton size="small" color="error" onClick={() => removeFilter(idx())}>
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+                            )}
+                        </For>
+                    </Stack>
+                </Show>
+                <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center' }}>Presets:</Typography>
+                    <Button size="small" variant="text" onClick={() => setFilters([{ field: 'status', op: 'ne', value: 'approved' }])}>
+                        Only Unapproved
+                    </Button>
+                    <Button size="small" variant="text" onClick={() => setFilters([{ field: 'status', op: 'eq', value: 'approved' }])}>
+                        Only Approved
+                    </Button>
                 </Box>
             </Paper>
         </Box>

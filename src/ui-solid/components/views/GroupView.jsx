@@ -2,9 +2,9 @@ import { createMemo, createSignal, Show, Switch, Match, For } from 'solid-js';
 import { Box, Typography, Button, Paper, Stack, Divider } from '@suid/material';
 import ActorView from './ActorView.jsx';
 import SceneView from './SceneView.jsx';
-import SectionView from '../../SectionView.jsx';
-import DetailHeader from '../../DetailHeader.jsx';
-import CompleteButton from '../../CompleteButton.jsx';
+import SectionView from '../SectionView.jsx';
+import DetailHeader from '../DetailHeader.jsx';
+import CompleteButton from '../CompleteButton.jsx';
 import { DESIGN_SYSTEM } from '../../theme/designSystem.js';
 
 // Helper for listing group items

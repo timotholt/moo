@@ -55,7 +55,7 @@ export const PRESET_VIEWS = {
     id: 'unapproved',
     name: 'unapproved',
     category: 'summary',
-    filter: (asset) => asset.status !== 'approved',
+    filter: [{ field: 'status', op: 'ne', value: 'approved' }],
     levels: [
       { field: 'status', icon: 'status', labelMap: {
         'new': 'New',
@@ -85,7 +85,10 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
   }
 
   const index = [];
+  const seenActorIds = new Set();
+  const seenSceneIds = new Set();
 
+  // 1. Process Content
   for (const c of content) {
     const s = sectionsById.get(c.section_id);
     
@@ -101,19 +104,20 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
         ownerName = a?.display_name || 'Unknown Actor';
         actorId = c.owner_id;
         actorName = ownerName;
+        if (actorId) seenActorIds.add(actorId);
     } else if (c.owner_type === 'scene') {
         const sc = scenesById.get(c.owner_id);
         ownerName = sc?.name || 'Unknown Scene';
         sceneId = c.owner_id;
         sceneName = ownerName;
+        if (sceneId) seenSceneIds.add(sceneId);
     }
 
-    // Secondary Scene lookup (if section has scene_id, though in V2 owner_id is primary)
-    // For now, let's keep compatibility with section-level scene_id if it exists
     if (!sceneId && s?.scene_id) {
         const sc = scenesById.get(s.scene_id);
         sceneId = s.scene_id;
         sceneName = sc?.name || 'Unknown Scene';
+        if (sceneId) seenSceneIds.add(sceneId);
     }
 
     const contentTakes = takesByContentId.get(c.id) || [];
@@ -161,6 +165,36 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
       }
     }
   }
+
+  // 2. Add Shell Entries for Empty Actors (So they appear in the tree)
+  for (const actor of actors) {
+    if (!seenActorIds.has(actor.id)) {
+      index.push({
+        owner_type: 'actor',
+        owner_id: actor.id,
+        owner_name: actor.display_name,
+        actor_id: actor.id,
+        actor_name: actor.display_name,
+        status: '__empty__',
+        id: `shell-actor-${actor.id}`
+      });
+    }
+  }
+
+  // 3. Add Shell Entries for Empty Scenes
+  for (const scene of scenes) {
+    if (!seenSceneIds.has(scene.id)) {
+      index.push({
+        owner_type: 'scene',
+        owner_id: scene.id,
+        owner_name: scene.name,
+        scene_id: scene.id,
+        scene_name: scene.name,
+        status: '__empty__',
+        id: `shell-scene-${scene.id}`
+      });
+    }
+  }
   
   return index;
 }
@@ -173,7 +207,7 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
   if (!items || items.length === 0) return [];
   
   if (depth >= levels.length) {
-    return items.map(item => {
+    return items.filter(i => i.content_id).map(item => { // Don't show shell items as leaves
       const assetType = ASSET_TYPES[item.asset_type] || ASSET_TYPES.audio;
       let label = item.filename;
       if (!label) {
@@ -213,8 +247,13 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
     const currentId = `${level.field}:${key}`;
     const fullId = parentPath ? `${parentPath}/${currentId}` : currentId;
     
-    const childNodes = groupByLevels(children, levels, depth + 1, fullId);
-    const statuses = children.map(c => c.status).filter(s => s !== '__none__');
+    // Determine if we should stop grouping here
+    const dimDef = DIMENSIONS.find(d => d.id === level.field);
+    const isTerminal = dimDef?.isTerminal || level.isTerminal;
+    
+    const childNodes = isTerminal ? [] : groupByLevels(children, levels, depth + 1, fullId);
+    
+    const statuses = children.map(c => c.status).filter(s => s !== '__none__' && s !== '__empty__');
     let groupStatus = 'gray';
     
     if (statuses.length > 0) {
@@ -270,11 +309,51 @@ export function getAllViews(customViews = []) {
   return combined;
 }
 
+/**
+ * Apply a serializable filter to an asset
+ */
+export function applyFilters(asset, filter) {
+  if (!filter) return true;
+
+  // Legacy function support (for hardcoded presets)
+  if (typeof filter === 'function') return filter(asset);
+
+  // Array of rules (AND logic)
+  if (Array.isArray(filter)) {
+    return filter.every(rule => {
+      const val = asset[rule.field];
+      const target = rule.value;
+
+      switch (rule.op) {
+        case 'eq': return String(val) === String(target);
+        case 'ne': return String(val) !== String(target);
+        case 'contains': return String(val).toLowerCase().includes(String(target).toLowerCase());
+        case 'regex': {
+          try {
+            const re = new RegExp(String(target), 'i');
+            return re.test(String(val));
+          } catch (e) {
+            return true; // Ignore invalid regex
+          }
+        }
+        case 'in': return Array.isArray(target) && target.includes(val);
+        default: return true;
+      }
+    });
+  }
+
+  return true;
+}
+
 export function buildViewTree(viewId, data, customViews = []) {
   const view = getViewById(viewId, customViews);
   if (!view) return [];
   const { actors = [], sections = [], content = [], takes = [], scenes = [] } = data;
   let assets = buildAssetIndex(actors, sections, content, takes, scenes);
-  if (view.filter && typeof view.filter === 'function') assets = assets.filter(view.filter);
+  
+  if (view.filter) {
+    assets = assets.filter(a => applyFilters(a, view.filter));
+  }
+  
   return groupByLevels(assets, view.levels);
 }

@@ -224,6 +224,7 @@ export default function ProjectShell(props) {
                             content={content()}
                             sections={sections()}
                             takes={takes()}
+                            scenes={scenes()}
                             selectedNode={selectedNode()}
                             expandNode={expandNode()}
                             logs={appLog.logs()}
