@@ -18,6 +18,7 @@ export function getProjectPaths(projectRoot: string) {
             actors: join(projectRoot, PATHS.CATALOG, 'actors.jsonl'),
             content: join(projectRoot, PATHS.CATALOG, 'content.jsonl'),
             sections: join(projectRoot, PATHS.CATALOG, 'sections.jsonl'),
+            scenes: join(projectRoot, PATHS.CATALOG, 'scenes.jsonl'),
             takes: join(projectRoot, PATHS.CATALOG, 'takes.jsonl'),
             generationJobs: join(projectRoot, PATHS.CATALOG, 'generation-jobs.jsonl'),
             indexes: {

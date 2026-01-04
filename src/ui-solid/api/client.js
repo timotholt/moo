@@ -43,6 +43,10 @@ export function getSections() {
   return fetchJson('/api/sections');
 }
 
+export function getScenes() {
+  return fetchJson('/api/scenes');
+}
+
 export function getTakes(contentId) {
   const params = contentId ? `?contentId=${encodeURIComponent(contentId)}` : '';
   return fetchJson(`/api/takes${params}`);

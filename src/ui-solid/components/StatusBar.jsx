@@ -5,10 +5,6 @@ export default function StatusBar(props) {
     return (
         <Box
             sx={{
-                position: 'fixed',
-                bottom: 0,
-                left: 0,
-                right: 0,
                 p: 0.5,
                 px: 2,
                 borderTop: 1,
@@ -18,7 +14,9 @@ export default function StatusBar(props) {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 zIndex: (theme) => theme.zIndex.drawer + 1,
-                minHeight: 24
+                minHeight: 24,
+                width: '100%',
+                flexShrink: 0,
             }}
         >
             <Typography variant="caption" color="text.secondary">

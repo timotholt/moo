@@ -1,12 +1,12 @@
 import { join } from 'path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
-import type { Actor, Content, Section } from '../../types/index.js';
-import { 
-  buildActorPath, 
-  buildSectionPath, 
+import type { Actor, Content, Section, Scene } from '../../types/index.js';
+import {
+  buildActorPath,
+  buildSectionPath,
   buildContentPath,
-  type PathContext 
+  type PathContext
 } from '../../utils/pathBuilder.js';
 import { describeChanges } from '../../utils/diffDescriber.js';
 
@@ -19,6 +19,7 @@ interface Snapshot {
   actors: Actor[];
   sections: Section[];
   content: Content[];
+  scenes: Scene[];
 }
 
 /** Cached catalog data to avoid redundant reads */
@@ -26,6 +27,7 @@ export interface CatalogCache {
   actors: Actor[];
   sections: Section[];
   content: Content[];
+  scenes: Scene[];
 }
 
 type ProjectPaths = ReturnType<typeof import('../../utils/paths.js').getProjectPaths>;
@@ -38,12 +40,13 @@ const MAX_SNAPSHOTS = 50;
  * Use this before mutations to avoid redundant reads
  */
 export async function readCatalog(paths: ProjectPaths): Promise<CatalogCache> {
-  const [actors, sections, content] = await Promise.all([
+  const [actors, sections, content, scenes] = await Promise.all([
     readJsonl<Actor>(paths.catalog.actors).catch(() => [] as Actor[]),
     readJsonl<Section>(paths.catalog.sections).catch(() => [] as Section[]),
     readJsonl<Content>(paths.catalog.content).catch(() => [] as Content[]),
+    readJsonl<Scene>(paths.catalog.scenes).catch(() => [] as Scene[]),
   ]);
-  return { actors, sections, content };
+  return { actors, sections, content, scenes };
 }
 
 /**
@@ -113,12 +116,12 @@ function buildSnapshotMessage(
   if (!diff.hasChanges) {
     return `Update: ${path} (no changes)`;
   }
-  
+
   // Check for rename specifically
   if (options?.renameFrom && options?.renameTo) {
     return `Rename actor: ${options.renameFrom} → ${options.renameTo}`;
   }
-  
+
   // For completion changes:
   // - "marked as incomplete" = system cascade (parent marked incomplete when child is)
   // - "marked as complete" = user action, but UI already logs this, so use generic format
@@ -130,12 +133,12 @@ function buildSnapshotMessage(
     // Use same format as UI for consistent undo message
     return `user marked ${path} as complete`;
   }
-  
+
   // For single change, be specific
   if (diff.changes.length === 1) {
     return `${path}: ${diff.changes[0]}`;
   }
-  
+
   // For multiple changes, use summary
   return `Update: ${path} (${diff.summary.toLowerCase()})`;
 }
@@ -165,12 +168,12 @@ export function snapshotMessageForActorUpdate(
 ): string {
   const path = `actor → ${actorName}`;
   const diff = describeChanges(oldActor, newActor);
-  
+
   // Check for rename
   const renameOptions = oldActor.display_name !== newActor.display_name
     ? { renameFrom: oldActor.display_name as string, renameTo: newActor.display_name as string }
     : undefined;
-  
+
   return buildSnapshotMessage(path, diff, renameOptions);
 }
 
@@ -201,9 +204,9 @@ export async function saveSnapshot(
   message: string,
   catalog: CatalogCache
 ): Promise<void> {
-  const snapshotPath = join(paths.vof.dir, 'snapshots.jsonl');
-  const redoPath = join(paths.vof.dir, 'redo-snapshots.jsonl');
-  
+  const snapshotPath = join(paths.moo.dir, 'snapshots.jsonl');
+  const redoPath = join(paths.moo.dir, 'redo-snapshots.jsonl');
+
   try {
     // Clear redo stack on new mutation
     const fs = await import('fs-extra').then(m => m.default);
@@ -216,6 +219,7 @@ export async function saveSnapshot(
       actors: catalog.actors,
       sections: catalog.sections,
       content: catalog.content,
+      scenes: catalog.scenes,
     };
 
     if (DEBUG_SNAPSHOT) {
@@ -249,7 +253,7 @@ export async function saveSnapshot(
 
 
 export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext | null) {
-  
+
   // Get snapshot stack info
   fastify.get('/api/snapshots', async (_request: FastifyRequest, reply: FastifyReply) => {
     const ctx = getProjectContext();
@@ -258,18 +262,18 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       return { error: 'No project selected' };
     }
     const { paths } = ctx;
-    
-    const snapshotPath = join(paths.vof.dir, 'snapshots.jsonl');
-    const redoPath = join(paths.vof.dir, 'redo-snapshots.jsonl');
+
+    const snapshotPath = join(paths.moo.dir, 'snapshots.jsonl');
+    const redoPath = join(paths.moo.dir, 'redo-snapshots.jsonl');
     await ensureJsonlFile(snapshotPath);
     await ensureJsonlFile(redoPath);
-    
+
     const snapshots = await readJsonl<Snapshot>(snapshotPath);
     const redoSnapshots = await readJsonl<Snapshot>(redoPath);
     const lastSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
     const lastRedoSnapshot = redoSnapshots.length > 0 ? redoSnapshots[redoSnapshots.length - 1] : null;
-    
-    return { 
+
+    return {
       count: snapshots.length,
       canUndo: snapshots.length > 0,
       undoMessage: lastSnapshot?.message || null,
@@ -286,43 +290,44 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       return { error: 'No project selected' };
     }
     const { paths } = ctx;
-    
-    const snapshotPath = join(paths.vof.dir, 'snapshots.jsonl');
-    const redoPath = join(paths.vof.dir, 'redo-snapshots.jsonl');
+
+    const snapshotPath = join(paths.moo.dir, 'snapshots.jsonl');
+    const redoPath = join(paths.moo.dir, 'redo-snapshots.jsonl');
     await ensureJsonlFile(snapshotPath);
     await ensureJsonlFile(redoPath);
-    
+
     const snapshots = await readJsonl<Snapshot>(snapshotPath);
-    
+
     if (DEBUG_SNAPSHOT) {
       console.log('[Snapshot] Undo requested, total snapshots:', snapshots.length);
     }
-    
+
     if (snapshots.length === 0) {
       reply.code(400);
       return { error: 'Nothing to undo' };
     }
-    
+
     // Save current state to redo stack before restoring
     const [currentActors, currentSections, currentContent] = await Promise.all([
       readJsonl<Actor>(paths.catalog.actors).catch(() => [] as Actor[]),
       readJsonl<Section>(paths.catalog.sections).catch(() => [] as Section[]),
       readJsonl<Content>(paths.catalog.content).catch(() => [] as Content[]),
     ]);
-    
+
     // Pop the last snapshot (this is what we're undoing)
     const snapshot = snapshots.pop()!;
-    
+
     // Create redo snapshot with the operation message (what was done, now being undone)
     const redoSnapshot: Snapshot = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       message: snapshot.message, // Same message - this is what we're undoing
-      actors: currentActors,
-      sections: currentSections,
-      content: currentContent,
+      actors: currentActors as Actor[],
+      sections: currentSections as Section[],
+      content: currentContent as Content[],
+      scenes: (await readJsonl<Scene>(paths.catalog.scenes).catch(() => [] as Scene[])),
     };
-    
+
     // Add to redo stack
     let redoSnapshots = await readJsonl<Snapshot>(redoPath).catch(() => [] as Snapshot[]);
     redoSnapshots.push(redoSnapshot);
@@ -330,7 +335,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       redoSnapshots = redoSnapshots.slice(-MAX_SNAPSHOTS);
     }
     await writeJsonlAll(redoPath, redoSnapshots);
-    
+
     if (DEBUG_SNAPSHOT) {
       console.log('[Snapshot] Undoing:', snapshot.message);
       console.log('[Snapshot] Restoring to:', snapshot.timestamp);
@@ -338,18 +343,19 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       console.log('[Snapshot] Sections:', snapshot.sections.length);
       console.log('[Snapshot] Content:', snapshot.content.length);
     }
-    
+
     // Restore state from snapshot
     await writeJsonlAll(paths.catalog.actors, snapshot.actors);
     await writeJsonlAll(paths.catalog.sections, snapshot.sections);
     await writeJsonlAll(paths.catalog.content, snapshot.content);
-    
+    await writeJsonlAll(paths.catalog.scenes, snapshot.scenes || []);
+
     // Save remaining snapshots
     await writeJsonlAll(snapshotPath, snapshots);
-    
+
     // Get next undo message
     const nextSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
-    
+
     // Return the restored state
     return {
       success: true,
@@ -372,43 +378,45 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       return { error: 'No project selected' };
     }
     const { paths } = ctx;
-    
-    const snapshotPath = join(paths.vof.dir, 'snapshots.jsonl');
-    const redoPath = join(paths.vof.dir, 'redo-snapshots.jsonl');
+
+    const snapshotPath = join(paths.moo.dir, 'snapshots.jsonl');
+    const redoPath = join(paths.moo.dir, 'redo-snapshots.jsonl');
     await ensureJsonlFile(snapshotPath);
     await ensureJsonlFile(redoPath);
-    
+
     const redoSnapshots = await readJsonl<Snapshot>(redoPath);
-    
+
     if (DEBUG_SNAPSHOT) {
       console.log('[Snapshot] Redo requested, total redo snapshots:', redoSnapshots.length);
     }
-    
+
     if (redoSnapshots.length === 0) {
       reply.code(400);
       return { error: 'Nothing to redo' };
     }
-    
+
     // Save current state to undo stack before restoring
-    const [currentActors, currentSections, currentContent] = await Promise.all([
+    const [currentActors, currentSections, currentContent, currentScenes] = await Promise.all([
       readJsonl<Actor>(paths.catalog.actors).catch(() => [] as Actor[]),
       readJsonl<Section>(paths.catalog.sections).catch(() => [] as Section[]),
       readJsonl<Content>(paths.catalog.content).catch(() => [] as Content[]),
+      readJsonl<Scene>(paths.catalog.scenes).catch(() => [] as Scene[]),
     ]);
-    
+
     // Pop the last redo snapshot
     const redoSnapshot = redoSnapshots.pop()!;
-    
+
     // Create undo snapshot
     const undoSnapshot: Snapshot = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       message: redoSnapshot.message,
-      actors: currentActors,
-      sections: currentSections,
-      content: currentContent,
+      actors: currentActors as Actor[],
+      sections: currentSections as Section[],
+      content: currentContent as Content[],
+      scenes: (currentScenes || []) as unknown as Scene[],
     };
-    
+
     // Add to undo stack
     let snapshots = await readJsonl<Snapshot>(snapshotPath).catch(() => [] as Snapshot[]);
     snapshots.push(undoSnapshot);
@@ -416,23 +424,24 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       snapshots = snapshots.slice(-MAX_SNAPSHOTS);
     }
     await writeJsonlAll(snapshotPath, snapshots);
-    
+
     if (DEBUG_SNAPSHOT) {
       console.log('[Snapshot] Redoing:', redoSnapshot.message);
       console.log('[Snapshot] Restoring to:', redoSnapshot.timestamp);
     }
-    
+
     // Restore state from redo snapshot
     await writeJsonlAll(paths.catalog.actors, redoSnapshot.actors);
     await writeJsonlAll(paths.catalog.sections, redoSnapshot.sections);
     await writeJsonlAll(paths.catalog.content, redoSnapshot.content);
-    
+    await writeJsonlAll(paths.catalog.scenes, redoSnapshot.scenes || []);
+
     // Save remaining redo snapshots
     await writeJsonlAll(redoPath, redoSnapshots);
-    
+
     // Get next redo message
     const nextRedoSnapshot = redoSnapshots.length > 0 ? redoSnapshots[redoSnapshots.length - 1] : null;
-    
+
     // Return the restored state
     return {
       success: true,
@@ -455,10 +464,10 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
       return { error: 'No project selected' };
     }
     const { paths } = ctx;
-    
-    const snapshotPath = join(paths.vof.dir, 'snapshots.jsonl');
+
+    const snapshotPath = join(paths.moo.dir, 'snapshots.jsonl');
     await writeJsonlAll(snapshotPath, []);
-    
+
     return { success: true };
   });
 }

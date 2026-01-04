@@ -173,7 +173,7 @@ const configCommand = new Command('config').description('Configuration commands'
 
 configCommand
     .command('list')
-    .description('Show current configuration from .vof/config.json')
+    .description('Show current configuration from .moo/config.json')
     .action(async () => {
         try {
             const config = await loadConfig(process.cwd());

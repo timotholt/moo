@@ -9,6 +9,8 @@ import RootView from './views/RootView.jsx';
 import DefaultsView from './views/DefaultsView.jsx';
 import HistoryView from './HistoryView.jsx';
 import BrowserConsoleView from './BrowserConsoleView.jsx';
+import ViewConfigView from './ViewConfigView.jsx';
+import { PRESET_VIEWS } from '../utils/viewEngine.js';
 import { useActorOperations } from '../hooks/useActorOperations.jsx';
 import { useDataOperations } from '../hooks/useDataOperations.jsx';
 
@@ -75,6 +77,10 @@ export default function DetailPane(props) {
                 const item = props.content.find(c => c.id === take?.content_id);
                 const actor = props.actors.find(a => a.id === item?.actor_id);
                 return { view: 'content', item, actor };
+            }
+            case 'view-config': {
+                const view = props.customViews.find(v => v.id === id) || PRESET_VIEWS[id];
+                return { view: 'view-config', viewData: view };
             }
             case 'view-group': {
                 return { view: 'view-group', id };
@@ -161,6 +167,21 @@ export default function DetailPane(props) {
                         blankSpaceConversion={props.blankSpaceConversion}
                         capitalizationConversion={props.capitalizationConversion}
                         error={commonError()}
+                    />
+                </Match>
+                <Match when={viewData().view === 'view-config'}>
+                    <ViewConfigView
+                        view={viewData().viewData}
+                        onUpdate={(updated) => {
+                            const next = props.customViews.some(v => v.id === updated.id)
+                                ? props.customViews.map(v => v.id === updated.id ? updated : v)
+                                : [...props.customViews, updated];
+                            props.onCustomViewsChange(next);
+                        }}
+                        onDelete={() => {
+                            const next = props.customViews.filter(v => v.id !== viewData().viewData.id);
+                            props.onCustomViewsChange(next);
+                        }}
                     />
                 </Match>
                 <Match when={viewData().view === 'view-group'}>

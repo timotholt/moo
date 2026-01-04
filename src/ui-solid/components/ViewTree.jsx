@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, Show, onMount } from 'solid-js';
+import { createSignal, createEffect, For, Show } from 'solid-js';
 import {
     Box, List, ListItemButton, ListItemText, ListItemIcon
 } from '@suid/material';
@@ -21,16 +21,12 @@ import PictureAsPdfIcon from '@suid/icons-material/PictureAsPdf';
 import ArticleIcon from '@suid/icons-material/Article';
 import InsertDriveFileIcon from '@suid/icons-material/InsertDriveFile';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
+import { TREE_INDENT } from '../constants.js';
 import Collapse from './Collapse.jsx';
-
-// ============================================================================
-// Icon Mapping
-// ============================================================================
 
 function getIconForType(iconType, fieldValue, contentType, fileIcon) {
     const iconStyle = { fontSize: '0.75rem' };
 
-    // For leaves, use fileIcon if provided, otherwise content type
     if (iconType === 'leaf' || iconType === undefined) {
         if (fileIcon) {
             switch (fileIcon) {
@@ -75,23 +71,14 @@ function getIconForType(iconType, fieldValue, contentType, fileIcon) {
     }
 }
 
-// ============================================================================
-// Status Color Mapping
-// ============================================================================
-
 function getStatusClass(status) {
     switch (status) {
         case 'green': return 'status-green';
         case 'yellow': return 'status-yellow';
         case 'red': return 'status-red';
-        case 'gray':
         default: return 'status-gray';
     }
 }
-
-// ============================================================================
-// Tree Node Component
-// ============================================================================
 
 function TreeNode(props) {
     const isExpanded = () => props.expanded[props.node.id] || false;
@@ -99,11 +86,15 @@ function TreeNode(props) {
     const hasChildren = () => props.node.children && props.node.children.length > 0;
     const isLeaf = () => props.node.type === 'leaf';
 
-    const paddingLeft = () => `${2.5 + props.depth * 1}rem`;
+    const paddingLeft = () => `${TREE_INDENT.BASE + (props.depth + props.baseDepth) * TREE_INDENT.STEP}px`;
 
     const handleClick = () => {
         if (isLeaf()) {
-            props.onSelect({ type: 'take', id: props.node.data.take_id, viewId: props.viewId });
+            if (props.node.data.take_id) {
+                props.onSelect({ type: 'take', id: props.node.data.take_id, viewId: props.viewId });
+            } else {
+                props.onSelect({ type: 'content', id: props.node.data.content_id, viewId: props.viewId });
+            }
         } else {
             props.onSelect({
                 type: 'view-group',
@@ -134,12 +125,8 @@ function TreeNode(props) {
             <ListItemButton
                 class={getStatusClass(props.node.status || 'gray')}
                 sx={{
-                    py: '0.125rem',
                     pl: paddingLeft(),
                     pr: 0,
-                    minHeight: '1.125rem',
-                    '& .MuiListItemText-root': { margin: 0 },
-                    '& .MuiListItemIcon-root': { minWidth: 'auto' },
                     ...DESIGN_SYSTEM.treeItem,
                     bgcolor: isSelected() ? 'action.selected' : 'transparent',
                 }}
@@ -182,6 +169,7 @@ function TreeNode(props) {
                                 <TreeNode
                                     node={child}
                                     depth={props.depth + 1}
+                                    baseDepth={props.baseDepth}
                                     expanded={props.expanded}
                                     onToggle={props.onToggle}
                                     selectedId={props.selectedId}
@@ -197,12 +185,8 @@ function TreeNode(props) {
     );
 }
 
-// ============================================================================
-// ViewTree Component
-// ============================================================================
-
 export default function ViewTree(props) {
-    const storageKey = () => `audiomanager-view-expanded-${props.viewId}`;
+    const storageKey = () => `moo-view-expanded-${props.viewId}`;
 
     const loadExpandedState = () => {
         try {
@@ -235,7 +219,7 @@ export default function ViewTree(props) {
 
     return (
         <Show when={props.tree && props.tree.length > 0} fallback={
-            <Box sx={{ pl: '1.5rem', py: '0.25rem', color: 'text.disabled' }}>
+            <Box sx={{ pl: `${TREE_INDENT.BASE + (props.baseDepth || 1) * TREE_INDENT.STEP}px`, py: '0.25rem', color: 'text.disabled' }}>
                 <em style={{ fontSize: '0.8rem' }}>No items</em>
             </Box>
         }>
@@ -245,6 +229,7 @@ export default function ViewTree(props) {
                         <TreeNode
                             node={node}
                             depth={0}
+                            baseDepth={props.baseDepth || 1}
                             expanded={expanded()}
                             onToggle={handleToggle}
                             selectedId={selectedId()}

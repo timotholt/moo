@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
+import { createSignal, createEffect, createMemo, onCleanup, Show } from 'solid-js';
 import { Box, CssBaseline, ThemeProvider, createTheme, GlobalStyles } from '@suid/material';
 import AppBarShell from './components/AppBarShell.jsx';
 import ProjectShell from './components/ProjectShell.jsx';
@@ -41,6 +41,15 @@ export default function App() {
     const [currentTake, setCurrentTake] = createSignal(null);
     const [audioUrl, setAudioUrl] = createSignal(null);
     const [isPlaying, setIsPlaying] = createSignal(false);
+    const [playerVisible, setPlayerVisible] = createSignal(false);
+    const [playedTakes, setPlayedTakes] = createSignal((() => {
+        try {
+            const saved = localStorage.getItem('moo-played-takes');
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+            return {};
+        }
+    })());
 
     const handlePlayTake = (take) => {
         const audioPath = (take.path || '').replace(/\\/g, '/');
@@ -52,10 +61,16 @@ export default function App() {
             setAudioUrl(`/media/${audioPath}`);
         }
         setIsPlaying(true);
+        setPlayerVisible(true);
     };
 
     const handleStopPlayback = () => {
         setIsPlaying(false);
+    };
+
+    const handleClosePlayer = () => {
+        handleStopPlayback();
+        setPlayerVisible(false);
     };
 
     // Clear audio player when project changes
@@ -66,6 +81,7 @@ export default function App() {
         setCurrentTake(null);
         setAudioUrl(null);
         setIsPlaying(false);
+        setPlayerVisible(false);
     });
 
     const handleBackfillAll = async () => {
@@ -99,6 +115,13 @@ export default function App() {
     createEffect(() => localStorage.setItem('moo-font-size', fontSize()));
     createEffect(() => localStorage.setItem('moo-blank-space-conversion', blankSpaceConversion()));
     createEffect(() => localStorage.setItem('moo-capitalization-conversion', capitalizationConversion()));
+    createEffect(() => {
+        try {
+            localStorage.setItem('moo-played-takes', JSON.stringify(playedTakes()));
+        } catch (e) {
+            console.warn('Failed to save played takes:', e);
+        }
+    });
 
     // fetch credits
     const refreshCredits = async () => {
@@ -228,29 +251,38 @@ export default function App() {
                     onBackfillAll={handleBackfillAll}
                     backfillRunning={backfillRunning()}
                 />
-                <Box sx={{ flexGrow: 1, mt: 5, mb: 11, overflow: 'auto' }}>
-                    {currentProject() ? (
-                        <ProjectShell
-                            ref={projectShellRef}
-                            currentProject={currentProject()}
-                            blankSpaceConversion={blankSpaceConversion()}
-                            capitalizationConversion={capitalizationConversion()}
-                            onStatusChange={setStatusText}
-                            onCreditsRefresh={refreshCredits}
-                            onPlayTake={handlePlayTake}
-                            onStopPlayback={handleStopPlayback}
-                            currentPlayingTakeId={isPlaying() ? currentTake()?.id : null}
-                        />
-                    ) : (
-                        <WelcomeScreen onProjectChange={setCurrentProject} />
-                    )}
+                <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                    <Show
+                        when={currentProject()}
+                        keyed
+                        fallback={<WelcomeScreen onProjectChange={setCurrentProject} />}
+                    >
+                        {(project) => (
+                            <ProjectShell
+                                ref={projectShellRef}
+                                currentProject={project}
+                                blankSpaceConversion={blankSpaceConversion()}
+                                capitalizationConversion={capitalizationConversion()}
+                                onStatusChange={setStatusText}
+                                onCreditsRefresh={refreshCredits}
+                                onPlayTake={handlePlayTake}
+                                onStopPlayback={handleStopPlayback}
+                                currentPlayingTakeId={isPlaying() ? currentTake()?.id : null}
+                                playedTakes={playedTakes()}
+                                onTakePlayed={(takeId) => setPlayedTakes(prev => ({ ...prev, [takeId]: true }))}
+                            />
+                        )}
+                    </Show>
                 </Box>
-                <AudioPlayerBar
-                    currentTake={currentTake()}
-                    audioUrl={audioUrl()}
-                    isPlaying={isPlaying()}
-                    onPlayingChange={setIsPlaying}
-                />
+                <Show when={playerVisible()}>
+                    <AudioPlayerBar
+                        currentTake={currentTake()}
+                        audioUrl={audioUrl()}
+                        isPlaying={isPlaying()}
+                        onPlayingChange={setIsPlaying}
+                        onClose={handleClosePlayer}
+                    />
+                </Show>
                 <StatusBar
                     statusText={statusText()}
                     providerCredits={providerCredits()}

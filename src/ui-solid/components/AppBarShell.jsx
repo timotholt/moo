@@ -10,8 +10,8 @@ export default function AppBarShell(props) {
 
     return (
         <>
-            <AppBar position="fixed" color="default" elevation={1} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-                <Toolbar variant="dense" sx={{ minHeight: 40, py: 0.25 }}>
+            <AppBar position="static" color="default" elevation={1} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+                <Toolbar variant="dense" disableGutters sx={{ minHeight: 40, py: 0.25, px: '0.5rem' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
                         <Typography
                             variant="body1"

@@ -5,6 +5,7 @@ import PauseIcon from '@suid/icons-material/Pause';
 import StopIcon from '@suid/icons-material/Stop';
 import VolumeUpIcon from '@suid/icons-material/VolumeUp';
 import VolumeOffIcon from '@suid/icons-material/VolumeOff';
+import CloseIcon from '@suid/icons-material/Close';
 import WaveSurfer from 'wavesurfer.js';
 import Slider from './Slider.jsx';
 
@@ -171,10 +172,6 @@ export default function AudioPlayerBar(props) {
     return (
         <Box
             sx={{
-                position: 'fixed',
-                bottom: '1.75rem', // Matches React version
-                left: 0,
-                right: 0,
                 bgcolor: 'background.paper',
                 borderTop: 1,
                 borderColor: 'divider',
@@ -184,6 +181,8 @@ export default function AudioPlayerBar(props) {
                 py: 0.5,
                 zIndex: 1300,
                 boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+                width: '100%',
+                flexShrink: 0,
             }}
         >
             {/* Top row: Waveform */}
@@ -272,6 +271,9 @@ export default function AudioPlayerBar(props) {
                         disabled={!props.audioUrl}
                     />
                 </Box>
+                <IconButton onClick={props.onClose} size="small" sx={{ p: 0.5, ml: 0.5 }}>
+                    <CloseIcon fontSize="small" />
+                </IconButton>
             </Box>
         </Box>
     );

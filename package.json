@@ -16,7 +16,7 @@
     "dev:api": "tsx src/server.ts",
     "dev:ui": "vite",
     "dev": "pnpm run dev:api",
-    "dev:app": "pnpm exec concurrently \"pnpm run dev:api\" \"pnpm run dev:ui\"",
+    "dev:app": "pnpm exec concurrently \"pnpm run dev:api\" \"pnpm run dev:solid\"",
     "dev:solid": "vite --config vite.solid.config.mjs"
   },
   "keywords": [],

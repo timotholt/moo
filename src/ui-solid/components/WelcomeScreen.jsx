@@ -66,7 +66,6 @@ export default function WelcomeScreen(props) {
             component="main"
             sx={{
                 flexGrow: 1,
-                pt: 8,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',

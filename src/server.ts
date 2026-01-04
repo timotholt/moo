@@ -14,6 +14,7 @@ import { registerHistoryRoutes } from './server/routes/history.js';
 import { registerSnapshotRoutes } from './server/routes/snapshots.js';
 import { registerBatchRoutes } from './server/routes/batch.js';
 import llmRoutes from './server/routes/llm.js';
+import { registerSceneRoutes } from './server/routes/scenes.js';
 import projectRoutes, { setCurrentProject, getCurrentProjectPath } from './server/routes/projects.js';
 
 const fastify = Fastify({
@@ -70,6 +71,7 @@ registerActorRoutes(fastify, getProjectContextNullable);
 registerContentRoutes(fastify, getProjectContextNullable);
 registerTakeRoutes(fastify, getProjectContextNullable);
 registerSectionRoutes(fastify, getProjectContextNullable);
+registerSceneRoutes(fastify, getProjectContextNullable);
 registerDefaultsRoutes(fastify, getProjectContextNullable);
 registerProviderRoutes(fastify, getProjectContextNullable);
 registerGenerationRoutes(fastify, getProjectContextNullable);

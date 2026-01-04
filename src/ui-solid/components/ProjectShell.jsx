@@ -2,7 +2,7 @@ import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
 import { Box, Typography } from '@suid/material';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
-import { getActors, getContent, getSections, getTakes } from '../api/client.js';
+import { getActors, getContent, getSections, getTakes, getScenes } from '../api/client.js';
 import { useAppLog } from '../hooks/useAppLog.js';
 import { useUndoStack } from '../hooks/useUndoStack.js';
 import { useConsoleCapture } from '../hooks/useConsoleCapture.js';
@@ -13,29 +13,30 @@ export default function ProjectShell(props) {
     const [content, setContent] = createSignal([]);
     const [sections, setSections] = createSignal([]);
     const [takes, setTakes] = createSignal([]);
+    const [scenes, setScenes] = createSignal([]);
+    const [customViews, setCustomViews] = createSignal((() => {
+        try {
+            const saved = localStorage.getItem('moo-custom-views');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    })());
+
     const [loading, setLoading] = createSignal(true);
     const [error, setError] = createSignal(null);
     const [selectedNode, setSelectedNode] = createSignal(null);
     const [expandNode, setExpandNode] = createSignal(null);
-    const [playedTakes, setPlayedTakes] = createSignal(() => {
-        try {
-            const saved = localStorage.getItem('audiomanager-played-takes');
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            console.warn('Failed to load played takes from localStorage:', e);
-            return {};
-        }
-    });
 
     // Resizable tree pane
-    const [treePaneWidth, setTreePaneWidth] = createSignal(() => {
+    const [treePaneWidth, setTreePaneWidth] = createSignal((() => {
         try {
-            const saved = localStorage.getItem('audiomanager-tree-pane-width');
+            const saved = localStorage.getItem('moo-tree-pane-width');
             return saved ? parseInt(saved, 10) : 300;
         } catch (e) {
             return 300;
         }
-    });
+    })());
     const [isResizing, setIsResizing] = createSignal(false);
     let containerRef;
 
@@ -60,26 +61,29 @@ export default function ProjectShell(props) {
     });
 
     const handlePlayTakeGlobal = (contentId, take) => {
-        setPlayedTakes((prev) => ({ ...prev, [take.id]: true }));
+        if (props.onTakePlayed) {
+            props.onTakePlayed(take.id);
+        }
         if (props.onPlayTake) {
             props.onPlayTake(take);
         }
     };
 
-    // Save played takes and tree width to localStorage
+    // Save tree width to localStorage
+
     createEffect(() => {
         try {
-            localStorage.setItem('audiomanager-played-takes', JSON.stringify(playedTakes()));
+            localStorage.setItem('moo-tree-pane-width', String(treePaneWidth()));
         } catch (e) {
-            console.warn('Failed to save played takes to localStorage:', e);
+            console.warn('Failed to save tree pane width:', e);
         }
     });
 
     createEffect(() => {
         try {
-            localStorage.setItem('audiomanager-tree-pane-width', String(treePaneWidth()));
+            localStorage.setItem('moo-custom-views', JSON.stringify(customViews()));
         } catch (e) {
-            console.warn('Failed to save tree pane width:', e);
+            console.warn('Failed to save custom views:', e);
         }
     });
 
@@ -119,17 +123,20 @@ export default function ProjectShell(props) {
     // Reusable data loading function
     const reloadData = async () => {
         try {
-            console.log('[Project] Reloading project data...');
-            const [actorsRes, contentRes, sectionsRes, takesRes] = await Promise.all([
+            setLoading(true);
+            console.log('[Project] Reloading project data for:', props.currentProject?.name);
+            const [actorsRes, contentRes, sectionsRes, takesRes, scenesRes] = await Promise.all([
                 getActors(),
                 getContent(),
                 getSections(),
-                getTakes()
+                getTakes(),
+                getScenes()
             ]);
             setActors(actorsRes.actors || []);
             setContent(contentRes.content || []);
             setSections(sectionsRes.sections || []);
             setTakes(takesRes.takes || []);
+            setScenes(scenesRes.scenes || []);
             setError(null);
 
             // Log summary
@@ -137,7 +144,8 @@ export default function ProjectShell(props) {
             const sectionCount = sectionsRes.sections?.length || 0;
             const cueCount = contentRes.content?.length || 0;
             const takeCount = takesRes.takes?.length || 0;
-            console.log(`[Project] Loaded: ${actorCount} actors, ${sectionCount} sections, ${cueCount} cues, ${takeCount} takes`);
+            const sceneCount = scenesRes.scenes?.length || 0;
+            console.log(`[Project] Loaded: ${actorCount} actors, ${sectionCount} sections, ${cueCount} cues, ${takeCount} takes, ${sceneCount} scenes`);
 
             // Refresh undo state and logs
             undoStack.refreshUndoState();
@@ -145,6 +153,8 @@ export default function ProjectShell(props) {
         } catch (err) {
             console.error('[Project] Failed to load:', err);
             setError(err.message || String(err));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -154,32 +164,21 @@ export default function ProjectShell(props) {
     }
 
     // Initial load
-    onMount(async () => {
-        try {
-            setLoading(true);
-            await reloadData();
-        } finally {
-            setLoading(false);
-        }
+    onMount(() => {
+        reloadData();
     });
 
     return (
-        <Show
-            when={!loading()}
-            fallback={
-                <Box component="main" sx={{ flexGrow: 1, pt: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <>
+            {loading() ? (
+                <Box component="main" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Typography variant="body1">Loading project data…</Typography>
                 </Box>
-            }
-        >
-            <Show
-                when={!error()}
-                fallback={
-                    <Box component="main" sx={{ flexGrow: 1, pt: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography color="error">Error loading data: {error()}</Typography>
-                    </Box>
-                }
-            >
+            ) : error() ? (
+                <Box component="main" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography color="error">Error loading data: {error()}</Typography>
+                </Box>
+            ) : (
                 <AppProvider
                     logInfo={logInfo}
                     logSuccess={logSuccess}
@@ -188,23 +187,26 @@ export default function ProjectShell(props) {
                     playingTakeId={props.currentPlayingTakeId}
                     onPlayRequest={handlePlayTakeGlobal}
                     onStopRequest={props.onStopPlayback}
-                    playedTakes={playedTakes()}
-                    onTakePlayed={(takeId) => setPlayedTakes((prev) => ({ ...prev, [takeId]: true }))}
+                    playedTakes={props.playedTakes}
+                    onTakePlayed={props.onTakePlayed}
                     onStatusChange={props.onStatusChange}
                     onCreditsRefresh={props.onCreditsRefresh}
                 >
-                    <Box ref={containerRef} component="main" sx={{ flexGrow: 1, pt: 6, pb: '6rem', display: 'flex', minWidth: 0, userSelect: isResizing() ? 'none' : 'auto' }}>
+                    <Box ref={containerRef} component="main" sx={{ flexGrow: 1, display: 'flex', minWidth: 0, overflow: 'hidden', userSelect: isResizing() ? 'none' : 'auto' }}>
                         <TreePane
                             width={treePaneWidth()}
                             actors={actors()}
                             content={content()}
                             sections={sections()}
                             takes={takes()}
+                            scenes={scenes()}
+                            customViews={customViews()}
+                            onCustomViewsChange={setCustomViews}
                             selectedNode={selectedNode()}
                             onSelect={setSelectedNode}
                             onExpandNode={setExpandNode}
                             playingTakeId={props.currentPlayingTakeId}
-                            playedTakes={playedTakes()}
+                            playedTakes={props.playedTakes}
                         />
                         {/* Resizable divider */}
                         <Box
@@ -233,10 +235,12 @@ export default function ProjectShell(props) {
                             capitalizationConversion={props.capitalizationConversion}
                             onExpandNode={setExpandNode}
                             onRefresh={reloadData}
+                            customViews={customViews()}
+                            onCustomViewsChange={setCustomViews}
                         />
                     </Box>
                 </AppProvider>
-            </Show>
-        </Show>
+            )}
+        </>
     );
 }

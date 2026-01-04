@@ -114,6 +114,17 @@ export const DESIGN_SYSTEM = {
   
   // Tree item styles with status color classes
   treeItem: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    minHeight: '1.25rem',
+    py: 0,
+    '& .MuiListItemText-root': { margin: 0 },
+    '& .MuiListItemIcon-root': {
+      minWidth: 'auto',
+      display: 'flex',
+      alignItems: 'flex-end',
+      marginBottom: '2px', // Alignment tweak for icons to sit on baseline
+    },
     // Green status colors
     '&.status-green': {
       '& .MuiListItemText-primary': { color: 'success.main' },
