@@ -2,7 +2,7 @@
  * Template Resolver
  * 
  * Performs variable substitution in string patterns using a standardized context.
- * Supported variables: {name}, {prompt}, {owner_name}, {owner_type}, {section_name}, {content_type}, {take_number}
+ * Supported variables: {name}, {prompt}, {owner_name}, {owner_type}, {bin_name}, {media_type}, {take_number}
  */
 
 export type TemplateContext = {
@@ -11,18 +11,14 @@ export type TemplateContext = {
     owner_name: string;
     owner_type: string;
     owner_id?: string | null;
-    section_name: string;
-    content_type: string;
+    bin_name: string;
+    media_type: string;
     take_number?: number;
     actor_base_filename?: string;
 };
 
 /**
  * Resolve a template string using the provided context
- * 
- * @param template - String with {curly_braces} variables
- * @param context - Data object for substitution
- * @returns Resolved string
  */
 export function resolveTemplate(template: string, context: TemplateContext): string {
     if (!template) return '';
@@ -44,25 +40,25 @@ export function resolveTemplate(template: string, context: TemplateContext): str
  */
 export function buildTemplateContext(
     data: {
-        content: any;
-        section: any;
+        media: any;
+        bin: any;
         owner: any;
         takeNumber?: number;
     }
 ): TemplateContext {
-    const { content, section, owner, takeNumber } = data;
+    const { media, bin, owner, takeNumber } = data;
 
     const ownerName = owner ? (('display_name' in owner) ? owner.display_name : owner.name) : 'Global';
     const actorBaseFilename = (owner && 'base_filename' in owner) ? owner.base_filename : undefined;
 
     return {
-        name: content.name,
-        prompt: content.prompt,
+        name: media.name,
+        prompt: media.prompt,
         owner_name: ownerName,
-        owner_type: content.owner_type,
-        owner_id: content.owner_id,
-        section_name: section.name,
-        content_type: content.content_type,
+        owner_type: media.owner_type,
+        owner_id: media.owner_id,
+        bin_name: bin.name,
+        media_type: media.media_type,
         take_number: takeNumber,
         actor_base_filename: actorBaseFilename,
     };

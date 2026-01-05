@@ -1,16 +1,13 @@
 /**
- * MOO V2 Type System
+ * MOO V3 Type System
  * 
  * This file consolidates types from Zod schemas for application-wide use.
  */
 
-import { z } from 'zod';
-import * as Schemas from '../shared/schemas/index.js';
-
 // Re-export all types from schemas
 export type {
     OwnerType,
-    ContentType,
+    MediaType,
     TakeStatus,
     Provider,
     DefaultBlock,
@@ -21,12 +18,12 @@ export type {
     Scene,
     CreateSceneInput,
     UpdateSceneInput,
-    Section,
-    CreateSectionInput,
-    UpdateSectionInput,
-    Content,
-    CreateContentInput,
-    UpdateContentInput,
+    Bin,
+    CreateBinInput,
+    UpdateBinInput,
+    Media,
+    CreateMediaInput,
+    UpdateMediaInput,
     Take,
     CreateTakeInput,
     UpdateTakeInput,
@@ -53,7 +50,7 @@ export interface ProjectInfo {
 }
 
 export interface GenerationJobItemSummary {
-    content_id: string;
+    media_id: string;
     generated_takes: number;
     error?: string;
 }
@@ -63,7 +60,7 @@ export interface GenerationJob {
     started_at: string;
     completed_at?: string;
     status: 'running' | 'completed' | 'failed';
-    total_content: number;
+    total_media: number;
     total_takes_created: number;
     items: GenerationJobItemSummary[];
 }

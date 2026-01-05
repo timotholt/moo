@@ -2,7 +2,7 @@ import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
 import { Box, Typography } from '@suid/material';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
-import { getActors, getContent, getSections, getTakes, getScenes } from '../api/client.js';
+import { getActors, getMedia, getBins, getTakes, getScenes } from '../api/client.js';
 import { useAppLog } from '../hooks/useAppLog.js';
 import { useUndoStack } from '../hooks/useUndoStack.js';
 import { useConsoleCapture } from '../hooks/useConsoleCapture.js';
@@ -12,21 +12,19 @@ import { PRESET_VIEWS } from '../utils/viewEngine.js';
 
 export default function ProjectShell(props) {
     const [actors, setActors] = createSignal([]);
-    const [content, setContent] = createSignal([]);
-    const [sections, setSections] = createSignal([]);
+    const [mediaItems, setMediaItems] = createSignal([]);
+    const [bins, setBins] = createSignal([]);
     const [takes, setTakes] = createSignal([]);
     const [scenes, setScenes] = createSignal([]);
     const [customViews, setCustomViews] = createSignal((() => {
         const key = 'custom-views';
         let saved = storage.get(props.currentProject.name, key);
 
-        // If first time/empty, initialize with presets
         if (!saved || (Array.isArray(saved) && saved.length === 0)) {
             saved = Object.values(PRESET_VIEWS);
             storage.set(props.currentProject.name, key, saved);
         }
 
-        // Deduplicate by ID just in case
         const seen = new Set();
         return saved.filter(view => {
             if (seen.has(view.id)) return false;
@@ -40,32 +38,27 @@ export default function ProjectShell(props) {
     const [selectedNode, setSelectedNode] = createSignal(null);
     const [expandNode, setExpandNode] = createSignal(null);
 
-    // Resizable tree pane
     const [treePaneWidth, setTreePaneWidth] = createSignal(storage.get(props.currentProject.name, 'tree-pane-width', 300));
     const [isResizing, setIsResizing] = createSignal(false);
     let containerRef;
 
-    // Application logging
     const appLog = useAppLog();
     const { logInfo, logSuccess, logError, logWarning } = appLog;
 
-    // Console capture
     const consoleCapture = useConsoleCapture();
 
-    // Handle state restored from undo
     const handleStateRestored = (restoredState) => {
         setActors(restoredState.actors);
-        setSections(restoredState.sections);
-        setContent(restoredState.content);
+        setBins(restoredState.bins);
+        setMediaItems(restoredState.media);
         logInfo(restoredState.message);
     };
 
-    // Undo stack
     const undoStack = useUndoStack({
         onStateRestored: handleStateRestored,
     });
 
-    const handlePlayTakeGlobal = (contentId, take) => {
+    const handlePlayTakeGlobal = (mediaId, take) => {
         if (props.onTakePlayed) {
             props.onTakePlayed(take.id);
         }
@@ -74,17 +67,14 @@ export default function ProjectShell(props) {
         }
     };
 
-    // Save tree width to storage
     createEffect(() => {
         storage.set(props.currentProject.name, 'tree-pane-width', treePaneWidth());
     });
 
-    // Save custom views to storage
     createEffect(() => {
         storage.set(props.currentProject.name, 'custom-views', customViews());
     });
 
-    // Handle resize drag
     const handleMouseDown = (e) => {
         e.preventDefault();
         setIsResizing(true);
@@ -117,34 +107,31 @@ export default function ProjectShell(props) {
         window.removeEventListener('mouseup', handleMouseUp);
     });
 
-    // Reusable data loading function
     const reloadData = async () => {
         try {
             setLoading(true);
             console.log('[Project] Reloading project data for:', props.currentProject?.name);
-            const [actorsRes, contentRes, sectionsRes, takesRes, scenesRes] = await Promise.all([
+            const [actorsRes, mediaRes, binsRes, takesRes, scenesRes] = await Promise.all([
                 getActors(),
-                getContent(),
-                getSections(),
+                getMedia(),
+                getBins(),
                 getTakes(),
                 getScenes()
             ]);
             setActors(actorsRes.actors || []);
-            setContent(contentRes.content || []);
-            setSections(sectionsRes.sections || []);
+            setMediaItems(mediaRes.media || []);
+            setBins(binsRes.bins || []);
             setTakes(takesRes.takes || []);
             setScenes(scenesRes.scenes || []);
             setError(null);
 
-            // Log summary
             const actorCount = actorsRes.actors?.length || 0;
-            const sectionCount = sectionsRes.sections?.length || 0;
-            const cueCount = contentRes.content?.length || 0;
+            const binCount = binsRes.bins?.length || 0;
+            const mediaCount = mediaRes.media?.length || 0;
             const takeCount = takesRes.takes?.length || 0;
             const sceneCount = scenesRes.scenes?.length || 0;
-            console.log(`[Project] Loaded: ${actorCount} actors, ${sectionCount} sections, ${cueCount} cues, ${takeCount} takes, ${sceneCount} scenes`);
+            console.log(`[Project] Loaded: ${actorCount} actors, ${binCount} bins, ${mediaCount} media items, ${takeCount} takes, ${sceneCount} scenes`);
 
-            // Refresh undo state and logs
             undoStack.refreshUndoState();
             appLog.reloadLogs();
         } catch (err) {
@@ -155,12 +142,10 @@ export default function ProjectShell(props) {
         }
     };
 
-    // Expose reloadData to parent via props.ref
     if (props.ref) {
         props.ref.reloadData = reloadData;
     }
 
-    // Initial load
     onMount(() => {
         reloadData();
     });
@@ -193,8 +178,8 @@ export default function ProjectShell(props) {
                         <TreePane
                             width={treePaneWidth()}
                             actors={actors()}
-                            content={content()}
-                            sections={sections()}
+                            media={mediaItems()}
+                            bins={bins()}
                             takes={takes()}
                             scenes={scenes()}
                             projectName={props.currentProject.name}
@@ -206,7 +191,6 @@ export default function ProjectShell(props) {
                             playingTakeId={props.currentPlayingTakeId}
                             playedTakes={props.playedTakes}
                         />
-                        {/* Resizable divider */}
                         <Box
                             onMouseDown={handleMouseDown}
                             sx={{
@@ -219,8 +203,8 @@ export default function ProjectShell(props) {
                         />
                         <DetailPane
                             actors={actors()}
-                            content={content()}
-                            sections={sections()}
+                            media={mediaItems()}
+                            bins={bins()}
                             takes={takes()}
                             scenes={scenes()}
                             selectedNode={selectedNode()}

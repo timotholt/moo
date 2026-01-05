@@ -1,20 +1,22 @@
 import { createSignal, createEffect, onMount, For, Show } from 'solid-js';
 import {
-    Box, Typography, TextField, Select, MenuItem, FormControl,
+    Box, Typography, Select, MenuItem, FormControl,
     InputLabel, Stack, Button, CircularProgress
 } from '@suid/material';
 import PlayArrowIcon from '@suid/icons-material/PlayArrow';
 import Slider from './Slider.jsx';
+import TextInput from './TextInput.jsx';
 import { previewVoice } from '../api/client.js';
 
-// Default settings by content type
-const DEFAULT_SETTINGS = {
+// Absolute fallback defaults
+const FALLBACK_DEFAULTS = {
     dialogue: {
         provider: 'elevenlabs',
         min_candidates: 1,
         approval_count_default: 1,
         stability: 0.5,
         similarity_boost: 0.75,
+        model_id: 'eleven_multilingual_v2'
     },
     music: {
         provider: 'elevenlabs',
@@ -29,7 +31,6 @@ const DEFAULT_SETTINGS = {
     }
 };
 
-// Format helpers for music duration (stored as seconds, shown as mm:ss)
 const formatSecondsToMmSs = (seconds) => {
     if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
     const total = Math.floor(seconds);
@@ -41,56 +42,53 @@ const formatSecondsToMmSs = (seconds) => {
 const parseMmSsToSeconds = (input) => {
     const trimmed = String(input || '').trim();
     if (!trimmed) return null;
-
-    // Allow plain seconds like "90"
     if (!trimmed.includes(':')) {
         const sec = Number(trimmed);
         return Number.isFinite(sec) ? sec : null;
     }
-
-    // Accept formats like "1:30", "1:3", "1:" (=> 1 minute)
     const [mmStrRaw, ssStrRaw = ''] = trimmed.split(':');
     const mmStr = mmStrRaw.trim();
     const ssStr = ssStrRaw.trim();
-
     const mm = Number(mmStr);
     if (!Number.isFinite(mm) || mm < 0) return null;
-
     let ss = 0;
     if (ssStr !== '') {
         ss = Number(ssStr);
         if (!Number.isFinite(ss) || ss < 0) return null;
     }
-
-    // Clamp seconds component to [0,59]
     if (ss > 59) ss = 59;
-
     return mm * 60 + ss;
 };
 
 export default function ProviderSettingsEditor(props) {
-    // props: contentType, settings, voices, loadingVoices, onSettingsChange, allowInherit, error
+    // props: mediaType, settings, inheritedSettings, voices, loadingVoices, onSettingsChange, allowInherit, error
 
     const [playingPreview, setPlayingPreview] = createSignal(false);
-    // Local text state for music duration in mm:ss format
-    const [durationText, setDurationText] = createSignal(formatSecondsToMmSs(DEFAULT_SETTINGS.music.duration_seconds));
+    const [durationText, setDurationText] = createSignal('00:30');
 
-    // Determine effective settings (handled inherit logic)
     const isInheriting = () => props.settings?.provider === 'inherit';
+
+    const effectiveInherited = () => {
+        return props.inheritedSettings || FALLBACK_DEFAULTS[props.mediaType] || {};
+    };
 
     const currentSettings = () => {
         if (isInheriting()) {
-            return DEFAULT_SETTINGS[props.contentType] || {};
+            return effectiveInherited();
         }
-        return props.settings || DEFAULT_SETTINGS[props.contentType] || {};
+        // Merge settings with fallback to ensure no undefined fields
+        return { ...FALLBACK_DEFAULTS[props.mediaType], ...props.settings };
     };
 
-    // Only include valid provider_settings properties
     const sanitizeSettings = (rawSettings) => {
         if (!rawSettings || rawSettings.provider === 'inherit') {
             return { provider: 'inherit' };
         }
-        const validKeys = ['provider', 'voice_id', 'model_id', 'min_candidates', 'approval_count_default', 'stability', 'similarity_boost', 'duration_seconds', 'templates'];
+        const validKeys = [
+            'provider', 'voice_id', 'model_id', 'min_candidates',
+            'approval_count_default', 'stability', 'similarity_boost',
+            'duration_seconds', 'templates'
+        ];
         const sanitized = {};
         for (const key of validKeys) {
             if (rawSettings[key] !== undefined) {
@@ -104,10 +102,10 @@ export default function ProviderSettingsEditor(props) {
         if (props.onSettingsChange) {
             const base = currentSettings();
             const newSettings = { ...base, [key]: value };
-            // If we were inheriting, we are now customizing, so make sure to copy all defaults
             if (isInheriting()) {
-                Object.assign(newSettings, DEFAULT_SETTINGS[props.contentType]);
-                newSettings[key] = value; // Apply override
+                // If we were inheriting, now we copy EVERYTHING from parent and override one key
+                Object.assign(newSettings, effectiveInherited());
+                newSettings[key] = value;
             }
             props.onSettingsChange(sanitizeSettings(newSettings));
         }
@@ -118,7 +116,7 @@ export default function ProviderSettingsEditor(props) {
             const base = currentSettings();
             const newSettings = { ...base, ...changes };
             if (isInheriting()) {
-                Object.assign(newSettings, DEFAULT_SETTINGS[props.contentType]);
+                Object.assign(newSettings, effectiveInherited());
                 Object.assign(newSettings, changes);
             }
             props.onSettingsChange(sanitizeSettings(newSettings));
@@ -129,26 +127,15 @@ export default function ProviderSettingsEditor(props) {
         if (mode === 'inherit') {
             props.onSettingsChange({ provider: 'inherit' });
         } else {
-            // Switching to custom: start from defaults
-            let base = { ...DEFAULT_SETTINGS[props.contentType] };
-            // Try to pick a voice if needed
-            if (props.contentType === 'dialogue' && Array.isArray(props.voices) && props.voices.length > 0) {
-                const existingVoice = props.settings?.voice_id && props.voices.find(v => v.voice_id === props.settings.voice_id);
-                if (existingVoice) {
-                    base.voice_id = existingVoice.voice_id;
-                } else {
-                    base.voice_id = props.voices[0].voice_id;
-                }
-            }
-            props.onSettingsChange(base);
+            // Switching to custom: copy everything from inherited as a starting point
+            props.onSettingsChange(sanitizeSettings({ ...effectiveInherited() }));
         }
     };
 
-    // Keep durationText in sync
     createEffect(() => {
-        if (props.contentType === 'music') {
+        if (props.mediaType === 'music') {
             const settings = currentSettings();
-            const duration = settings.duration_seconds || DEFAULT_SETTINGS.music.duration_seconds;
+            const duration = settings.duration_seconds || 30;
             setDurationText(formatSecondsToMmSs(duration));
         }
     });
@@ -157,11 +144,10 @@ export default function ProviderSettingsEditor(props) {
         const settings = currentSettings();
         if (!settings.voice_id) return;
 
-        let stability = settings.stability || 0.5;
-        const similarityBoost = settings.similarity_boost || 0.75;
+        let stability = settings.stability ?? 0.5;
+        const similarityBoost = settings.similarity_boost ?? 0.75;
         const modelId = settings.model_id || 'eleven_multilingual_v2';
 
-        // v3 only accepts specific stability values
         if (modelId === 'eleven_v3') {
             if (stability < 0.25) stability = 0.0;
             else if (stability < 0.75) stability = 0.5;
@@ -177,7 +163,6 @@ export default function ProviderSettingsEditor(props) {
                 similarityBoost,
                 modelId
             );
-
             const audio = new Audio(`data:audio/mp3;base64,${result.audio}`);
             await audio.play();
         } catch (err) {
@@ -197,15 +182,15 @@ export default function ProviderSettingsEditor(props) {
                         value={isInheriting() ? 'inherit' : 'custom'}
                         label="Provider Mode"
                         onChange={(e) => handleModeChange(e.target.value)}
+                        sx={{ bgcolor: isInheriting() ? 'action.hover' : 'transparent' }}
                     >
-                        <MenuItem value="inherit">Inherit from Defaults</MenuItem>
-                        <MenuItem value="custom">Custom Settings</MenuItem>
+                        <MenuItem value="inherit">Inherit from Parent</MenuItem>
+                        <MenuItem value="custom">Custom Overrides</MenuItem>
                     </Select>
                 </FormControl>
             </Show>
 
             <Show when={!isInheriting()}>
-                {/* Provider Selection (always visible when custom) */}
                 <FormControl size="small" fullWidth>
                     <InputLabel>Provider</InputLabel>
                     <Select
@@ -219,8 +204,7 @@ export default function ProviderSettingsEditor(props) {
                 </FormControl>
 
                 <Show when={currentSettings().provider === 'elevenlabs'}>
-                    {/* Model Selection */}
-                    <Show when={props.contentType === 'dialogue'}>
+                    <Show when={props.mediaType === 'dialogue'}>
                         <FormControl size="small" fullWidth>
                             <InputLabel>Model</InputLabel>
                             <Select
@@ -248,10 +232,7 @@ export default function ProviderSettingsEditor(props) {
                                 <MenuItem value="eleven_flash_v2_5">Eleven Flash v2.5</MenuItem>
                             </Select>
                         </FormControl>
-                    </Show>
 
-                    {/* Voice Selection */}
-                    <Show when={props.contentType === 'dialogue'}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <FormControl size="small" fullWidth>
                                 <InputLabel shrink>Voice</InputLabel>
@@ -282,31 +263,9 @@ export default function ProviderSettingsEditor(props) {
                                 {playingPreview() ? 'Playing...' : 'Sample'}
                             </Button>
                         </Box>
-                    </Show>
 
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                        <TextField
-                            size="small"
-                            label="Min Approved"
-                            type="number"
-                            on:input={(e) => handleChange('approval_count_default', parseInt(e.target.value) || 1)}
-                            inputProps={{ min: 1, max: 5 }}
-                            sx={{ width: 140 }}
-                        />
-                        <TextField
-                            size="small"
-                            label="Min Candidates"
-                            type="number"
-                            on:input={(e) => handleChange('min_candidates', parseInt(e.target.value) || 1)}
-                            inputProps={{ min: 1, max: 10 }}
-                            sx={{ width: 140 }}
-                        />
-                    </Box>
-
-                    {/* Dialogue Stability/Similarity */}
-                    <Show when={props.contentType === 'dialogue'}>
                         <Box>
-                            <Typography variant="caption" gutterBottom>
+                            <Typography variant="caption" gutterBottom color="text.secondary">
                                 Stability: {currentSettings().stability ?? 0.5}
                             </Typography>
                             <Slider
@@ -320,7 +279,7 @@ export default function ProviderSettingsEditor(props) {
                         </Box>
                         <Show when={currentSettings().model_id !== 'eleven_v3'}>
                             <Box>
-                                <Typography variant="caption" gutterBottom>
+                                <Typography variant="caption" gutterBottom color="text.secondary">
                                     Similarity Boost: {currentSettings().similarity_boost ?? 0.75}
                                 </Typography>
                                 <Slider
@@ -335,14 +294,34 @@ export default function ProviderSettingsEditor(props) {
                         </Show>
                     </Show>
 
-                    {/* Music Duration */}
-                    <Show when={props.contentType === 'music'}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextInput
+                            size="small"
+                            label="Min Approved"
+                            type="number"
+                            value={String(currentSettings().approval_count_default || 1)}
+                            onValueChange={(val) => handleChange('approval_count_default', parseInt(val) || 1)}
+                            sx={{ width: 140 }}
+                        />
+                        <TextInput
+                            size="small"
+                            label="Min Candidates"
+                            type="number"
+                            value={String(currentSettings().min_candidates || 1)}
+                            onValueChange={(val) => handleChange('min_candidates', parseInt(val) || 1)}
+                            sx={{ width: 140 }}
+                        />
+                    </Box>
+
+                    <Show when={props.mediaType === 'music'}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <TextField
+                            <TextInput
                                 size="small"
-                                label="Duration (mm:ss)" on:input={(e) => {
-                                    setDurationText(e.target.value);
-                                    const width_secs = parseMmSsToSeconds(e.target.value);
+                                label="Duration (mm:ss)"
+                                value={durationText()}
+                                onValueChange={(val) => {
+                                    setDurationText(val);
+                                    const width_secs = parseMmSsToSeconds(val);
                                     if (width_secs != null) handleChange('duration_seconds', width_secs);
                                 }}
                                 sx={{ width: 160 }}
@@ -357,31 +336,31 @@ export default function ProviderSettingsEditor(props) {
                             />
                         </Box>
                     </Show>
-                    {/* Advanced Templates */}
+
                     <Box sx={{ mt: 2, borderTop: 1, borderColor: 'divider', pt: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontSize: '0.75rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, fontSize: '0.65rem', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                             Advanced Templates
                         </Typography>
                         <Stack spacing={2}>
-                            <TextField
+                            <TextInput
                                 size="small"
                                 label="Prompt Template"
                                 placeholder="{prompt}"
-                                helperText="Variables: {name}, {prompt}, {section_name}"
-                                on:input={(e) => {
+                                value={currentSettings().templates?.prompt || ''}
+                                onValueChange={(val) => {
                                     const currentTemplates = currentSettings().templates || {};
-                                    handleChange('templates', { ...currentTemplates, prompt: e.target.value });
+                                    handleChange('templates', { ...currentTemplates, prompt: val });
                                 }}
                                 fullWidth
                             />
-                            <TextField
+                            <TextInput
                                 size="small"
                                 label="Filename Template"
                                 placeholder="{name}_{take_number}"
-                                helperText="Variables: {name}, {take_number}, {owner_name}"
-                                on:input={(e) => {
+                                value={currentSettings().templates?.filename || ''}
+                                onValueChange={(val) => {
                                     const currentTemplates = currentSettings().templates || {};
-                                    handleChange('templates', { ...currentTemplates, filename: e.target.value });
+                                    handleChange('templates', { ...currentTemplates, filename: val });
                                 }}
                                 fullWidth
                             />
@@ -391,9 +370,7 @@ export default function ProviderSettingsEditor(props) {
             </Show>
 
             <Show when={props.error}>
-                <Typography color="error" variant="body2">
-                    {props.error}
-                </Typography>
+                <Typography color="error" variant="body2">{props.error}</Typography>
             </Show>
         </Stack>
     );

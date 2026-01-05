@@ -2,7 +2,7 @@ import { createSignal, Show, onMount, createEffect, For } from 'solid-js';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Box,
     Typography, FormControl, InputLabel, Select, MenuItem, ButtonGroup,
-    TextField, IconButton, InputAdornment, CircularProgress,
+    IconButton, InputAdornment, CircularProgress,
     ListItemButton, ListItemText
 } from '@suid/material';
 import VisibilityIcon from '@suid/icons-material/Visibility';
@@ -14,6 +14,7 @@ import ExpandMoreIcon from '@suid/icons-material/ExpandMore';
 import ExpandLessIcon from '@suid/icons-material/ExpandLess';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import Collapse from './Collapse.jsx';
+import TextInput from './TextInput.jsx';
 
 // Local storage keys for LLM settings
 const LLM_STORAGE_KEY = 'moo-llm-settings';
@@ -230,11 +231,13 @@ export default function SettingsDialog(props) {
                             Configure your ElevenLabs API key for voice generation.
                         </Typography>
 
-                        <TextField
+                        <TextInput
                             size="small"
                             fullWidth
                             label="API Key"
-                            type={showElevenLabsKey() ? 'text' : 'password'} on:input={(e) => handleElevenLabsKeyChange(e.target.value)}
+                            type={showElevenLabsKey() ? 'text' : 'password'}
+                            value={elevenLabsApiKey()}
+                            onValueChange={handleElevenLabsKeyChange}
                             placeholder="Enter your ElevenLabs API key"
                             InputProps={{
                                 endAdornment: (
@@ -331,12 +334,13 @@ export default function SettingsDialog(props) {
                             </Show>
                         </Box>
 
-                        <TextField
+                        <TextInput
                             size="small"
                             fullWidth
                             label="API Key"
                             type={showApiKey() ? 'text' : 'password'}
-                            on:input={(e) => handleLLMSettingChange('apiKey', e.target.value)}
+                            value={llmSettings().apiKey}
+                            onValueChange={(val) => handleLLMSettingChange('apiKey', val)}
                             placeholder="Enter your API key"
                             InputProps={{
                                 endAdornment: (
@@ -409,12 +413,13 @@ export default function SettingsDialog(props) {
                                                 Reset
                                             </Button>
                                         </Box>
-                                        <TextField
+                                        <TextInput
                                             size="small"
                                             fullWidth
                                             multiline
                                             rows={4}
-                                            on:input={(e) => handleSystemPromptChange('generate', e.target.value)}
+                                            value={llmSettings().systemPrompts.generate}
+                                            onValueChange={(val) => handleSystemPromptChange('generate', val)}
                                             placeholder={defaultPrompts().generate || 'Using default...'}
                                             sx={DESIGN_SYSTEM.components.formControl}
                                         />
@@ -428,12 +433,13 @@ export default function SettingsDialog(props) {
                                                 Reset
                                             </Button>
                                         </Box>
-                                        <TextField
+                                        <TextInput
                                             size="small"
                                             fullWidth
                                             multiline
                                             rows={4}
-                                            on:input={(e) => handleSystemPromptChange('improve', e.target.value)}
+                                            value={llmSettings().systemPrompts.improve}
+                                            onValueChange={(val) => handleSystemPromptChange('improve', val)}
                                             placeholder={defaultPrompts().improve || 'Using default...'}
                                             sx={DESIGN_SYSTEM.components.formControl}
                                         />

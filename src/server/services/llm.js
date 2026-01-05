@@ -152,15 +152,15 @@ async function callLLM(provider, apiKey, model, systemPrompt, userPrompt) {
 }
 
 /**
- * Generate a prompt from content context
+ * Generate a prompt from media context
  */
-export async function generatePrompt({ provider, apiKey, model, systemPrompt, contentName, actorName, sectionType }) {
+export async function generatePrompt({ provider, apiKey, model, systemPrompt, mediaName, ownerName, mediaType }) {
   const system = systemPrompt || DEFAULT_SYSTEM_PROMPTS.generate;
   
   const userPrompt = `Generate a voice-over prompt for:
-- Content: "${contentName}"
-- Actor: "${actorName || 'Unknown'}"
-- Type: ${sectionType || 'dialogue'}`;
+- Item: "${mediaName}"
+- Component: "${ownerName || 'Global'}"
+- Type: ${mediaType || 'dialogue'}`;
 
   return callLLM(provider, apiKey, model, system, userPrompt);
 }
@@ -168,10 +168,10 @@ export async function generatePrompt({ provider, apiKey, model, systemPrompt, co
 /**
  * Improve an existing prompt
  */
-export async function improvePrompt({ provider, apiKey, model, systemPrompt, currentPrompt, contentName, sectionType }) {
+export async function improvePrompt({ provider, apiKey, model, systemPrompt, currentPrompt, mediaName, mediaType }) {
   const system = systemPrompt || DEFAULT_SYSTEM_PROMPTS.improve;
   
-  const userPrompt = `Improve this voice-over prompt for ${sectionType || 'dialogue'} content "${contentName}":
+  const userPrompt = `Improve this voice-over prompt for ${mediaType || 'dialogue'} item "${mediaName}":
 
 "${currentPrompt}"`;
 

@@ -87,7 +87,7 @@ export default function App() {
     const handleBackfillAll = async () => {
         if (backfillRunning()) return;
         setBackfillRunning(true);
-        setStatusText('Backfilling all incomplete cues...');
+        setStatusText('Backfilling all incomplete media...');
         try {
             const result = await backfillTakes();
             console.log('[Backfill] Result:', result);

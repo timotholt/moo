@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IdSchema, TimestampSchema, TakeStatusSchema, ProviderSchema, OwnerTypeSchema, ContentTypeSchema, DefaultBlockSchema } from './common.schema.js';
+import { IdSchema, TimestampSchema, TakeStatusSchema, ProviderSchema, OwnerTypeSchema, MediaTypeSchema, DefaultBlockSchema } from './common.schema.js';
 
 // ============================================================================
 // Generation Params Schema
@@ -25,8 +25,8 @@ export const GenerationParamsSchema = z.object({
     owner_type: OwnerTypeSchema,
     owner_id: IdSchema.nullable(),
     owner_name: z.string(),
-    section_id: IdSchema.optional(),
-    section_name: z.string().optional(),
+    bin_id: IdSchema.optional(),
+    bin_name: z.string().optional(),
     scene_id: IdSchema.optional(),
     scene_name: z.string().optional(),
 
@@ -42,7 +42,7 @@ export const GenerationParamsSchema = z.object({
 
 export const TakeSchema = z.object({
     id: IdSchema,
-    content_id: IdSchema,
+    media_id: IdSchema,
     take_number: z.number().int().positive(),
 
     // File info

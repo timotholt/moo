@@ -26,7 +26,7 @@ import { TREE_INDENT } from '../constants.js';
 import { storage } from '../utils/storage.js';
 import Collapse from './Collapse.jsx';
 
-function getIconForType(iconType, fieldValue, contentType, fileIcon) {
+function getIconForType(iconType, fieldValue, mediaType, fileIcon) {
     const iconStyle = { fontSize: '0.75rem' };
 
     if (iconType === 'leaf' || iconType === undefined) {
@@ -41,19 +41,19 @@ function getIconForType(iconType, fieldValue, contentType, fileIcon) {
                 case 'file': return <InsertDriveFileIcon sx={iconStyle} />;
             }
         }
-        if (contentType === 'dialogue') return <RecordVoiceOverIcon sx={iconStyle} />;
-        if (contentType === 'music') return <MusicNoteIcon sx={iconStyle} />;
-        if (contentType === 'sfx') return <GraphicEqIcon sx={iconStyle} />;
-        if (contentType === 'image' || contentType === 'storyboard') return <ImageIcon sx={iconStyle} />;
-        if (contentType === 'video') return <VideoFileIcon sx={iconStyle} />;
-        if (contentType === 'script' || contentType === 'notes') return <DescriptionIcon sx={iconStyle} />;
+        if (mediaType === 'dialogue') return <RecordVoiceOverIcon sx={iconStyle} />;
+        if (mediaType === 'music') return <MusicNoteIcon sx={iconStyle} />;
+        if (mediaType === 'sfx') return <GraphicEqIcon sx={iconStyle} />;
+        if (mediaType === 'image' || mediaType === 'storyboard') return <ImageIcon sx={iconStyle} />;
+        if (mediaType === 'video') return <VideoFileIcon sx={iconStyle} />;
+        if (mediaType === 'script' || mediaType === 'notes') return <DescriptionIcon sx={iconStyle} />;
         return <AudioFileIcon sx={iconStyle} />;
     }
 
     switch (iconType) {
         case 'person': return <PersonIcon sx={iconStyle} />;
         case 'folder': return <FolderIcon sx={iconStyle} />;
-        case 'content':
+        case 'media':
         case 'record': return <RecordVoiceOverIcon sx={iconStyle} />;
         case 'type':
             if (fieldValue === 'dialogue') return <RecordVoiceOverIcon sx={iconStyle} />;
@@ -95,7 +95,7 @@ function TreeNode(props) {
             if (props.node.data.take_id) {
                 props.onSelect({ type: 'take', id: props.node.data.take_id, viewId: props.viewId });
             } else {
-                props.onSelect({ type: 'content', id: props.node.data.content_id, viewId: props.viewId });
+                props.onSelect({ type: 'media', id: props.node.data.media_id, viewId: props.viewId });
             }
         } else {
             props.onSelect({
@@ -139,7 +139,7 @@ function TreeNode(props) {
                     {getIconForType(
                         props.node.icon,
                         props.node.fieldValue,
-                        isLeaf() ? props.node.data?.content_type : null,
+                        isLeaf() ? props.node.data?.media_type : null,
                         isLeaf() ? props.node.fileIcon : null
                     )}
                 </ListItemIcon>

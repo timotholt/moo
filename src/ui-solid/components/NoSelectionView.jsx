@@ -18,10 +18,13 @@ export default function NoSelectionView(props) {
                 <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
                     • Actors - View and manage individual actors
                 </Typography>
+                <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    • Scenes - View and manage individual scenes
+                </Typography>
             </Box>
 
             <Typography variant="body2" color="text.secondary">
-                To create new actors or sections, first select "Actors" from the tree, then choose an existing actor to add sections to it.
+                To create new actors, bins, or media, navigate to the relevant project items in the tree view.
             </Typography>
 
             {props.error && (

@@ -1,12 +1,12 @@
 import { createSignal } from 'solid-js';
 import { updateActor, updateScene } from '../api/client.js';
 import { useVoices } from './useVoices.jsx';
-import { useSectionOperations } from './useSectionOperations.jsx';
-import { useContentOperations } from './useContentOperations.jsx';
+import { useBinOperations } from './useBinOperations.jsx';
+import { useMediaOperations } from './useMediaOperations.jsx';
 
 /**
  * Composite hook for data operations
- * Combines voices, section, and content operations into a single interface
+ * Combines voices, bin, and media operations into a single interface
  */
 export function useDataOperations(props) {
     const [actorError, setActorError] = createSignal(null);
@@ -14,9 +14,9 @@ export function useDataOperations(props) {
     // Compose smaller hooks
     const voiceOps = useVoices(props);
 
-    const sectionOps = useSectionOperations(props);
+    const binOps = useBinOperations(props);
 
-    const contentOps = useContentOperations(props);
+    const mediaOps = useMediaOperations(props);
 
     // Actor-specific operations
     const updateActorField = async (actorId, fields) => {
@@ -43,35 +43,36 @@ export function useDataOperations(props) {
     };
 
     // Combine errors from all sources
-    const error = () => actorError() || sectionOps.error() || contentOps.error() || voiceOps.voiceError();
+    const error = () => actorError() || binOps.error() || mediaOps.error() || voiceOps.voiceError();
 
     const setError = (err) => {
         setActorError(err);
-        sectionOps.setError(err);
-        contentOps.setError(err);
+        binOps.setError(err);
+        mediaOps.setError(err);
     };
 
     return {
         // State
-        contentPrompt: contentOps.contentPrompt,
-        contentName: contentOps.contentName,
-        creatingContent: () => contentOps.creating() || sectionOps.creating(),
+        mediaPrompt: mediaOps.mediaPrompt,
+        mediaName: mediaOps.mediaName,
+        creatingMedia: () => mediaOps.creating() || binOps.creating(),
         voices: voiceOps.voices,
         loadingVoices: voiceOps.loadingVoices,
         error,
         setError,
 
         // Handlers
-        setContentPrompt: contentOps.setContentPrompt,
-        setContentName: contentOps.setContentName,
-        createContent: contentOps.createContent,
-        createSection: sectionOps.createSection,
-        updateProviderSettings: sectionOps.updateProviderSettings,
-        updateSectionName: sectionOps.updateSectionName,
+        setMediaPrompt: mediaOps.setMediaPrompt,
+        setMediaName: mediaOps.setMediaName,
+        createMedia: mediaOps.createMedia,
+        createBin: binOps.createBin,
+        updateProviderSettings: binOps.updateProviderSettings,
+        updateBinName: binOps.updateBinName,
+        updateBinField: binOps.updateBinField,
         updateActorField,
         updateSceneField,
-        toggleSectionComplete: sectionOps.toggleSectionComplete,
-        deleteSection: sectionOps.deleteSection,
+        toggleBinComplete: binOps.toggleBinComplete,
+        deleteBin: binOps.deleteBin,
         deleteActor: props.deleteActor || (() => { }),
         deleteScene: props.deleteScene || (() => { }),
 

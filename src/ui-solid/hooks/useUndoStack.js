@@ -53,8 +53,8 @@ export function useUndoStack({ onStateRestored }) {
       if (onStateRestored) {
         onStateRestored({
           actors: data.actors || [],
-          sections: data.sections || [],
-          content: data.content || [],
+          bins: data.bins || [],
+          media: data.media || [],
           message: data.message || '',
         });
       }
@@ -105,8 +105,8 @@ export function useUndoStack({ onStateRestored }) {
       if (onStateRestored) {
         onStateRestored({
           actors: data.actors || [],
-          sections: data.sections || [],
-          content: data.content || [],
+          bins: data.bins || [],
+          media: data.media || [],
           message: data.message || '',
         });
       }

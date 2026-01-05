@@ -12,17 +12,20 @@ export function buildOwnerPath(ownerType, ownerName) {
 }
 
 /**
- * Build a display path for a section
+ * Build a display path for a bin
  */
-export function buildSectionPath(ownerType, ownerName, sectionName) {
-  return `${buildOwnerPath(ownerType, ownerName)} → ${sectionName}`;
+export function buildBinPath(ownerType, ownerName, binName) {
+  return `${buildOwnerPath(ownerType, ownerName)} → ${binName}`;
 }
 
 /**
- * Build a display path for content/cue
+ * Build a display path for media/cue
  */
-export function buildContentPath(ownerType, ownerName, sectionName, contentName) {
-  return `${buildSectionPath(ownerType, ownerName, sectionName)} → ${contentName}`;
+export function buildMediaPath(ownerType, ownerId, binId, mediaName, data) {
+  const { actors = [], scenes = [], bins = [] } = data || {};
+  const ownerName = getOwnerName(ownerType, ownerId, actors, scenes);
+  const binName = getBinName(binId, bins);
+  return `${buildBinPath(ownerType, ownerName, binName)} → ${mediaName}`;
 }
 
 /**
@@ -40,9 +43,9 @@ export function getOwnerName(ownerType, ownerId, actors, scenes) {
 }
 
 /**
- * Lookup section name by ID
+ * Lookup bin name by ID
  */
-export function getSectionName(sectionId, sections) {
-  const section = sections?.find(s => s.id === sectionId);
-  return section?.name || section?.content_type || 'Unknown';
+export function getBinName(binId, bins) {
+  const bin = bins?.find(b => b.id === binId);
+  return bin?.name || bin?.media_type || 'Unknown';
 }

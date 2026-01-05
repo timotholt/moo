@@ -4,9 +4,9 @@ import { join } from 'path';
 import fs from 'fs';
 import { getProjectPaths } from './utils/paths.js';
 import { registerActorRoutes } from './server/routes/actors.js';
-import { registerContentRoutes } from './server/routes/content.js';
+import { registerMediaRoutes } from './server/routes/media.js';
 import { registerTakeRoutes } from './server/routes/takes.js';
-import { registerSectionRoutes } from './server/routes/sections.js';
+import { registerBinRoutes } from './server/routes/bins.js';
 import { registerDefaultsRoutes } from './server/routes/defaults.js';
 import { registerProviderRoutes } from './server/routes/provider.js';
 import { registerGenerationRoutes } from './server/routes/generation.js';
@@ -84,9 +84,9 @@ fastify.get('/media/*', async (request, reply) => {
 
 // Register all route modules
 registerActorRoutes(fastify, getProjectContextNullable);
-registerContentRoutes(fastify, getProjectContextNullable);
+registerMediaRoutes(fastify, getProjectContextNullable);
 registerTakeRoutes(fastify, getProjectContextNullable);
-registerSectionRoutes(fastify, getProjectContextNullable);
+registerBinRoutes(fastify, getProjectContextNullable);
 registerSceneRoutes(fastify, getProjectContextNullable);
 registerDefaultsRoutes(fastify, getProjectContextNullable);
 registerProviderRoutes(fastify, getProjectContextNullable);

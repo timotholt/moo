@@ -2,40 +2,39 @@ import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
-import type { Actor, Content, Section, Scene } from '../../types/index.js';
+import type { Actor, Media, Bin, Scene } from '../../types/index.js';
 import {
   buildActorPath,
   buildScenePath,
-  buildSectionPath,
-  buildContentPath,
+  buildBinPath,
+  buildMediaPath,
   type PathContext
 } from '../../utils/pathBuilder.js';
 import { describeChanges } from '../../utils/diffDescriber.js';
 import {
   ActorSchema,
-  SectionSchema,
-  ContentSchema,
+  BinSchema,
+  MediaSchema,
   SceneSchema
 } from '../../shared/schemas/index.js';
 import type { OwnerType } from '../../shared/schemas/common.schema.js';
-
-const DEBUG_SNAPSHOT = false;
+import { generateId } from '../../utils/ids.js';
 
 interface Snapshot {
   id: string;
   timestamp: string;
   message: string;
   actors: Actor[];
-  sections: Section[];
-  content: Content[];
+  bins: Bin[];
+  media: Media[];
   scenes: Scene[];
 }
 
 /** Cached catalog data to avoid redundant reads */
 export interface CatalogCache {
   actors: Actor[];
-  sections: Section[];
-  content: Content[];
+  bins: Bin[];
+  media: Media[];
   scenes: Scene[];
 }
 
@@ -48,13 +47,13 @@ const MAX_SNAPSHOTS = 50;
  * Read all catalog files and return cached data
  */
 export async function readCatalog(paths: ProjectPaths): Promise<CatalogCache> {
-  const [actors, sections, content, scenes] = await Promise.all([
+  const [actors, bins, media, scenes] = await Promise.all([
     readJsonl<Actor>(paths.catalog.actors, ActorSchema).catch(() => [] as Actor[]),
-    readJsonl<Section>(paths.catalog.sections, SectionSchema).catch(() => [] as Section[]),
-    readJsonl<Content>(paths.catalog.content, ContentSchema).catch(() => [] as Content[]),
+    readJsonl<Bin>(paths.catalog.bins, BinSchema).catch(() => [] as Bin[]),
+    readJsonl<Media>(paths.catalog.media, MediaSchema).catch(() => [] as Media[]),
     readJsonl<Scene>(paths.catalog.scenes, SceneSchema).catch(() => [] as Scene[]),
   ]);
-  return { actors, sections, content, scenes };
+  return { actors, bins, media, scenes };
 }
 
 /**
@@ -90,59 +89,59 @@ export function snapshotMessageForScene(
 }
 
 /**
- * Build snapshot message for section operations
+ * Build snapshot message for bin operations
  */
-export function snapshotMessageForSection(
+export function snapshotMessageForBin(
   operation: 'create' | 'delete' | 'update' | 'rename',
   ownerType: OwnerType,
   ownerId: string | null,
-  sectionName: string,
+  binName: string,
   ctx: PathContext,
   newName?: string
 ): string {
-  const path = buildSectionPath(ownerType, ownerId, sectionName, ctx);
+  const path = buildBinPath(ownerType, ownerId, binName, ctx);
   switch (operation) {
-    case 'create': return `Create section: ${path}`;
-    case 'delete': return `Delete section: ${path}`;
-    case 'rename': return `Rename section: ${path} → ${newName}`;
-    case 'update': return `Update section: ${path}`;
+    case 'create': return `Create bin: ${path}`;
+    case 'delete': return `Delete bin: ${path}`;
+    case 'rename': return `Rename bin: ${path} → ${newName}`;
+    case 'update': return `Update bin: ${path}`;
   }
 }
 
 /**
- * Build snapshot message for content operations
+ * Build snapshot message for media operations
  */
-export function snapshotMessageForContent(
+export function snapshotMessageForMedia(
   operation: 'create' | 'delete' | 'update' | 'rename',
   ownerType: OwnerType,
   ownerId: string | null,
-  sectionId: string,
-  contentName: string,
+  binId: string,
+  mediaName: string,
   ctx: PathContext,
   newName?: string
 ): string {
-  const path = buildContentPath(ownerType, ownerId, sectionId, contentName, ctx);
+  const path = buildMediaPath(ownerType, ownerId, binId, mediaName, ctx);
   switch (operation) {
-    case 'create': return `Create content: ${path}`;
-    case 'delete': return `Delete content: ${path}`;
-    case 'rename': return `Rename cue: ${path} → ${newName}`;
-    case 'update': return `Update content: ${path}`;
+    case 'create': return `Create media: ${path}`;
+    case 'delete': return `Delete media: ${path}`;
+    case 'rename': return `Rename media: ${path} → ${newName}`;
+    case 'update': return `Update media: ${path}`;
   }
 }
 
 /**
- * Build snapshot message for section update with diff details
+ * Build snapshot message for bin update with diff details
  */
-export function snapshotMessageForSectionUpdate(
+export function snapshotMessageForBinUpdate(
   ownerType: OwnerType,
   ownerId: string | null,
-  sectionName: string,
+  binName: string,
   ctx: PathContext,
-  oldSection: Record<string, unknown>,
-  newSection: Record<string, unknown>
+  oldBin: Record<string, unknown>,
+  newBin: Record<string, unknown>
 ): string {
-  const path = buildSectionPath(ownerType, ownerId, sectionName, ctx);
-  const diff = describeChanges(oldSection, newSection);
+  const path = buildBinPath(ownerType, ownerId, binName, ctx);
+  const diff = describeChanges(oldBin, newBin);
   return `${path} updated: ${diff.changes.join(', ')}`;
 }
 
@@ -160,19 +159,19 @@ export function snapshotMessageForActorUpdate(
 }
 
 /**
- * Build snapshot message for content update with diff details
+ * Build snapshot message for media update with diff details
  */
-export function snapshotMessageForContentUpdate(
+export function snapshotMessageForMediaUpdate(
   ownerType: OwnerType,
   ownerId: string | null,
-  sectionId: string,
-  contentName: string,
+  binId: string,
+  mediaName: string,
   ctx: PathContext,
-  oldContent: Record<string, unknown>,
-  newContent: Record<string, unknown>
+  oldMedia: Record<string, unknown>,
+  newMedia: Record<string, unknown>
 ): string {
-  const path = buildContentPath(ownerType, ownerId, sectionId, contentName, ctx);
-  const diff = describeChanges(oldContent, newContent);
+  const path = buildMediaPath(ownerType, ownerId, binId, mediaName, ctx);
+  const diff = describeChanges(oldMedia, newMedia);
   return `${path} updated: ${diff.changes.join(', ')}`;
 }
 
@@ -195,13 +194,13 @@ export async function saveSnapshot(
       timestamp: new Date().toISOString(),
       message,
       actors: catalog.actors,
-      sections: catalog.sections,
-      content: catalog.content,
+      bins: catalog.bins,
+      media: catalog.media,
       scenes: catalog.scenes,
     };
 
     await ensureJsonlFile(snapshotPath);
-    let snapshots = await readJsonl<Snapshot>(snapshotPath).catch(() => []);
+    let snapshots: Snapshot[] = await readJsonl<Snapshot>(snapshotPath).catch(() => []);
 
     snapshots.push(snapshot);
     if (snapshots.length > MAX_SNAPSHOTS) {
@@ -268,15 +267,17 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
 
     // Restore catalog
     await writeJsonlAll(paths.catalog.actors, snapshot.actors, ActorSchema);
-    await writeJsonlAll(paths.catalog.sections, snapshot.sections, SectionSchema);
-    await writeJsonlAll(paths.catalog.content, snapshot.content, ContentSchema);
+    await writeJsonlAll(paths.catalog.bins, snapshot.bins, BinSchema);
+    await writeJsonlAll(paths.catalog.media, snapshot.media, MediaSchema);
     await writeJsonlAll(paths.catalog.scenes, snapshot.scenes, SceneSchema);
     await writeJsonlAll(paths.catalog.snapshots, snapshots);
 
+    const { message: snapshotMsg, ...snapshotData } = snapshot;
+
     return {
       success: true,
-      message: `UNDO: ${snapshot.message}`,
-      ...snapshot,
+      message: `UNDO: ${snapshotMsg}`,
+      ...snapshotData,
       canUndo: snapshots.length > 0,
       canRedo: true,
     };
@@ -313,15 +314,17 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
 
     // Restore from redo
     await writeJsonlAll(paths.catalog.actors, redoSnapshot.actors, ActorSchema);
-    await writeJsonlAll(paths.catalog.sections, redoSnapshot.sections, SectionSchema);
-    await writeJsonlAll(paths.catalog.content, redoSnapshot.content, ContentSchema);
+    await writeJsonlAll(paths.catalog.bins, redoSnapshot.bins, BinSchema);
+    await writeJsonlAll(paths.catalog.media, redoSnapshot.media, MediaSchema);
     await writeJsonlAll(paths.catalog.scenes, redoSnapshot.scenes, SceneSchema);
     await writeJsonlAll(paths.catalog.redoSnapshots, redoSnapshots);
 
+    const { message: redoMsg, ...redoData } = redoSnapshot;
+
     return {
       success: true,
-      message: `REDO: ${redoSnapshot.message}`,
-      ...redoSnapshot,
+      message: `REDO: ${redoMsg}`,
+      ...redoData,
       canUndo: true,
       canRedo: redoSnapshots.length > 0,
     };

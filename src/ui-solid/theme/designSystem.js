@@ -7,8 +7,8 @@ export const DESIGN_SYSTEM = {
     // Main content headers
     pageTitle: { fontSize: '1.1rem', fontWeight: 600 },
     
-    // Section headers
-    sectionTitle: { fontSize: '0.9rem', fontWeight: 500 },
+    // Bin headers
+    binTitle: { fontSize: '0.9rem', fontWeight: 500 },
     
     // Body text
     body: { fontSize: '0.8rem', fontWeight: 400 },
@@ -25,8 +25,8 @@ export const DESIGN_SYSTEM = {
     // Container padding
     containerPadding: '1rem',
     
-    // Section spacing
-    sectionGap: '1.5rem',
+    // Bin spacing
+    binGap: '1.5rem',
     
     // Element spacing
     elementGap: '0.75rem',

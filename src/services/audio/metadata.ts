@@ -35,28 +35,28 @@ export type AudioFormat = 'wav' | 'mp3' | 'flac' | 'unknown';
 export interface VofoundryMetadata {
   // Core IDs
   id: string;                    // Take ID (UUID)
-  content_id: string;            // Parent content/cue ID
+  media_id: string;              // Parent media item ID
   actor_id: string;              // Actor ID
-  section_id: string;            // Section ID
+  bin_id: string;                // Bin ID
   scene_id?: string;             // Scene ID (optional)
-  
+
   // Human-readable fields (map to standard tags)
-  cue_id: string;                // Cue identifier → title
+  name: string;                  // Media name → title
   actor_name?: string;           // Actor display name → artist
-  section_name?: string;         // Section name → album
+  bin_name?: string;             // Bin name → album
   scene_name?: string;           // Scene name (e.g., "Act 1")
-  content_type: string;          // dialogue | music | sfx → genre
+  media_type: string;            // dialogue | music | sfx → genre
   take_number: string;           // Take number → track
   status: string;                // new | approved | rejected | hidden
   prompt?: string;               // Generation prompt → comment
-  
+
   // Generation metadata
   generated_by?: string;         // elevenlabs | manual | null
   voice_id?: string;             // Voice ID
   model_id?: string;             // Model ID
   stability?: string;            // Stability parameter
   similarity_boost?: string;     // Similarity boost parameter
-  
+
   // Timestamps
   created_at: string;            // ISO timestamp
   updated_at: string;            // ISO timestamp
@@ -83,24 +83,24 @@ export async function detectFormat(filePath: string): Promise<AudioFormat> {
  */
 export function detectFormatFromBuffer(buffer: Buffer): AudioFormat {
   if (buffer.length < 12) return 'unknown';
-  
+
   // WAV: RIFF....WAVE
-  if (buffer.slice(0, 4).toString() === 'RIFF' && 
-      buffer.slice(8, 12).toString() === 'WAVE') {
+  if (buffer.slice(0, 4).toString() === 'RIFF' &&
+    buffer.slice(8, 12).toString() === 'WAVE') {
     return 'wav';
   }
-  
+
   // FLAC: fLaC
   if (buffer.slice(0, 4).toString() === 'fLaC') {
     return 'flac';
   }
-  
+
   // MP3: ID3 tag or frame sync
   if (buffer.slice(0, 3).toString() === 'ID3' ||
-      (buffer[0] === 0xFF && (buffer[1] & 0xE0) === 0xE0)) {
+    (buffer[0] === 0xFF && (buffer[1] & 0xE0) === 0xE0)) {
     return 'mp3';
   }
-  
+
   return 'unknown';
 }
 
@@ -111,11 +111,11 @@ export function detectFormatFromBuffer(buffer: Buffer): AudioFormat {
 /** RIFF INFO tag mappings for WAV files */
 const WAV_TAG_MAP = {
   // Human-readable fields → standard RIFF tags
-  cue_id: 'INAM',           // title
+  name: 'INAM',             // title
   actor_name: 'IART',       // artist
-  section_name: 'IPRD',     // product/album
+  bin_name: 'IPRD',         // product/album
   scene_name: 'ISBJ',       // subject (scene name)
-  content_type: 'IGNR',     // genre
+  media_type: 'IGNR',       // genre
   take_number: 'IPRT',      // track number
   prompt: 'ICMT',           // comment
   created_at: 'ICRD',       // date created
@@ -137,9 +137,9 @@ for (const [field, tag] of Object.entries(WAV_TAG_MAP)) {
 async function readWavMetadata(filePath: string): Promise<Partial<VofoundryMetadata>> {
   const buffer = await readFile(filePath);
   const wav = new WaveFile(buffer);
-  
+
   const metadata: Partial<VofoundryMetadata> = {};
-  
+
   // Read standard RIFF INFO tags
   for (const [field, tag] of Object.entries(WAV_TAG_MAP)) {
     const value = wav.getTag(tag);
@@ -147,16 +147,16 @@ async function readWavMetadata(filePath: string): Promise<Partial<VofoundryMetad
       (metadata as Record<string, string>)[field] = value;
     }
   }
-  
+
   // Read IDs from ICOP (copyright field stores JSON)
   const idsJson = wav.getTag('ICOP');
   if (idsJson) {
     try {
       const ids = JSON.parse(idsJson);
       if (ids.id) metadata.id = ids.id;
-      if (ids.content_id) metadata.content_id = ids.content_id;
+      if (ids.media_id) metadata.media_id = ids.media_id;
       if (ids.actor_id) metadata.actor_id = ids.actor_id;
-      if (ids.section_id) metadata.section_id = ids.section_id;
+      if (ids.bin_id) metadata.bin_id = ids.bin_id;
       if (ids.scene_id) metadata.scene_id = ids.scene_id;
       if (ids.updated_at) metadata.updated_at = ids.updated_at;
       if (ids.stability) metadata.stability = ids.stability;
@@ -167,11 +167,11 @@ async function readWavMetadata(filePath: string): Promise<Partial<VofoundryMetad
       }
     }
   }
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] read WAV metadata:', metadata);
   }
-  
+
   return metadata;
 }
 
@@ -185,7 +185,7 @@ async function writeWavMetadata(
 ): Promise<void> {
   const buffer = await readFile(inputPath);
   const wav = new WaveFile(buffer);
-  
+
   // Write standard RIFF INFO tags
   for (const [field, tag] of Object.entries(WAV_TAG_MAP)) {
     const value = (metadata as Record<string, string | undefined>)[field];
@@ -193,29 +193,29 @@ async function writeWavMetadata(
       wav.setTag(tag, value);
     }
   }
-  
+
   // Pack IDs into ICOP (copyright field)
   const ids: Record<string, string> = {};
   if (metadata.id) ids.id = metadata.id;
-  if (metadata.content_id) ids.content_id = metadata.content_id;
+  if (metadata.media_id) ids.media_id = metadata.media_id;
   if (metadata.actor_id) ids.actor_id = metadata.actor_id;
-  if (metadata.section_id) ids.section_id = metadata.section_id;
+  if (metadata.bin_id) ids.bin_id = metadata.bin_id;
   if (metadata.scene_id) ids.scene_id = metadata.scene_id;
   if (metadata.updated_at) ids.updated_at = metadata.updated_at;
   if (metadata.stability) ids.stability = metadata.stability;
   if (metadata.similarity_boost) ids.similarity_boost = metadata.similarity_boost;
-  
+
   if (Object.keys(ids).length > 0) {
     wav.setTag('ICOP', JSON.stringify(ids));
   }
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] writing WAV metadata');
   }
-  
+
   // Write output
   await writeFile(outputPath, Buffer.from(wav.toBuffer()));
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] wrote WAV to:', outputPath);
   }
@@ -227,11 +227,11 @@ async function writeWavMetadata(
 
 /** Tag mappings for ffmpeg (MP3 ID3 / FLAC Vorbis) */
 const FFMPEG_TAG_MAP = {
-  cue_id: 'title',
+  name: 'title',
   actor_name: 'artist',
-  section_name: 'album',
+  bin_name: 'album',
   scene_name: 'album_artist',  // Use album_artist for scene
-  content_type: 'genre',
+  media_type: 'genre',
   take_number: 'track',
   prompt: 'comment',
   created_at: 'date',
@@ -240,9 +240,9 @@ const FFMPEG_TAG_MAP = {
   status: 'VOFOUNDRY_STATUS',
   generated_by: 'VOFOUNDRY_GENERATED_BY',
   id: 'VOFOUNDRY_ID',
-  content_id: 'VOFOUNDRY_CONTENT_ID',
+  media_id: 'VOFOUNDRY_MEDIA_ID',
   actor_id: 'VOFOUNDRY_ACTOR_ID',
-  section_id: 'VOFOUNDRY_SECTION_ID',
+  bin_id: 'VOFOUNDRY_BIN_ID',
   scene_id: 'VOFOUNDRY_SCENE_ID',
   updated_at: 'VOFOUNDRY_UPDATED_AT',
   stability: 'VOFOUNDRY_STABILITY',
@@ -263,9 +263,9 @@ async function readFfmpegMetadata(filePath: string): Promise<Partial<VofoundryMe
   const { stdout } = await execFileAsync('ffprobe', args);
   const data = JSON.parse(stdout);
   const tags = data.format?.tags || {};
-  
+
   const metadata: Partial<VofoundryMetadata> = {};
-  
+
   for (const [rawKey, value] of Object.entries(tags)) {
     const key = rawKey.toLowerCase();
     const field = FFMPEG_TAG_REVERSE[key];
@@ -273,11 +273,11 @@ async function readFfmpegMetadata(filePath: string): Promise<Partial<VofoundryMe
       (metadata as Record<string, string>)[field] = String(value);
     }
   }
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] read ffmpeg metadata:', metadata);
   }
-  
+
   return metadata;
 }
 
@@ -291,26 +291,26 @@ async function writeFfmpegMetadata(
 ): Promise<void> {
   // Detect input format to preserve it (file extension may be wrong)
   const inputFormat = await detectFormat(inputPath);
-  
+
   const metadataArgs: string[] = [];
-  
+
   for (const [field, tag] of Object.entries(FFMPEG_TAG_MAP)) {
     const value = (metadata as Record<string, string | undefined>)[field];
     if (value !== undefined) {
       metadataArgs.push('-metadata', `${tag}=${value}`);
     }
   }
-  
+
   if (metadataArgs.length === 0) {
     throw new Error('No metadata to write');
   }
-  
+
   // Use temp file if in-place update
   const needsTempFile = inputPath === outputPath;
-  const actualOutput = needsTempFile 
+  const actualOutput = needsTempFile
     ? join(dirname(outputPath), `.tmp_${basename(outputPath)}`)
     : outputPath;
-  
+
   // Force output format to match input (prevents remuxing due to extension)
   const formatArgs: string[] = [];
   if (inputFormat === 'mp3') {
@@ -318,7 +318,7 @@ async function writeFfmpegMetadata(
   } else if (inputFormat === 'flac') {
     formatArgs.push('-f', 'flac');
   }
-  
+
   const args = [
     '-i', inputPath,
     '-c', 'copy',
@@ -327,18 +327,18 @@ async function writeFfmpegMetadata(
     '-y',
     actualOutput
   ];
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] ffmpeg args:', args.join(' '));
   }
-  
+
   try {
     await execFileAsync('ffmpeg', args);
-    
+
     if (needsTempFile) {
       await rename(actualOutput, outputPath);
     }
-    
+
     if (DEBUG_METADATA) {
       console.log('[metadata] wrote ffmpeg metadata to:', outputPath);
     }
@@ -356,15 +356,14 @@ async function writeFfmpegMetadata(
 
 /**
  * Read metadata from an audio file.
- * Detects format automatically and uses appropriate handler.
  */
 export async function readMetadata(filePath: string): Promise<Partial<VofoundryMetadata>> {
   const format = await detectFormat(filePath);
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] detected format:', format, 'for', filePath);
   }
-  
+
   try {
     switch (format) {
       case 'wav':
@@ -384,7 +383,6 @@ export async function readMetadata(filePath: string): Promise<Partial<VofoundryM
 
 /**
  * Write metadata to an audio file.
- * Detects format automatically and uses appropriate handler.
  */
 export async function writeMetadata(
   inputPath: string,
@@ -392,11 +390,11 @@ export async function writeMetadata(
   metadata: Partial<VofoundryMetadata>
 ): Promise<void> {
   const format = await detectFormat(inputPath);
-  
+
   if (DEBUG_METADATA) {
     console.log('[metadata] writing to format:', format);
   }
-  
+
   switch (format) {
     case 'wav':
       await writeWavMetadata(inputPath, outputPath, metadata);
@@ -434,12 +432,12 @@ export async function hasVofoundryMetadata(filePath: string): Promise<boolean> {
 }
 
 /**
- * Build metadata from Take and Content records.
+ * Build metadata from Take and Media records.
  */
 export function buildMetadataFromTake(
   take: {
     id: string;
-    content_id: string;
+    media_id: string;
     take_number: number;
     status: string;
     created_at: string;
@@ -447,37 +445,39 @@ export function buildMetadataFromTake(
     generated_by?: string | null;
     generation_params?: Record<string, unknown>;
   },
-  content: {
+  media: {
     id: string;
-    actor_id: string;
-    section_id: string;
-    content_type: string;
-    cue_id: string;
+    owner_id: string | null;
+    owner_type: string;
+    bin_id: string;
+    media_type: string;
+    name: string;
     prompt?: string;
   },
   context?: {
+    actor_id?: string;
     actor_name?: string;
-    section_name?: string;
+    bin_name?: string;
     scene_id?: string;
     scene_name?: string;
   }
 ): VofoundryMetadata {
   const genParams = take.generation_params || {};
-  
+
   return {
     id: take.id,
-    content_id: take.content_id,
-    actor_id: content.actor_id,
-    section_id: content.section_id,
-    scene_id: context?.scene_id,
-    content_type: content.content_type,
-    cue_id: content.cue_id,
+    media_id: take.media_id,
+    actor_id: context?.actor_id || (media.owner_type === 'actor' ? media.owner_id || '' : ''),
+    bin_id: media.bin_id,
+    scene_id: context?.scene_id || (media.owner_type === 'scene' ? media.owner_id || undefined : undefined),
+    media_type: media.media_type,
+    name: media.name,
     actor_name: context?.actor_name,
-    section_name: context?.section_name,
+    bin_name: context?.bin_name,
     scene_name: context?.scene_name,
     take_number: String(take.take_number),
     status: take.status,
-    prompt: content.prompt,
+    prompt: media.prompt,
     generated_by: take.generated_by || undefined,
     voice_id: genParams.voice_id as string | undefined,
     model_id: genParams.model_id as string | undefined,

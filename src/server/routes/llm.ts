@@ -12,9 +12,9 @@ interface LLMGenerateBody {
   apiKey: string;
   model?: string;
   systemPrompt?: string;
-  contentName: string;
-  actorName?: string;
-  sectionType?: string;
+  mediaName: string;
+  ownerName?: string;
+  mediaType?: string;
 }
 
 interface LLMImproveBody {
@@ -23,8 +23,8 @@ interface LLMImproveBody {
   model?: string;
   systemPrompt?: string;
   currentPrompt: string;
-  contentName: string;
-  sectionType?: string;
+  mediaName: string;
+  mediaType?: string;
 }
 
 export default async function llmRoutes(fastify: FastifyInstance) {
@@ -59,11 +59,11 @@ export default async function llmRoutes(fastify: FastifyInstance) {
   // Generate prompt
   fastify.post('/api/llm/generate', async (request: FastifyRequest<{ Body: LLMGenerateBody }>, reply: FastifyReply) => {
     try {
-      const { provider, apiKey, model, systemPrompt, contentName, actorName, sectionType } = request.body;
-      
-      if (!contentName) {
+      const { provider, apiKey, model, systemPrompt, mediaName, ownerName, mediaType } = request.body;
+
+      if (!mediaName) {
         reply.code(400);
-        return { error: 'contentName is required' };
+        return { error: 'mediaName is required' };
       }
 
       const prompt = await generatePrompt({
@@ -71,9 +71,9 @@ export default async function llmRoutes(fastify: FastifyInstance) {
         apiKey,
         model,
         systemPrompt,
-        contentName,
-        actorName,
-        sectionType
+        mediaName,
+        ownerName,
+        mediaType
       });
 
       return { prompt };
@@ -86,8 +86,8 @@ export default async function llmRoutes(fastify: FastifyInstance) {
   // Improve prompt
   fastify.post('/api/llm/improve', async (request: FastifyRequest<{ Body: LLMImproveBody }>, reply: FastifyReply) => {
     try {
-      const { provider, apiKey, model, systemPrompt, currentPrompt, contentName, sectionType } = request.body;
-      
+      const { provider, apiKey, model, systemPrompt, currentPrompt, mediaName, mediaType } = request.body;
+
       if (!currentPrompt) {
         reply.code(400);
         return { error: 'currentPrompt is required' };
@@ -99,8 +99,8 @@ export default async function llmRoutes(fastify: FastifyInstance) {
         model,
         systemPrompt,
         currentPrompt,
-        contentName,
-        sectionType
+        mediaName,
+        mediaType
       });
 
       return { prompt };

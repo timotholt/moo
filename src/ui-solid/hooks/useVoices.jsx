@@ -13,12 +13,12 @@ export function useVoices(props) {
             return true;
         }
 
-        if (node?.type?.endsWith('-section')) {
-            const contentType = node.type.replace('-section', '');
-            const sectionData = props.sections.find(s => s.id === node.id);
-            if (sectionData) {
-                const actor = props.actors.find((a) => a.id === sectionData.actor_id);
-                const providerSettings = actor?.provider_settings?.[contentType];
+        if (node?.type?.endsWith('-bin')) {
+            const mediaType = node.type.replace('-bin', '');
+            const binData = props.bins.find(b => b.id === node.id);
+            if (binData) {
+                const actor = props.actors.find((a) => a.id === binData.owner_id);
+                const providerSettings = actor?.provider_settings?.[mediaType];
                 // Default to elevenlabs if not specified, or if explicitly set
                 return !providerSettings?.provider || providerSettings.provider === 'elevenlabs';
             }

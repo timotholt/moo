@@ -293,7 +293,7 @@ export default function WelcomeScreen(props) {
                         Are you sure you want to delete <strong>"{projectToDelete()?.name}"</strong>?
                     </Typography>
                     <Typography variant="body2" color="error" sx={{ mb: 2 }}>
-                        This will permanently delete all actors, sections, content, and media files.
+                        This will permanently delete all actors, bins, media, and takes.
                         This action cannot be undone.
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>

@@ -2,7 +2,7 @@ import { createMemo, createSignal, Show, Switch, Match, For } from 'solid-js';
 import { Box, Typography, Button, Paper, Stack, Divider } from '@suid/material';
 import ActorView from './ActorView.jsx';
 import SceneView from './SceneView.jsx';
-import SectionView from '../SectionView.jsx';
+import BinView from '../BinView.jsx';
 import DetailHeader from '../DetailHeader.jsx';
 import CompleteButton from '../CompleteButton.jsx';
 import { DESIGN_SYSTEM } from '../../theme/designSystem.js';
@@ -72,7 +72,7 @@ function TypeGroupView(props) {
 }
 
 export default function GroupView(props) {
-    // props: groupNode (selectedNode with field, fieldValue), data (actors, sections, scenes, content, takes), operations
+    // props: groupNode (selectedNode with field, fieldValue), data (actors, bins, scenes, media, takes), operations
 
     const flattenItems = (node) => {
         if (!node) return [];
@@ -90,22 +90,22 @@ export default function GroupView(props) {
                     const id = props.groupNode.fieldValue;
                     const actor = props.data.actors.find(a => String(a.id) === String(id));
                     if (actor) {
-                        const actorSections = props.data.sections.filter(s => s.owner_id === actor.id && s.owner_type === 'actor');
+                        const actorBins = props.data.bins.filter(b => b.owner_id === actor.id && b.owner_type === 'actor');
                         return (
                             <ActorView
                                 actor={actor}
-                                sections={actorSections}
+                                bins={actorBins}
                                 operations={props.operations}
                             />
                         );
                     }
                     const scene = props.data.scenes.find(s => String(s.id) === String(id));
                     if (scene) {
-                        const sceneSections = props.data.sections.filter(s => s.owner_id === scene.id && s.owner_type === 'scene');
+                        const sceneBins = props.data.bins.filter(b => b.owner_id === scene.id && b.owner_type === 'scene');
                         return (
                             <SceneView
                                 scene={scene}
-                                sections={sceneSections}
+                                bins={sceneBins}
                                 operations={props.operations}
                             />
                         );
@@ -114,27 +114,27 @@ export default function GroupView(props) {
                 })()}
             </Match>
 
-            <Match when={props.groupNode.field === 'section_id'}>
+            <Match when={props.groupNode.field === 'bin_id'}>
                 {(() => {
-                    const section = props.data.sections.find(s => String(s.id) === String(props.groupNode.fieldValue));
-                    if (!section) return <Box sx={{ p: 3 }}>Section not found: {props.groupNode.fieldValue}</Box>;
+                    const bin = props.data.bins.find(b => String(b.id) === String(props.groupNode.fieldValue));
+                    if (!bin) return <Box sx={{ p: 3 }}>Bin not found: {props.groupNode.fieldValue}</Box>;
 
                     let owner = null;
-                    if (section.owner_type === 'actor') owner = props.data.actors.find(a => a.id === section.owner_id);
-                    else if (section.owner_type === 'scene') owner = props.data.scenes.find(s => s.id === section.owner_id);
+                    if (bin.owner_type === 'actor') owner = props.data.actors.find(a => a.id === bin.owner_id);
+                    else if (bin.owner_type === 'scene') owner = props.data.scenes.find(s => s.id === bin.owner_id);
 
                     return (
-                        <SectionView
-                            sectionData={section}
+                        <BinView
+                            binData={bin}
                             owner={owner}
-                            contentType={section.content_type}
+                            mediaType={bin.media_type}
                             operations={props.operations}
                         />
                     );
                 })()}
             </Match>
 
-            <Match when={props.groupNode.field === 'content_type'}>
+            <Match when={props.groupNode.field === 'media_type'}>
                 <TypeGroupView
                     groupNode={props.groupNode}
                     items={groupItems()}

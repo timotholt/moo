@@ -72,8 +72,8 @@ export default function TreePane(props) {
             levels: [
                 { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
                 { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
-                { field: 'section_id', displayField: 'section_name', icon: 'folder' },
-                { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true }
+                { field: 'bin_id', displayField: 'bin_name', icon: 'folder' },
+                { field: 'media_id', displayField: 'name', icon: 'content', isTerminal: true }
             ]
         };
         props.onCustomViewsChange([...props.customViews, newView]);
@@ -97,12 +97,7 @@ export default function TreePane(props) {
                 { id: 'history', name: 'history', nodeType: 'history', nodeId: 'logs', icon: <HistoryIcon sx={{ fontSize: '0.75rem' }} /> },
                 {
                     id: 'defaults', name: 'defaults', nodeType: 'defaults', nodeId: 'providers', icon: <SettingsIcon sx={{ fontSize: '0.75rem' }} />,
-                    isDefaults: true,
-                    children: ['dialogue', 'music', 'sfx'].map(type => ({
-                        id: type, name: `${type} (elevenlabs)`, nodeType: 'provider-default', nodeId: type,
-                        icon: type === 'dialogue' ? <RecordVoiceOverIcon sx={{ fontSize: '0.75rem' }} /> :
-                            type === 'music' ? <MusicNoteIcon sx={{ fontSize: '0.75rem' }} /> : <GraphicEqIcon sx={{ fontSize: '0.75rem' }} />
-                    }))
+                    isDefaults: true
                 }
             ]
         }
@@ -113,11 +108,6 @@ export default function TreePane(props) {
     };
 
     const handleViewSelect = (e, item) => {
-        // If they click the text/expand area, toggle expand.
-        // If they click specifically to edit (handled later by selection logic), standard behavior.
-        // For now, let's say selecting a view-config is a separate action or happens when selecting the group.
-
-        // Actually, let's make it so clicking a View Group selects it for config IN ADDITION to toggling it.
         handleToggle(`item-${item.id}`);
         props.onSelect({ type: 'view-config', id: item.id });
     };
@@ -225,7 +215,7 @@ export default function TreePane(props) {
                                                                     <AddIcon sx={{ fontSize: '0.9rem' }} />
                                                                 </IconButton>
                                                             )}
-                                                            {(isView || item.isDefaults) && (
+                                                            {isView && (
                                                                 <Box onClick={(e) => { e.stopPropagation(); handleToggle(itemKey); }} sx={{ display: 'flex', alignItems: 'center', opacity: 0.5 }}>
                                                                     {expanded()[itemKey] ? <ExpandMoreIcon sx={{ fontSize: '0.75rem' }} /> : <KeyboardArrowRightIcon sx={{ fontSize: '0.75rem' }} />}
                                                                 </Box>
@@ -240,8 +230,8 @@ export default function TreePane(props) {
                                                                 viewName={getStickyName(item)}
                                                                 tree={buildViewTree(item.id, {
                                                                     actors: props.actors,
-                                                                    sections: props.sections,
-                                                                    content: props.content,
+                                                                    bins: props.bins,
+                                                                    media: props.media,
                                                                     takes: props.takes,
                                                                     scenes: props.scenes || []
                                                                 }, props.customViews)}
@@ -251,25 +241,6 @@ export default function TreePane(props) {
                                                                 onAddActor={() => props.onSelect({ type: 'root', id: 'root' })}
                                                                 onAddScene={() => props.onSelect({ type: 'root', id: 'root' })}
                                                             />
-                                                        </Show>
-                                                        <Show when={item.isDefaults}>
-                                                            <For each={item.children}>
-                                                                {(child) => (
-                                                                    <ListItemButton
-                                                                        sx={{
-                                                                            pl: `${TREE_INDENT.BASE + TREE_INDENT.STEP * 2}px`,
-                                                                            ...DESIGN_SYSTEM.treeItem
-                                                                        }}
-                                                                        selected={selectedId() === nodeKey(child.nodeType, child.nodeId)}
-                                                                        onClick={() => handleSelect(child.nodeType, child.nodeId)}
-                                                                    >
-                                                                        <ListItemIcon sx={{ minWidth: 'auto', mr: '0.375rem' }}>
-                                                                            {child.icon}
-                                                                        </ListItemIcon>
-                                                                        <ListItemText primary={child.name} primaryTypographyProps={{ fontSize: '0.85rem' }} />
-                                                                    </ListItemButton>
-                                                                )}
-                                                            </For>
                                                         </Show>
                                                     </Collapse>
                                                 </Box>

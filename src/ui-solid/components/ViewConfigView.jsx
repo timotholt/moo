@@ -1,6 +1,6 @@
 import { createSignal, createMemo, For, createEffect, Show, on } from 'solid-js';
 import {
-    Box, Typography, TextField, Button, List, IconButton, Paper, Divider,
+    Box, Typography, Button, List, IconButton, Paper, Divider,
     ToggleButtonGroup, ToggleButton, Select, MenuItem, FormControl, InputLabel, Stack
 } from '@suid/material';
 import ArrowUpwardIcon from '@suid/icons-material/ArrowUpward';
@@ -19,6 +19,7 @@ import CloseIcon from '@suid/icons-material/Close';
 import RestartAltIcon from '@suid/icons-material/RestartAlt';
 import { DIMENSIONS, getStickyName, PRESET_VIEWS } from '../utils/viewEngine.js';
 import Collapse from './Collapse.jsx';
+import TextInput from './TextInput.jsx';
 
 export default function ViewConfigView(props) {
     // props: view, onUpdate, onDelete, operations, actorOps, sceneOps
@@ -166,11 +167,12 @@ export default function ViewConfigView(props) {
                             </Box>
                         }>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 400 }}>
-                                <TextField
+                                <TextInput
                                     size="small"
                                     fullWidth
                                     placeholder={stickyName()}
-                                    on:input={(e) => setName(e.target.value)}
+                                    value={name()}
+                                    onValueChange={setName}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') setEditingName(false);
                                         if (e.key === 'Escape') { setName(props.view.name); setEditingName(false); }
@@ -206,7 +208,6 @@ export default function ViewConfigView(props) {
 
                 {/* Smart Add Section */}
                 <Show when={nextLevelType()}>
-                    <Paper sx={{ mb: 3, borderRadius: '8px', overflow: 'hidden', border: '1px solid', borderColor: 'primary.main', bgcolor: 'primary.main', opacity: 0.05, position: 'absolute', pointerEvents: 'none', inset: 0, zIndex: -1 }} />
                     <Paper sx={{ mb: 4, borderRadius: '8px', overflow: 'hidden', boxShadow: 3, border: '2px solid', borderColor: 'primary.light' }}>
                         <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -218,10 +219,12 @@ export default function ViewConfigView(props) {
                                 Type one or more names separated by commas (e.g. <b>John, Paul, Mary</b>) to batch create them into this project.
                             </Typography>
                             <Stack direction="row" spacing={2} alignItems="flex-start">
-                                <TextField
+                                <TextInput
                                     fullWidth
                                     size="medium"
-                                    placeholder={nextLevelType() === 'actor' ? "Enter actor names..." : "Enter scene names..."} on:input={(e) => setQuickAddValue(e.target.value)}
+                                    placeholder={nextLevelType() === 'actor' ? "Enter actor names..." : "Enter scene names..."}
+                                    value={quickAddValue()}
+                                    onValueChange={setQuickAddValue}
                                     onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
                                     sx={{ bgcolor: 'background.paper' }}
                                 />
@@ -378,11 +381,12 @@ export default function ViewConfigView(props) {
                                                     </Select>
                                                 </FormControl>
 
-                                                <TextField
+                                                <TextInput
                                                     size="small"
                                                     label="Value"
+                                                    value={filter.value || ''}
+                                                    onValueChange={(val) => updateFilter(idx(), { value: val })}
                                                     sx={{ flexGrow: 1 }}
-                                                    on:input={(e) => updateFilter(idx(), { value: e.target.value })}
                                                 />
 
                                                 <IconButton size="small" color="error" onClick={() => removeFilter(idx())}>

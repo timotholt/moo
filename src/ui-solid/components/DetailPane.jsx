@@ -1,8 +1,8 @@
 import { createMemo, Show, Switch, Match } from 'solid-js';
 import { Box, Typography } from '@suid/material';
 import NoSelectionView from './NoSelectionView.jsx';
-import SectionView from './SectionView.jsx';
-import ContentView from './ContentView.jsx';
+import BinView from './BinView.jsx';
+import MediaView from './MediaView.jsx';
 import ProviderDefaultsView from './ProviderDefaultsView.jsx';
 import ActorView from './views/ActorView.jsx';
 import SceneView from './views/SceneView.jsx';
@@ -16,8 +16,11 @@ import { PRESET_VIEWS } from '../utils/viewEngine.js';
 import { useActorOperations } from '../hooks/useActorOperations.jsx';
 import { useSceneOperations } from '../hooks/useSceneOperations.jsx';
 import { useDataOperations } from '../hooks/useDataOperations.jsx';
+import { useGlobalDefaults } from '../hooks/useGlobalDefaults.jsx';
 
 export default function DetailPane(props) {
+    const globalDefaults = useGlobalDefaults();
+
     const actorOps = useActorOperations({
         onActorCreated: props.onRefresh,
         onActorUpdated: props.onRefresh,
@@ -34,15 +37,15 @@ export default function DetailPane(props) {
 
     const dataOps = useDataOperations({
         actors: props.actors,
-        sections: props.sections,
+        bins: props.bins,
         scenes: props.scenes,
         selectedNode: props.selectedNode,
         expandNode: props.onExpandNode,
-        onContentCreated: props.onRefresh,
-        onSectionCreated: props.onRefresh,
+        onMediaCreated: props.onRefresh,
+        onBinCreated: props.onRefresh,
         onActorUpdated: props.onRefresh,
-        onSectionUpdated: props.onRefresh,
-        onSectionDeleted: props.onRefresh,
+        onBinUpdated: props.onRefresh,
+        onBinDeleted: props.onRefresh,
         onSceneUpdated: props.onRefresh,
         deleteActor: actorOps.deleteActor,
         deleteScene: sceneOps.deleteScene
@@ -60,19 +63,20 @@ export default function DetailPane(props) {
         switch (type) {
             case 'actor': return { actor: props.actors.find(a => a.id === id) };
             case 'scene': return { scene: props.scenes.find(s => s.id === id) };
-            case 'section': {
-                const section = props.sections.find(s => s.id === id);
+            case 'bin': {
+                const bin = props.bins.find(b => b.id === id);
                 let owner = null;
-                if (section?.owner_type === 'actor') owner = props.actors.find(a => a.id === section.owner_id);
-                else if (section?.owner_type === 'scene') owner = props.scenes.find(s => s.id === section.owner_id);
-                return { section, owner };
+                if (bin?.owner_type === 'actor') owner = props.actors.find(a => a.id === bin.owner_id);
+                else if (bin?.owner_type === 'scene') owner = props.scenes.find(s => s.id === bin.owner_id);
+                return { bin, owner };
             }
-            case 'content': {
-                const item = props.content.find(c => c.id === id);
+            case 'media': {
+                const item = props.media.find(m => m.id === id);
                 let owner = null;
                 if (item?.owner_type === 'actor') owner = props.actors.find(a => a.id === item.owner_id);
                 else if (item?.owner_type === 'scene') owner = props.scenes.find(s => s.id === item.owner_id);
-                return { item, owner };
+                const bin = item?.bin_id ? props.bins.find(b => b.id === item.bin_id) : null;
+                return { item, owner, bin };
             }
             case 'view-config': {
                 const view = props.customViews.find(v => v.id === id) || PRESET_VIEWS[id];
@@ -90,13 +94,13 @@ export default function DetailPane(props) {
                     const scene = props.scenes.find(s => s.id === node.fieldValue);
                     if (scene) return { scene, typeOverride: 'scene' };
                 }
-                if (node.field === 'section_id') {
-                    const section = props.sections.find(s => s.id === node.fieldValue);
-                    if (section) {
+                if (node.field === 'bin_id') {
+                    const bin = props.bins.find(b => b.id === node.fieldValue);
+                    if (bin) {
                         let owner = null;
-                        if (section.owner_type === 'actor') owner = props.actors.find(a => a.id === section.owner_id);
-                        else if (section.owner_type === 'scene') owner = props.scenes.find(s => s.id === section.owner_id);
-                        return { section, owner, typeOverride: 'section' };
+                        if (bin.owner_type === 'actor') owner = props.actors.find(a => a.id === bin.owner_id);
+                        else if (bin.owner_type === 'scene') owner = props.scenes.find(s => s.id === bin.owner_id);
+                        return { bin, owner, typeOverride: 'bin' };
                     }
                 }
                 return null;
@@ -144,7 +148,7 @@ export default function DetailPane(props) {
 
                 <Match when={activeType() === 'provider-default'}>
                     <ProviderDefaultsView
-                        contentType={props.selectedNode?.id}
+                        mediaType={props.selectedNode?.id}
                         voices={dataOps.voices}
                         loadingVoices={dataOps.loadingVoices}
                         error={commonError()}
@@ -155,53 +159,58 @@ export default function DetailPane(props) {
                 <Match when={activeType() === 'actor' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'actor')}>
                     <ActorView
                         actor={resolvedData()?.actor}
-                        sections={props.sections}
+                        bins={props.bins}
                         operations={dataOps}
                         actorOps={actorOps}
                         sceneOps={sceneOps}
                         viewConfig={activeViewConfig()}
                         groupNode={props.selectedNode}
+                        projectDefaults={globalDefaults.defaults()}
                     />
                 </Match>
 
                 <Match when={activeType() === 'scene' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'scene')}>
                     <SceneView
                         scene={resolvedData()?.scene}
-                        sections={props.sections}
+                        bins={props.bins}
                         operations={dataOps}
                         actorOps={actorOps}
                         sceneOps={sceneOps}
                         viewConfig={activeViewConfig()}
                         groupNode={props.selectedNode}
+                        projectDefaults={globalDefaults.defaults()}
                     />
                 </Match>
 
-                <Match when={activeType() === 'section' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'section')}>
-                    <SectionView
-                        sectionData={resolvedData()?.section}
+                <Match when={activeType() === 'bin' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'bin')}>
+                    <BinView
+                        binData={resolvedData()?.bin}
                         owner={resolvedData()?.owner}
-                        contentType={resolvedData()?.section?.content_type}
+                        mediaType={resolvedData()?.bin?.media_type}
                         operations={dataOps}
                         viewConfig={activeViewConfig()}
                         groupNode={props.selectedNode}
+                        projectDefaults={globalDefaults.defaults()}
                     />
                 </Match>
 
-                <Match when={activeType() === 'content'}>
-                    <ContentView
+                <Match when={activeType() === 'media'}>
+                    <MediaView
                         item={resolvedData()?.item}
                         owner={resolvedData()?.owner}
-                        sections={props.sections}
+                        bin={resolvedData()?.bin}
+                        bins={props.bins}
                         allTakes={props.takes}
-                        onContentUpdated={props.onRefresh}
-                        onSectionUpdated={props.onRefresh}
+                        onMediaUpdated={props.onRefresh}
+                        onBinUpdated={props.onRefresh}
                         onActorUpdated={props.onRefresh}
-                        onContentDeleted={props.onRefresh}
+                        onMediaDeleted={props.onRefresh}
                         onTakesGenerated={props.onRefresh}
                         onTakeUpdated={props.onRefresh}
                         blankSpaceConversion={props.blankSpaceConversion}
                         capitalizationConversion={props.capitalizationConversion}
                         operations={dataOps}
+                        projectDefaults={globalDefaults.defaults()}
                         error={commonError()}
                     />
                 </Match>
@@ -232,9 +241,9 @@ export default function DetailPane(props) {
                         groupNode={props.selectedNode}
                         data={{
                             actors: props.actors,
-                            sections: props.sections,
+                            bins: props.bins,
                             scenes: props.scenes || [],
-                            content: props.content,
+                            media: props.media,
                             takes: props.takes
                         }}
                         operations={dataOps}

@@ -5,7 +5,7 @@ import { z } from 'zod';
 // ============================================================================
 
 export const OwnerTypeSchema = z.enum(['actor', 'scene', 'global']);
-export const ContentTypeSchema = z.enum(['dialogue', 'music', 'sfx', 'image', 'video']);
+export const MediaTypeSchema = z.enum(['dialogue', 'music', 'sfx', 'image', 'video']);
 export const TakeStatusSchema = z.enum(['new', 'approved', 'rejected', 'hidden']);
 export const ProviderSchema = z.enum(['elevenlabs', 'openai', 'runway', 'manual', 'inherit']);
 
@@ -68,7 +68,7 @@ export const DefaultBlocksSchema = z.object({
 // ============================================================================
 
 export type OwnerType = z.infer<typeof OwnerTypeSchema>;
-export type ContentType = z.infer<typeof ContentTypeSchema>;
+export type MediaType = z.infer<typeof MediaTypeSchema>;
 export type TakeStatus = z.infer<typeof TakeStatusSchema>;
 export type Provider = z.infer<typeof ProviderSchema>;
 export type DefaultBlock = z.infer<typeof DefaultBlockSchema>;

@@ -1,21 +1,21 @@
 /**
  * Default Block Resolution
  * 
- * Resolves provider settings for content generation by walking up the
- * inheritance chain: Section → Owner (Actor/Scene) → Global → Hardcoded
+ * Resolves provider settings for media generation by walking up the
+ * inheritance chain: Bin → Owner (Actor/Scene) → Global → Hardcoded
  */
 
-import type { ContentType, DefaultBlock, DefaultBlocks } from '../shared/schemas/index.js';
-import type { Content } from '../shared/schemas/content.schema.js';
+import type { MediaType, DefaultBlock, DefaultBlocks } from '../shared/schemas/index.js';
+import type { Media } from '../shared/schemas/media.schema.js';
 import type { Actor } from '../shared/schemas/actor.schema.js';
 import type { Scene } from '../shared/schemas/scene.schema.js';
-import type { Section } from '../shared/schemas/section.schema.js';
+import type { Bin } from '../shared/schemas/bin.schema.js';
 import type { Defaults } from '../shared/schemas/defaults.schema.js';
 
 /**
  * Hardcoded fallback defaults (used when nothing else is configured)
  */
-const HARDCODED_DEFAULTS: Record<ContentType, DefaultBlock> = {
+const HARDCODED_DEFAULTS: Record<MediaType, DefaultBlock> = {
     dialogue: {
         provider: 'elevenlabs',
         model_id: 'eleven_multilingual_v2',
@@ -57,7 +57,7 @@ const HARDCODED_DEFAULTS: Record<ContentType, DefaultBlock> = {
 
 export type ResolvedBlock = {
     settings: DefaultBlock;
-    resolvedFrom: 'content' | 'section' | 'owner' | 'global' | 'hardcoded';
+    resolvedFrom: 'media' | 'bin' | 'owner' | 'global' | 'hardcoded';
     sourceName?: string;
 };
 
@@ -73,39 +73,32 @@ function mergeTemplates(base: any, overrides: any) {
 }
 
 /**
- * Resolve default block for a content type using property-level inheritance
+ * Resolve default block for a media type using property-level inheritance
  * 
  * Resolution Order:
  * 1. Hardcoded Fallback (Base)
  * 2. Global Defaults
  * 3. Owner (Actor/Scene) Overrides
- * 4. Section Overrides
- * 5. Content Overrides
+ * 4. Bin Overrides
+ * 5. Media Overrides
  * 
  * A property is only overridden if it is explicitly defined and not set to "inherit"
  * (Note: "inherit" primarily applies to the "provider" field in this version)
- * 
- * @param contentType - Type of content being generated
- * @param content - Specific content item (optional overrides)
- * @param section - Section containing the content
- * @param owner - Owner (Actor or Scene) of the section
- * @param globalDefaults - Global defaults from defaults.json
- * @returns Resolved settings and provenance info
  */
 export function resolveDefaultBlock(
-    contentType: ContentType,
-    content?: Content | null,
-    section?: Section | null,
+    mediaType: MediaType,
+    media?: Media | null,
+    bin?: Bin | null,
     owner?: Actor | Scene | null,
     globalDefaults?: Defaults | null
 ): ResolvedBlock {
-    let settings = { ...HARDCODED_DEFAULTS[contentType] };
+    let settings = { ...HARDCODED_DEFAULTS[mediaType] };
     let resolvedFrom: ResolvedBlock['resolvedFrom'] = 'hardcoded';
     let sourceName = 'System Defaults';
 
     // 1. Global Defaults
-    if (globalDefaults?.content_types?.[contentType]) {
-        const globalBlock = globalDefaults.content_types[contentType];
+    if (globalDefaults?.content_types?.[mediaType]) {
+        const globalBlock = globalDefaults.content_types[mediaType];
         const { templates, ...rest } = globalBlock;
         settings = {
             ...settings,
@@ -117,8 +110,8 @@ export function resolveDefaultBlock(
     }
 
     // 2. Owner Overrides
-    if (owner?.default_blocks?.[contentType]) {
-        const ownerBlock = owner.default_blocks[contentType];
+    if (owner?.default_blocks?.[mediaType]) {
+        const ownerBlock = owner.default_blocks[mediaType];
         if (ownerBlock.provider !== 'inherit') {
             const { templates, ...rest } = ownerBlock;
             settings = {
@@ -139,20 +132,20 @@ export function resolveDefaultBlock(
         }
     }
 
-    // 3. Section Overrides
-    if (section?.default_blocks?.[contentType]) {
-        const sectionBlock = section.default_blocks[contentType];
-        if (sectionBlock.provider !== 'inherit') {
-            const { templates, ...rest } = sectionBlock;
+    // 3. Bin Overrides
+    if (bin?.default_blocks?.[mediaType]) {
+        const binBlock = bin.default_blocks[mediaType];
+        if (binBlock.provider !== 'inherit') {
+            const { templates, ...rest } = binBlock;
             settings = {
                 ...settings,
                 ...rest,
                 templates: mergeTemplates(settings.templates, templates)
             };
-            resolvedFrom = 'section';
-            sourceName = section.name;
+            resolvedFrom = 'bin';
+            sourceName = bin.name;
         } else {
-            const { provider, templates, ...rest } = sectionBlock;
+            const { provider, templates, ...rest } = binBlock;
             settings = {
                 ...settings,
                 ...rest,
@@ -161,20 +154,20 @@ export function resolveDefaultBlock(
         }
     }
 
-    // 4. Content Overrides
-    if (content?.default_blocks?.[contentType]) {
-        const contentBlock = content.default_blocks[contentType];
-        if (contentBlock.provider !== 'inherit') {
-            const { templates, ...rest } = contentBlock;
+    // 4. Media Overrides
+    if (media?.default_blocks?.[mediaType]) {
+        const mediaBlock = media.default_blocks[mediaType];
+        if (mediaBlock.provider !== 'inherit') {
+            const { templates, ...rest } = mediaBlock;
             settings = {
                 ...settings,
                 ...rest,
                 templates: mergeTemplates(settings.templates, templates)
             };
-            resolvedFrom = 'content';
-            sourceName = content.name;
+            resolvedFrom = 'media';
+            sourceName = media.name;
         } else {
-            const { provider, templates, ...rest } = contentBlock;
+            const { provider, templates, ...rest } = mediaBlock;
             settings = {
                 ...settings,
                 ...rest,
@@ -192,7 +185,7 @@ export function resolveDefaultBlock(
 
 /**
  * Merge default block with overrides
- * Useful for applying content-specific overrides on top of inherited settings
+ * Useful for applying media-specific overrides on top of inherited settings
  */
 export function mergeDefaultBlocks(
     base: DefaultBlock,
@@ -212,13 +205,13 @@ export function isInheritBlock(block?: DefaultBlock | null): boolean {
 }
 
 /**
- * Get all content types that have default blocks configured
+ * Get all media types that have default blocks configured
  */
-export function getConfiguredContentTypes(
+export function getConfiguredMediaTypes(
     defaultBlocks?: DefaultBlocks | null
-): ContentType[] {
+): MediaType[] {
     if (!defaultBlocks) return [];
     return Object.keys(defaultBlocks).filter(
-        (key) => !isInheritBlock(defaultBlocks[key as ContentType])
-    ) as ContentType[];
+        (key) => !isInheritBlock(defaultBlocks[key as MediaType])
+    ) as MediaType[];
 }

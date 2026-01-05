@@ -2,15 +2,15 @@
  * Asset Type System
  * 
  * Defines the different types of assets that can be managed:
- * - Audio (cues → takes): dialogue, music, sfx
+ * - Audio (media → takes): dialogue, music, sfx
  * - Clips (references → files): images, video
  * - Scripts (scripts → documents): text, pdf, doc
  * 
  * Each asset type has:
- * - A parent type (cue, reference, script)
+ * - A parent type (media, clip, script)
  * - A leaf type (take, file, document)
  * - Supported file extensions
- * - Content types that use this asset type
+ * - Media types that use this asset type
  */
 
 // ============================================================================
@@ -24,8 +24,8 @@ export const ASSET_TYPES = {
     description: 'Voice recordings, music, sound effects',
     
     // Parent-child relationship
-    parentType: 'cue',           // Parent record type (Content)
-    parentField: 'content_id',   // Field linking leaf to parent
+    parentType: 'media',         // Parent record type (Media)
+    parentField: 'media_id',     // Field linking leaf to parent
     leafType: 'take',            // What we call the leaf items
     leafTypePlural: 'takes',
     
@@ -33,8 +33,8 @@ export const ASSET_TYPES = {
     extensions: ['wav', 'mp3', 'flac', 'aiff', 'ogg', 'm4a'],
     mimeTypes: ['audio/wav', 'audio/mpeg', 'audio/flac', 'audio/aiff', 'audio/ogg', 'audio/mp4'],
     
-    // Content types that produce this asset type
-    contentTypes: ['dialogue', 'music', 'sfx'],
+    // Media types that produce this asset type
+    mediaTypes: ['dialogue', 'music', 'sfx'],
     
     // Icons
     icon: 'audio',
@@ -47,14 +47,14 @@ export const ASSET_TYPES = {
     description: 'Images and video clips',
     
     parentType: 'clip',
-    parentField: 'clip_id',
+    parentField: 'media_id',     // Changed to media_id for consistency
     leafType: 'file',
     leafTypePlural: 'files',
     
     extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp4', 'mov', 'avi', 'webm'],
     mimeTypes: ['image/*', 'video/*'],
     
-    contentTypes: ['image', 'video', 'storyboard'],
+    mediaTypes: ['image', 'video', 'storyboard'],
     
     icon: 'clip',
     leafIcon: 'imageFile',
@@ -66,14 +66,14 @@ export const ASSET_TYPES = {
     description: 'Scripts, notes, documentation',
     
     parentType: 'script',
-    parentField: 'script_id',
+    parentField: 'media_id',     // Changed to media_id for consistency
     leafType: 'document',
     leafTypePlural: 'documents',
     
     extensions: ['txt', 'md', 'doc', 'docx', 'pdf', 'rtf'],
     mimeTypes: ['text/*', 'application/pdf', 'application/msword'],
     
-    contentTypes: ['script', 'notes', 'documentation'],
+    mediaTypes: ['script', 'notes', 'documentation'],
     
     icon: 'script',
     leafIcon: 'documentFile',
@@ -81,14 +81,14 @@ export const ASSET_TYPES = {
 };
 
 // ============================================================================
-// Content Type to Asset Type Mapping
+// Media Type to Asset Type Mapping
 // ============================================================================
 
 /**
- * Map content_type to asset type.
- * This determines what kind of leaves a content item has.
+ * Map media_type to asset type.
+ * This determines what kind of leaves a media item has.
  */
-export const CONTENT_TYPE_TO_ASSET = {
+export const MEDIA_TYPE_TO_ASSET = {
   // Audio types → takes
   dialogue: 'audio',
   music: 'audio',
@@ -106,10 +106,10 @@ export const CONTENT_TYPE_TO_ASSET = {
 };
 
 /**
- * Get the asset type for a content type.
+ * Get the asset type for a media type.
  */
-export function getAssetTypeForContent(contentType) {
-  const assetTypeId = CONTENT_TYPE_TO_ASSET[contentType];
+export function getAssetTypeForContent(mediaType) {
+  const assetTypeId = MEDIA_TYPE_TO_ASSET[mediaType];
   return assetTypeId ? ASSET_TYPES[assetTypeId] : ASSET_TYPES.audio;
 }
 
@@ -136,48 +136,48 @@ export function getAssetTypeFromExtension(filename) {
 }
 
 // ============================================================================
-// Section Content Type Constraints
+// Bin Media Type Constraints
 // ============================================================================
 
 /**
- * Defines what content types are allowed in each section type.
- * This enforces: music sections → music cues, dialogue sections → dialogue cues, etc.
+ * Defines what media types are allowed in each bin type.
+ * This enforces: music bins → music media, dialogue bins → dialogue media, etc.
  *
  * High-level buckets:
  * - clips: images or video (and storyboards if present)
  * - documents: scripts, notes, documentation
  * - general: anything
  */
-export const SECTION_CONTENT_CONSTRAINTS = {
-  // Audio sections
+export const BIN_MEDIA_CONSTRAINTS = {
+  // Audio bins
   dialogue: ['dialogue'],
   music: ['music'],
   sfx: ['sfx'],
   
-  // Clips section: images or video (and storyboards if used)
+  // Clips bins: images or video (and storyboards if used)
   clips: ['image', 'video', 'storyboard'],
   
-  // Documents section: scripts, notes, documentation
+  // Documents bins: scripts, notes, documentation
   documents: ['script', 'notes', 'documentation'],
   
-  // General section (allows anything)
-  general: Object.keys(CONTENT_TYPE_TO_ASSET),
+  // General bin (allows anything)
+  general: Object.keys(MEDIA_TYPE_TO_ASSET),
 };
 
 /**
- * Get allowed content types for a section.
+ * Get allowed media types for a bin.
  */
-export function getAllowedContentTypes(sectionContentType) {
-  return SECTION_CONTENT_CONSTRAINTS[sectionContentType] || 
-         SECTION_CONTENT_CONSTRAINTS.general;
+export function getAllowedMediaTypes(binMediaType) {
+  return BIN_MEDIA_CONSTRAINTS[binMediaType] || 
+         BIN_MEDIA_CONSTRAINTS.general;
 }
 
 /**
- * Check if a content type is allowed in a section.
+ * Check if a media type is allowed in a bin.
  */
-export function isContentTypeAllowed(sectionContentType, contentType) {
-  const allowed = getAllowedContentTypes(sectionContentType);
-  return allowed.includes(contentType);
+export function isMediaTypeAllowed(binMediaType, mediaType) {
+  const allowed = getAllowedMediaTypes(binMediaType);
+  return allowed.includes(mediaType);
 }
 
 // ============================================================================

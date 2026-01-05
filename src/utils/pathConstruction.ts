@@ -2,21 +2,21 @@
  * Path Construction Utilities
  * 
  * Constructs file paths for media files based on the v2 schema:
- * {owner_folder}/{content_type}/{section_name}/{name}_{take_number}.{ext}
+ * {owner_folder}/{media_type}/{bin_name}/{name}_{take_number}.{ext}
  */
 
 import { join } from 'path';
-import type { ContentType, OwnerType } from '../shared/schemas/index.js';
+import type { MediaType, OwnerType } from '../shared/schemas/index.js';
 import type { Actor } from '../shared/schemas/actor.schema.js';
 import type { Scene } from '../shared/schemas/scene.schema.js';
-import type { Section } from '../shared/schemas/section.schema.js';
-import type { Content } from '../shared/schemas/content.schema.js';
+import type { Bin } from '../shared/schemas/bin.schema.js';
+import type { Media } from '../shared/schemas/media.schema.js';
 
 /**
- * Get file extension for content type
+ * Get file extension for media type
  */
-export function getExtensionForType(contentType: ContentType): string {
-    switch (contentType) {
+export function getExtensionForType(mediaType: MediaType): string {
+    switch (mediaType) {
         case 'dialogue':
         case 'music':
         case 'sfx':
@@ -64,66 +64,54 @@ export function sanitizeFilename(name: string): string {
 /**
  * Construct full path for a take file
  * 
- * @param content - Content object
- * @param section - Section object
+ * @param media - Media object
+ * @param bin - Bin object
  * @param takeNumber - Take number
  * @param ownerBaseFilename - Base filename for actor (optional)
  * @returns Relative path from project root
- * 
- * @example
- * constructTakePath(content, section, 1, 'john')
- * // → 'actors/john/dialogue/main/hello_001.mp3'
  */
 export function constructTakePath(
-    content: Content,
-    section: Section,
+    media: Media,
+    bin: Bin,
     takeNumber: number,
     ownerBaseFilename?: string
 ): string {
     const ownerFolder = getOwnerFolder(
-        content.owner_type,
-        content.owner_id,
+        media.owner_type,
+        media.owner_id,
         ownerBaseFilename
     );
 
-    const contentType = content.content_type;
-    const sectionName = sanitizeFilename(section.name);
-    const contentName = sanitizeFilename(content.name);
+    const mediaType = media.media_type;
+    const binName = sanitizeFilename(bin.name);
+    const mediaName = sanitizeFilename(media.name);
     const takeNum = String(takeNumber).padStart(3, '0');
-    const ext = getExtensionForType(contentType);
+    const ext = getExtensionForType(mediaType);
 
-    return join(ownerFolder, contentType, sectionName, `${contentName}_${takeNum}.${ext}`);
+    return join(ownerFolder, mediaType, binName, `${mediaName}_${takeNum}.${ext}`);
 }
 
 /**
- * Construct directory path for a section
- * 
- * @example
- * constructSectionPath(section, 'john')
- * // → 'actors/john/dialogue/main'
+ * Construct directory path for a bin
  */
-export function constructSectionPath(
-    section: Section,
+export function constructBinPath(
+    bin: Bin,
     ownerBaseFilename?: string
 ): string {
     const ownerFolder = getOwnerFolder(
-        section.owner_type,
-        section.owner_id,
+        bin.owner_type,
+        bin.owner_id,
         ownerBaseFilename
     );
 
-    const contentType = section.content_type;
-    const sectionName = sanitizeFilename(section.name);
+    const mediaType = bin.media_type;
+    const binName = sanitizeFilename(bin.name);
 
-    return join(ownerFolder, contentType, sectionName);
+    return join(ownerFolder, mediaType, binName);
 }
 
 /**
  * Construct directory path for an owner
- * 
- * @example
- * constructOwnerPath('actor', 'actor_john', 'john')
- * // → 'actors/john'
  */
 export function constructOwnerPath(
     ownerType: OwnerType,
@@ -135,18 +123,13 @@ export function constructOwnerPath(
 
 /**
  * Parse take path to extract components
- * 
- * @example
- * parseTakePath('actors/john/dialogue/main/hello_001.mp3')
- * // → { ownerType: 'actor', ownerId: 'john', contentType: 'dialogue', 
- * //     sectionName: 'main', contentName: 'hello', takeNumber: 1, ext: 'mp3' }
  */
 export function parseTakePath(path: string): {
     ownerType: OwnerType;
     ownerId: string;
-    contentType: string;
-    sectionName: string;
-    contentName: string;
+    mediaType: string;
+    binName: string;
+    mediaName: string;
     takeNumber: number;
     ext: string;
 } | null {
@@ -154,7 +137,7 @@ export function parseTakePath(path: string): {
 
     if (parts.length < 5) return null;
 
-    const [ownerTypeFolder, ownerId, contentType, sectionName, filename] = parts;
+    const [ownerTypeFolder, ownerId, mediaType, binName, filename] = parts;
 
     const ownerType: OwnerType =
         ownerTypeFolder === 'actors' ? 'actor' :
@@ -164,15 +147,15 @@ export function parseTakePath(path: string): {
     const filenameParts = filename.match(/^(.+)_(\d{3})\.([^.]+)$/);
     if (!filenameParts) return null;
 
-    const [, contentName, takeNumStr, ext] = filenameParts;
+    const [, mediaName, takeNumStr, ext] = filenameParts;
     const takeNumber = parseInt(takeNumStr, 10);
 
     return {
         ownerType,
         ownerId,
-        contentType,
-        sectionName,
-        contentName,
+        mediaType,
+        binName,
+        mediaName,
         takeNumber,
         ext,
     };

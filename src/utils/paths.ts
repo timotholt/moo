@@ -29,8 +29,8 @@ export function getProjectPaths(projectRoot: string) {
         catalog: {
             actors: join(mooDir, 'actors.jsonl'),
             scenes: join(mooDir, 'scenes.jsonl'),
-            sections: join(mooDir, 'sections.jsonl'),
-            content: join(mooDir, 'content.jsonl'),
+            bins: join(mooDir, 'bins.jsonl'),
+            media: join(mooDir, 'media.jsonl'),
             takes: join(mooDir, 'takes.jsonl'),
             snapshots: join(mooDir, 'snapshots.jsonl'),
             redoSnapshots: join(mooDir, 'redo-snapshots.jsonl'),

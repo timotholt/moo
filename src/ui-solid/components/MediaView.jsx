@@ -18,13 +18,14 @@ import RefreshIcon from '@suid/icons-material/Refresh';
 import AutoAwesomeIcon from '@suid/icons-material/AutoAwesome';
 import AutoFixHighIcon from '@suid/icons-material/AutoFixHigh';
 import RestartAltIcon from '@suid/icons-material/RestartAlt';
-import { deleteContent, updateContent, updateSection, updateActor, updateScene, updateTake, generateTakes, deleteTake } from '../api/client.js';
+import { deleteMedia, updateMedia, updateBin, updateActor, updateScene, updateTake, generateTakes, deleteTake } from '../api/client.js';
 import CompleteButton from './CompleteButton.jsx';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
-import { buildContentPath, getSectionName } from '../utils/pathBuilder.js';
+import { buildMediaPath } from '../utils/pathBuilder.js';
 import { useLog, usePlayback, useStatus, useCredits } from '../contexts/AppContext.jsx';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
+import { getInheritedSettings } from '../utils/inheritance.js';
 
 // Local storage key for LLM settings
 const LLM_STORAGE_KEY = 'moo-llm-settings';
@@ -42,16 +43,17 @@ function formatStatusDate(isoString) {
     return `${month}/${day} @ ${hours}:${minutes}${ampm}`;
 }
 
-export default function ContentView(props) {
-    // props: item, owner, sections, allTakes, onContentDeleted, onContentUpdated, onSectionUpdated, onActorUpdated, 
-    //        sectionComplete, blankSpaceConversion, capitalizationConversion, onTakesGenerated, onTakeUpdated, error
+export default function MediaView(props) {
+    // props: item, owner, bin, bins, allTakes, onMediaDeleted, onMediaUpdated, onBinUpdated, onActorUpdated, 
+    //        binComplete, blankSpaceConversion, capitalizationConversion, onTakesGenerated, onTakeUpdated, 
+    //        projectDefaults, operations, error
 
     const baseLog = useLog();
     const playback = usePlayback();
     const status = useStatus();
     const credits = useCredits();
 
-    const [confirmDeleteContentOpen, setConfirmDeleteContentOpen] = createSignal(false);
+    const [confirmDeleteMediaOpen, setConfirmDeleteMediaOpen] = createSignal(false);
     const [deleting, setDeleting] = createSignal(false);
     const [localError, setLocalError] = createSignal(null);
 
@@ -67,7 +69,7 @@ export default function ContentView(props) {
 
     // Local takes state
     const filteredTakes = createMemo(() =>
-        (props.allTakes || []).filter(t => t.content_id === props.item.id)
+        (props.allTakes || []).filter(t => t.media_id === props.item.id)
     );
 
     const [optimisticTakes, setOptimisticTakes] = createSignal([]);
@@ -86,6 +88,23 @@ export default function ContentView(props) {
 
     const isDisabled = () => !!props.item.all_approved;
 
+    // Resolve inherited settings for this media item
+    const inheritedSettings = createMemo(() => {
+        return getInheritedSettings(props.item.media_type, {
+            bin: props.bin,
+            owner: props.owner,
+            projectDefaults: props.projectDefaults
+        });
+    });
+
+    const currentBlock = () => props.item.default_blocks?.[props.item.media_type] || { provider: 'inherit' };
+
+    const effectiveSettings = createMemo(() => {
+        const block = currentBlock();
+        if (block.provider === 'inherit') return inheritedSettings();
+        return block;
+    });
+
     // Sync state when item changes
     createEffect(() => {
         const item = props.item;
@@ -95,14 +114,14 @@ export default function ContentView(props) {
         setLocalError(null);
     });
 
-    const handleConfirmDeleteContent = async () => {
+    const handleConfirmDeleteMedia = async () => {
         try {
             setDeleting(true);
             setLocalError(null);
             if (status.onStatusChange) status.onStatusChange('Processing');
-            await deleteContent(props.item.id);
-            if (props.onContentDeleted) props.onContentDeleted(props.item.id);
-            setConfirmDeleteContentOpen(false);
+            await deleteMedia(props.item.id);
+            if (props.onMediaDeleted) props.onMediaDeleted(props.item.id);
+            setConfirmDeleteMediaOpen(false);
         } catch (err) {
             setLocalError(err.message || String(err));
         } finally {
@@ -118,10 +137,10 @@ export default function ContentView(props) {
             if (status.onStatusChange) status.onStatusChange('Processing');
 
             const oldName = field === 'name' ? props.item.name : null;
-            const result = await updateContent(props.item.id, { [field]: value });
+            const result = await updateMedia(props.item.id, { [field]: value });
 
-            if (result.content && props.onContentUpdated) {
-                props.onContentUpdated(result.content, oldName);
+            if (result.media && props.onMediaUpdated) {
+                props.onMediaUpdated(result.media, oldName);
             }
         } catch (err) {
             setLocalError(err.message || String(err));
@@ -157,13 +176,17 @@ export default function ContentView(props) {
                 });
 
                 if (props.onTakeUpdated) props.onTakeUpdated(result.take);
-                if (result.content && props.onContentUpdated) props.onContentUpdated(result.content);
+                if (result.media && props.onMediaUpdated) props.onMediaUpdated(result.media);
 
                 // Log
+                const path = buildMediaPath(
+                    props.item.owner_type,
+                    props.item.owner_id,
+                    props.item.bin_id,
+                    props.item.name,
+                    { actors: props.actors, scenes: props.scenes, bins: props.bins }
+                );
                 const filenameStr = result.take.filename || takeId;
-                const ownerName = props.owner ? (props.owner.display_name || props.owner.name) : 'Global';
-                const sectionName = getSectionName(props.item.section_id, props.sections);
-                const path = buildContentPath(props.item.owner_type, ownerName, sectionName, props.item.name);
 
                 if (newStatus === 'approved') baseLog.logInfo(`user approved ${path} → ${filenameStr}`);
                 else if (newStatus === 'rejected') baseLog.logInfo(`user rejected ${path} → ${filenameStr}`);
@@ -179,7 +202,7 @@ export default function ContentView(props) {
     };
 
     const handleGenerateTakesCount = async (count) => {
-        if (props.sectionComplete || generatingTakes() || count <= 0) return;
+        if (props.binComplete || generatingTakes() || count <= 0) return;
         try {
             setGeneratingTakes(true);
             setLocalError(null);
@@ -240,9 +263,9 @@ export default function ContentView(props) {
                     apiKey: settings.apiKey,
                     model: settings.model,
                     systemPrompt: settings.systemPrompts?.generate || '',
-                    contentName: props.item.name || 'untitled',
+                    mediaName: props.item.name || 'untitled',
                     ownerName: props.owner ? (props.owner.display_name || props.owner.name) : 'Global',
-                    sectionType: props.item.content_type
+                    mediaType: props.item.media_type
                 })
             });
             const data = await res.json();
@@ -272,8 +295,8 @@ export default function ContentView(props) {
                     model: settings.model,
                     systemPrompt: settings.systemPrompts?.improve || '',
                     currentPrompt: prompt(),
-                    contentName: props.item.name || 'untitled',
-                    sectionType: props.item.content_type
+                    mediaName: props.item.name || 'untitled',
+                    mediaType: props.item.media_type
                 })
             });
             const data = await res.json();
@@ -295,11 +318,9 @@ export default function ContentView(props) {
 
     const approvedCount = () => takes().filter(t => t.status === 'approved').length;
     const requiredApprovals = () => {
-        const blocks = props.item.default_blocks || props.owner?.default_blocks || {};
-        const settings = blocks[props.item.content_type] || {};
-        return settings.approval_count_default || 1;
+        return effectiveSettings().approval_count_default || 1;
     };
-    const subtitle = () => `${props.item.owner_type}: ${props.owner ? (props.owner.display_name || props.owner.name) : 'Global'} • type: ${props.item.content_type}`;
+    const subtitle = () => `${props.item.owner_type}: ${props.owner ? (props.owner.display_name || props.owner.name) : 'Global'} • type: ${props.item.media_type}`;
 
     const handleSaveName = () => {
         if (name() !== props.item.name) {
@@ -318,7 +339,7 @@ export default function ContentView(props) {
                         setEditingName(true);
                         setName(props.item.name || '');
                     }}
-                    onDelete={() => setConfirmDeleteContentOpen(true)}
+                    onDelete={() => setConfirmDeleteMediaOpen(true)}
                     editDisabled={isDisabled()}
                     deleteDisabled={isDisabled()}
                     rightActions={
@@ -329,22 +350,26 @@ export default function ContentView(props) {
                                     setSaving(true);
                                     setLocalError(null);
                                     const nextAllApproved = !props.item.all_approved;
-                                    const result = await updateContent(props.item.id, { all_approved: nextAllApproved });
+                                    const result = await updateMedia(props.item.id, { all_approved: nextAllApproved });
 
-                                    if (result.content && props.onContentUpdated) props.onContentUpdated(result.content);
+                                    if (result.media && props.onMediaUpdated) props.onMediaUpdated(result.media);
 
                                     // Logging
-                                    const ownerName = props.owner ? (props.owner.display_name || props.owner.name) : 'Global';
-                                    const sectionName = getSectionName(props.item.section_id, props.sections);
-                                    const path = buildContentPath(props.item.owner_type, ownerName, sectionName, props.item.name);
+                                    const path = buildMediaPath(
+                                        props.item.owner_type,
+                                        props.item.owner_id,
+                                        props.item.bin_id,
+                                        props.item.name,
+                                        { actors: props.actors, scenes: props.scenes, bins: props.bins }
+                                    );
                                     if (nextAllApproved) baseLog.logInfo(`user marked ${path} as complete`);
                                     else baseLog.logInfo(`user marked ${path} as incomplete`);
 
                                     // Cascade incomplete
                                     if (!nextAllApproved) {
-                                        if (props.item.section_id) {
-                                            const sResult = await updateSection(props.item.section_id, { section_complete: false });
-                                            if (sResult.section && props.onSectionUpdated) props.onSectionUpdated(sResult.section);
+                                        if (props.item.bin_id) {
+                                            const bResult = await updateBin(props.item.bin_id, { bin_complete: false });
+                                            if (bResult.bin && props.onBinUpdated) props.onBinUpdated(bResult.bin);
                                         }
                                         if (props.item.owner_id) {
                                             if (props.item.owner_type === 'actor') {
@@ -363,7 +388,7 @@ export default function ContentView(props) {
                                 }
                             }}
                             disabled={saving()}
-                            itemType="cue"
+                            itemType="media"
                             approvedCount={approvedCount()}
                         />
                     }
@@ -415,7 +440,7 @@ export default function ContentView(props) {
 
             {/* Provider Settings Override */}
             <Box sx={{ mt: 2 }}>
-                <Paper variant="outlined" sx={{ overflow: 'hidden', bgcolor: 'background.paper' }}>
+                <Paper variant="outlined" sx={{ overflow: 'hidden', bgcolor: 'background.paper', borderRadius: '8px' }}>
                     <Box
                         sx={{
                             p: 1.5,
@@ -427,14 +452,15 @@ export default function ContentView(props) {
                         }}
                         onClick={() => setSettingsExpanded(!settingsExpanded())}
                     >
-                        <Typography variant="subtitle2" sx={{ fontSize: '0.8rem' }}>Settings Overrides</Typography>
+                        <Typography variant="subtitle2" sx={{ fontSize: '0.8rem', fontWeight: 700 }}>LOCAL SETTINGS OVERRIDES</Typography>
                         {settingsExpanded() ? <ExpandLessIcon sx={{ fontSize: '1.2rem' }} /> : <ExpandMoreIcon sx={{ fontSize: '1.2rem' }} />}
                     </Box>
                     <Collapse in={settingsExpanded()}>
                         <Box sx={{ p: 2 }}>
                             <ProviderSettingsEditor
-                                contentType={props.item.content_type}
-                                settings={props.item.default_blocks?.[props.item.content_type]}
+                                mediaType={props.item.media_type}
+                                settings={currentBlock()}
+                                inheritedSettings={inheritedSettings()}
                                 voices={props.operations?.voices?.() || []}
                                 loadingVoices={props.operations?.loadingVoices?.() || false}
                                 allowInherit={true}
@@ -442,7 +468,7 @@ export default function ContentView(props) {
                                     const currentBlocks = props.item.default_blocks || {};
                                     handleSaveField('default_blocks', {
                                         ...currentBlocks,
-                                        [props.item.content_type]: settings
+                                        [props.item.media_type]: settings
                                     });
                                 }}
                                 error={localError()}
@@ -592,9 +618,8 @@ export default function ContentView(props) {
                 {/* Generate Takes Buttons */}
                 <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
                     {(() => {
-                        const blocks = props.item.default_blocks || props.owner?.default_blocks || {};
-                        const settings = blocks[props.item.content_type] || {};
-                        const voiceMissing = props.item.content_type === 'dialogue' && (!settings || !settings.voice_id);
+                        const settings = effectiveSettings();
+                        const voiceMissing = props.item.media_type === 'dialogue' && (!settings || !settings.voice_id);
                         const disabled = () => isDisabled() || generatingTakes() || voiceMissing;
 
                         // Calculate counts
@@ -674,14 +699,14 @@ export default function ContentView(props) {
             </Box>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={confirmDeleteContentOpen()} onClose={() => setConfirmDeleteContentOpen(false)}>
-                <DialogTitle>Delete Content?</DialogTitle>
+            <Dialog open={confirmDeleteMediaOpen()} onClose={() => setConfirmDeleteMediaOpen(false)}>
+                <DialogTitle>Delete Media?</DialogTitle>
                 <DialogContent>
-                    Are you sure you want to delete this content and all associated takes?
+                    Are you sure you want to delete this media item and all associated takes?
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirmDeleteContentOpen(false)}>Cancel</Button>
-                    <Button onClick={handleConfirmDeleteContent} color="error">Delete</Button>
+                    <Button onClick={() => setConfirmDeleteMediaOpen(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmDeleteMedia} color="error">Delete</Button>
                 </DialogActions>
             </Dialog>
         </Box>

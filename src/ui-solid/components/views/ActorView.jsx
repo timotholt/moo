@@ -1,18 +1,19 @@
 import { createSignal, createMemo, Show } from 'solid-js';
 import {
-    Box, Typography, TextField, Stack, Paper,
+    Box, Typography, Stack, Paper,
     Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button
 } from '@suid/material';
+import TextInput from '../TextInput.jsx';
 import DetailHeader from '../DetailHeader.jsx';
 import CompleteButton from '../CompleteButton.jsx';
-import SectionManagement from '../SectionManagement.jsx';
-import ProviderSettingsEditor from '../ProviderSettingsEditor.jsx';
+import BinManagement from '../BinManagement.jsx';
+import DefaultBlockManager from '../DefaultBlockManager.jsx';
 
 import { DIMENSIONS } from '../../utils/viewEngine.js';
 import AddIcon from '@suid/icons-material/Add';
 
 export default function ActorView(props) {
-    // props: actor, sections, operations (useDataOperations result), viewConfig, groupNode
+    // props: actor, bins, operations (useDataOperations result), viewConfig, groupNode, projectDefaults
 
     const nextLevel = createMemo(() => {
         if (!props.viewConfig || !props.groupNode) return null;
@@ -70,7 +71,6 @@ export default function ActorView(props) {
 
         try {
             for (const name of names) {
-                // 1. Create the scene and link it directly to this actor
                 await props.sceneOps.createScene({
                     name,
                     actor_ids: [props.actor.id]
@@ -78,7 +78,6 @@ export default function ActorView(props) {
             }
         } catch (err) {
             console.error('[ActorView] Error in batch scene creation:', err);
-            // TODO: Show error toast
         } finally {
             setBatchSceneNames('');
         }
@@ -107,20 +106,21 @@ export default function ActorView(props) {
             />
 
             <Stack spacing={4} sx={{ mt: 2 }}>
-                {/* Context-Aware Fast Track */}
                 <Show when={nextLevelDim()?.id === 'scene_id'}>
                     <Paper sx={{ p: 3, borderRadius: '8px', border: '2px solid', borderColor: 'primary.light', bgcolor: 'action.hover' }}>
                         <Typography variant="subtitle2" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1, color: 'primary.main' }}>
                             Fast Track: Add Scenes for this Actor
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Enter scene names (comma-separated) to automatically create scenes and linked cues for {props.actor.display_name}.
+                            Enter scene names (comma-separated) to automatically create scenes and linked media for {props.actor.display_name}.
                         </Typography>
                         <Stack direction="row" spacing={2}>
-                            <TextField
+                            <TextInput
                                 fullWidth
                                 size="small"
-                                placeholder="e.g. Opening Scene, Forest Chase, Finale" on:input={(e) => setBatchSceneNames(e.target.value)}
+                                placeholder="e.g. Opening Scene, Forest Chase, Finale"
+                                value={batchSceneNames()}
+                                onValueChange={setBatchSceneNames}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddScenes()}
                             />
                             <Button
@@ -145,44 +145,34 @@ export default function ActorView(props) {
                     </Typography>
                 </Box>
 
-                {/* Default Blocks */}
-                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-                    <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
-                        <Typography variant="subtitle2">Default Voice Settings (Dialogue)</Typography>
-                    </Box>
-                    <Box sx={{ p: 2 }}>
-                        <ProviderSettingsEditor
-                            contentType="dialogue"
-                            settings={props.actor.default_blocks?.dialogue}
-                            voices={props.operations.voices()}
-                            loadingVoices={props.operations.loadingVoices()}
-                            allowInherit={true}
-                            onSettingsChange={(settings) => {
-                                const current = props.actor.default_blocks || {};
-                                props.operations.updateActorField(props.actor.id, {
-                                    default_blocks: { ...current, dialogue: settings }
-                                });
-                            }}
-                        />
-                    </Box>
-                </Box>
+                <DefaultBlockManager
+                    owner={props.actor}
+                    ownerType="actor"
+                    parent={null}
+                    projectDefaults={props.projectDefaults}
+                    voices={props.operations.voices()}
+                    loadingVoices={props.operations.loadingVoices()}
+                    onUpdate={(newBlocks) => {
+                        props.operations.updateActorField(props.actor.id, {
+                            default_blocks: newBlocks
+                        });
+                    }}
+                />
 
-                {/* Section Management */}
                 <Box>
                     <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                        {nextLevelDim()?.id === 'section_id' ? 'Manage Cues/Sections' : 'Dialogue Cues'}
+                        {nextLevelDim()?.id === 'bin_id' ? 'Manage Media/Bins' : 'Dialogue Media'}
                     </Typography>
-                    <SectionManagement
+                    <BinManagement
                         owner={props.actor}
                         ownerType="actor"
-                        sections={props.sections}
-                        onCreateSection={props.operations.createSection}
-                        creatingContent={props.operations.creatingContent()}
+                        bins={props.bins}
+                        onCreateBin={props.operations.createBin}
+                        creatingMedia={props.operations.creatingMedia()}
                     />
                 </Box>
             </Stack>
 
-            {/* Delete Confirmation Dialog */}
             <Dialog
                 open={deleteDialogOpen()}
                 onClose={() => setDeleteDialogOpen(false)}
@@ -191,7 +181,7 @@ export default function ActorView(props) {
                 <DialogContent>
                     <DialogContentText>
                         Are you sure you want to delete <strong>{props.actor.display_name}</strong>?
-                        This will delete all sections, content, and takes associated with this actor.
+                        This will delete all bins, media, and takes associated with this actor.
                         This action cannot be undone.
                     </DialogContentText>
                 </DialogContent>

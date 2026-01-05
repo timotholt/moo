@@ -111,8 +111,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
       const jsonlFiles = [
         'actors.jsonl',
         'scenes.jsonl',
-        'sections.jsonl',
-        'content.jsonl',
+        'bins.jsonl',
+        'media.jsonl',
         'takes.jsonl',
         'snapshots.jsonl'
       ];

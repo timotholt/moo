@@ -37,7 +37,7 @@ function launchConfettiForItemType(itemType, event, { isFinalActor = false } = {
     const colors = ['#ffffff', '#8bc34a', '#c5e1a5', '#aed581'];
 
     let particleCount = 24;
-    if (itemType === 'section') particleCount = 48;
+    if (itemType === 'bin') particleCount = 48;
     else if (itemType === 'actor') particleCount = 120; // denser for actors
 
     const createParticle = (startX, startY, maxDistance, sizeBase, durationMs = 600) => {
@@ -72,8 +72,8 @@ function launchConfettiForItemType(itemType, event, { isFinalActor = false } = {
 
     // Base burst around the button
     for (let i = 0; i < particleCount; i++) {
-        const sizeBase = itemType === 'actor' ? 6 : itemType === 'section' ? 5 : 4;
-        const maxDistance = itemType === 'actor' ? Math.max(window.innerWidth, window.innerHeight) : itemType === 'section' ? 200 : 120;
+        const sizeBase = itemType === 'actor' ? 6 : itemType === 'bin' ? 5 : 4;
+        const maxDistance = itemType === 'actor' ? Math.max(window.innerWidth, window.innerHeight) : itemType === 'bin' ? 200 : 120;
         createParticle(originX, originY, maxDistance, sizeBase, itemType === 'actor' ? 900 : 600);
     }
 
@@ -99,7 +99,7 @@ function launchConfettiForItemType(itemType, event, { isFinalActor = false } = {
 export default function CompleteButton(props) {
     // Props: isComplete, onToggle, disabled, itemType, approvedCount, disabledReason, isFinalActor
 
-    // For cues, require at least one approved take before marking complete
+    // For media, require at least one approved take before marking complete
     const canMarkComplete = () => props.approvedCount === null || props.approvedCount === undefined || props.approvedCount > 0;
 
     const isDisabled = () => props.disabled || (!props.isComplete && !canMarkComplete());
@@ -113,7 +113,7 @@ export default function CompleteButton(props) {
             return props.disabledReason;
         }
         if (!canMarkComplete()) {
-            return 'At least one take must be approved before marking this cue complete';
+            return 'At least one take must be approved before marking this media complete';
         }
         return `Mark this ${props.itemType || 'item'} as complete`;
     };

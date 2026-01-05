@@ -9,7 +9,7 @@ import type { OwnerType } from '../shared/schemas/index.js';
 export interface PathContext {
   actors?: Array<{ id: string; display_name: string }>;
   scenes?: Array<{ id: string; name: string }>;
-  sections?: Array<{ id: string; owner_id: string | null; owner_type: OwnerType; name?: string; content_type: string }>;
+  bins?: Array<{ id: string; owner_id: string | null; owner_type: OwnerType; name?: string; media_type: string }>;
 }
 
 /**
@@ -45,30 +45,30 @@ export function buildScenePath(sceneName: string): string {
 }
 
 /**
- * Build a display path for a section
+ * Build a display path for a bin
  */
-export function buildSectionPath(
+export function buildBinPath(
   ownerType: OwnerType,
   ownerId: string | null,
-  sectionName: string,
+  binName: string,
   ctx: PathContext
 ): string {
   const ownerName = getOwnerDisplayName(ownerType, ownerId, ctx);
-  return `${ownerType} → ${ownerName} → ${sectionName}`;
+  return `${ownerType} → ${ownerName} → ${binName}`;
 }
 
 /**
- * Build a display path for content (cue/clip/image/track)
+ * Build a display path for media (cue/clip/image/track)
  */
-export function buildContentPath(
+export function buildMediaPath(
   ownerType: OwnerType,
   ownerId: string | null,
-  sectionId: string,
-  contentName: string,
+  binId: string,
+  mediaName: string,
   ctx: PathContext
 ): string {
   const ownerName = getOwnerDisplayName(ownerType, ownerId, ctx);
-  const section = ctx.sections?.find(s => s.id === sectionId);
-  const sectionName = section?.name || section?.content_type || 'unknown section';
-  return `${ownerType} → ${ownerName} → ${sectionName} → ${contentName}`;
+  const bin = ctx.bins?.find(b => b.id === binId);
+  const binName = bin?.name || bin?.media_type || 'unknown bin';
+  return `${ownerType} → ${ownerName} → ${binName} → ${mediaName}`;
 }

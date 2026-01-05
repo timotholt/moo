@@ -1,5 +1,6 @@
 import { createSignal } from 'solid-js';
-import { Box, Typography, TextField, Button, Stack, Divider } from '@suid/material';
+import { Box, Typography, Button, Stack, Divider } from '@suid/material';
+import TextInput from '../TextInput.jsx';
 
 export default function RootView(props) {
     // props: actorOps, sceneOps, error
@@ -32,11 +33,12 @@ export default function RootView(props) {
                     Add New Actor
                 </Typography>
                 <Stack direction="row" spacing={1}>
-                    <TextField
+                    <TextInput
                         fullWidth
                         size="small"
                         placeholder="Actor name (e.g. Hero, Narrator)"
-                        on:input={(e) => setActorName(e.target.value)}
+                        value={actorName()}
+                        onValueChange={setActorName}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddActor()}
                     />
                     <Button
@@ -58,11 +60,12 @@ export default function RootView(props) {
                     Add New Scene
                 </Typography>
                 <Stack direction="row" spacing={1}>
-                    <TextField
+                    <TextInput
                         fullWidth
                         size="small"
                         placeholder="Scene name (e.g. Intro, Battle_01)"
-                        on:input={(e) => setSceneName(e.target.value)}
+                        value={sceneName()}
+                        onValueChange={setSceneName}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddScene()}
                     />
                     <Button

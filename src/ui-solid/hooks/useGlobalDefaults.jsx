@@ -21,13 +21,13 @@ export function useGlobalDefaults() {
         }
     };
 
-    const updateDefaults = async (contentType, newSettings) => {
+    const updateDefaults = async (mediaType, newSettings) => {
         // Update local state immediately
         const current = defaults();
         const updated = {
             ...(current || {}),
-            [contentType]: {
-                ...(current?.[contentType] || {}),
+            [mediaType]: {
+                ...(current?.[mediaType] || {}),
                 ...newSettings,
             },
         };
@@ -39,7 +39,7 @@ export function useGlobalDefaults() {
             debounceTimer = setTimeout(async () => {
                 try {
                     setError(null);
-                    const result = await updateGlobalDefaults(contentType, newSettings);
+                    const result = await updateGlobalDefaults(mediaType, newSettings);
                     setDefaults(result.defaults);
                     resolve(result);
                 } catch (err) {

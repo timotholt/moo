@@ -10,10 +10,10 @@ export const DIMENSIONS = [
   { id: 'owner_type', name: 'Owner Type', icon: 'folder', labelMap: { actor: 'Actors', scene: 'Scenes', global: 'Global' } },
   { id: 'scene_id', name: 'Scene', icon: 'folder', displayField: 'scene_name' },
   { id: 'actor_id', name: 'Actor', icon: 'person', displayField: 'actor_name' },
-  { id: 'section_id', name: 'Cue / Section', icon: 'folder', displayField: 'section_name' },
-  { id: 'content_type', name: 'Type', icon: 'type', labelMap: { dialogue: 'Dialogue', music: 'Music', sfx: 'SFX', image: 'Image', video: 'Video' } },
+  { id: 'bin_id', name: 'Media Bin', icon: 'folder', displayField: 'bin_name' },
+  { id: 'media_type', name: 'Type', icon: 'type', labelMap: { dialogue: 'Dialogue', music: 'Music', sfx: 'SFX', image: 'Image', video: 'Video' } },
   { id: 'status', name: 'Status', icon: 'status' },
-  { id: 'content_id', name: 'Content / Take', icon: 'content', displayField: 'name', isTerminal: true },
+  { id: 'media_id', name: 'Media / Take', icon: 'content', displayField: 'name', isTerminal: true },
 ];
 
 export function getStickyName(view) {
@@ -36,8 +36,8 @@ export const PRESET_VIEWS = {
     levels: [
       { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
       { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
-      { field: 'section_id', displayField: 'section_name', icon: 'folder' },
-      { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true },
+      { field: 'bin_id', displayField: 'bin_name', icon: 'folder' },
+      { field: 'media_id', displayField: 'name', icon: 'content', isTerminal: true },
     ]
   },
   'by-scene': {
@@ -47,8 +47,8 @@ export const PRESET_VIEWS = {
     levels: [
       { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
       { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
-      { field: 'section_id', displayField: 'section_name', icon: 'folder' },
-      { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true },
+      { field: 'bin_id', displayField: 'bin_name', icon: 'folder' },
+      { field: 'media_id', displayField: 'name', icon: 'content', isTerminal: true },
     ]
   },
   'unapproved': {
@@ -64,7 +64,7 @@ export const PRESET_VIEWS = {
         '__none__': 'No Takes'
       }},
       { field: 'owner_id', displayField: 'owner_name', icon: 'person' },
-      { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true },
+      { field: 'media_id', displayField: 'name', icon: 'content', isTerminal: true },
     ]
   }
 };
@@ -73,24 +73,24 @@ export const PRESET_VIEWS = {
 // Asset Index Builder
 // ============================================================================
 
-export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
+export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
   const actorsById = new Map(actors.map(a => [a.id, a]));
-  const sectionsById = new Map(sections.map(s => [s.id, s]));
+  const binsById = new Map(bins.map(s => [s.id, s]));
   const scenesById = new Map(scenes.map(sc => [sc.id, sc]));
   
-  const takesByContentId = new Map();
+  const takesByMediaId = new Map();
   for (const take of takes) {
-    if (!takesByContentId.has(take.content_id)) takesByContentId.set(take.content_id, []);
-    takesByContentId.get(take.content_id).push(take);
+    if (!takesByMediaId.has(take.media_id)) takesByMediaId.set(take.media_id, []);
+    takesByMediaId.get(take.media_id).push(take);
   }
 
   const index = [];
   const seenActorIds = new Set();
   const seenSceneIds = new Set();
 
-  // 1. Process Content
-  for (const c of content) {
-    const s = sectionsById.get(c.section_id);
+  // 1. Process Media
+  for (const m of media) {
+    const b = binsById.get(m.bin_id);
     
     // Resolve owner details
     let ownerName = 'Global';
@@ -99,58 +99,58 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
     let sceneId = null;
     let sceneName = null;
 
-    if (c.owner_type === 'actor') {
-        const a = actorsById.get(c.owner_id);
+    if (m.owner_type === 'actor') {
+        const a = actorsById.get(m.owner_id);
         ownerName = a?.display_name || 'Unknown Actor';
-        actorId = c.owner_id;
+        actorId = m.owner_id;
         actorName = ownerName;
         if (actorId) seenActorIds.add(actorId);
-    } else if (c.owner_type === 'scene') {
-        const sc = scenesById.get(c.owner_id);
+    } else if (m.owner_type === 'scene') {
+        const sc = scenesById.get(m.owner_id);
         ownerName = sc?.name || 'Unknown Scene';
-        sceneId = c.owner_id;
+        sceneId = m.owner_id;
         sceneName = ownerName;
         if (sceneId) seenSceneIds.add(sceneId);
     }
 
-    if (!sceneId && s?.scene_id) {
-        const sc = scenesById.get(s.scene_id);
-        sceneId = s.scene_id;
+    if (!sceneId && b?.scene_id) {
+        const sc = scenesById.get(b.scene_id);
+        sceneId = b.scene_id;
         sceneName = sc?.name || 'Unknown Scene';
         if (sceneId) seenSceneIds.add(sceneId);
     }
 
-    const contentTakes = takesByContentId.get(c.id) || [];
+    const mediaTakes = takesByMediaId.get(m.id) || [];
 
     const baseRecord = {
-      content_id: c.id,
-      name: c.name || 'untitled',
-      prompt: c.prompt,
-      content_type: c.content_type || 'unknown',
-      section_id: c.section_id,
-      section_name: s?.name || 'Unknown Section',
-      owner_type: c.owner_type,
-      owner_id: c.owner_id,
+      media_id: m.id,
+      name: m.name || 'untitled',
+      prompt: m.prompt,
+      media_type: m.media_type || 'unknown',
+      bin_id: m.bin_id,
+      bin_name: b?.name || 'Unknown Bin',
+      owner_type: m.owner_type,
+      owner_id: m.owner_id,
       owner_name: ownerName,
       scene_id: sceneId,
       scene_name: sceneName,
       actor_id: actorId,
       actor_name: actorName,
-      asset_type: getAssetTypeForContent(c.content_type)?.id || 'audio',
-      leaf_type: getAssetTypeForContent(c.content_type)?.leafType || 'take',
-      _content: c,
-      _section: s,
+      asset_type: getAssetTypeForContent(m.media_type)?.id || 'audio',
+      leaf_type: getAssetTypeForContent(m.media_type)?.leafType || 'take',
+      _media: m,
+      _bin: b,
     };
 
-    if (contentTakes.length === 0) {
+    if (mediaTakes.length === 0) {
       index.push({
         ...baseRecord,
-        id: `content-${c.id}`,
+        id: `media-${m.id}`,
         take_id: null,
         status: '__none__',
       });
     } else {
-      for (const take of contentTakes) {
+      for (const take of mediaTakes) {
         index.push({
           ...baseRecord,
           id: take.id,
@@ -166,45 +166,45 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
     }
   }
 
-  // 1.5 Process Sections (Shells for sections that might not have content yet)
-  for (const s of sections) {
+  // 1.5 Process Bins (Shells for bins that might not have media yet)
+  for (const b of bins) {
     let ownerName = 'Global';
     let actorId = null;
     let actorName = null;
     let sceneId = null;
     let sceneName = null;
 
-    if (s.owner_type === 'actor') {
-        const a = actorsById.get(s.owner_id);
+    if (b.owner_type === 'actor') {
+        const a = actorsById.get(b.owner_id);
         ownerName = a?.display_name || 'Unknown Actor';
-        actorId = s.owner_id;
+        actorId = b.owner_id;
         actorName = ownerName;
         if (actorId) seenActorIds.add(actorId); // Mark actor as seen so we don't duplicate shell
-    } else if (s.owner_type === 'scene') {
-        const sc = scenesById.get(s.owner_id);
+    } else if (b.owner_type === 'scene') {
+        const sc = scenesById.get(b.owner_id);
         ownerName = sc?.name || 'Unknown Scene';
-        sceneId = s.owner_id;
+        sceneId = b.owner_id;
         sceneName = ownerName;
         if (sceneId) seenSceneIds.add(sceneId);
     }
 
-    if (!sceneId && s.scene_id) {
-        const sc = scenesById.get(s.scene_id);
-        sceneId = s.scene_id;
+    if (!sceneId && b.scene_id) {
+        const sc = scenesById.get(b.scene_id);
+        sceneId = b.scene_id;
         sceneName = sc?.name || 'Unknown Scene';
         if (sceneId) seenSceneIds.add(sceneId);
     }
 
-    // Check if this section is already represented by content?
+    // Check if this bin is already represented by media?
     // Actually, adding a shell entry is fine, it just adds to the group options.
-    // It is safer to add it to ensure the Section Node exists with correct metadata.
+    // It is safer to add it to ensure the Bin Node exists with correct metadata.
     
     index.push({
-      id: `shell-section-${s.id}`,
-      section_id: s.id,
-      section_name: s.name || s.content_type,
-      owner_type: s.owner_type,
-      owner_id: s.owner_id,
+      id: `shell-bin-${b.id}`,
+      bin_id: b.id,
+      bin_name: b.name || b.media_type,
+      owner_type: b.owner_type,
+      owner_id: b.owner_id,
       owner_name: ownerName,
       scene_id: sceneId,
       scene_name: sceneName,
@@ -212,7 +212,7 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
       actor_name: actorName,
       status: '__empty__',
       asset_type: 'audio', // default
-      // No content_id
+      // No media_id
     });
   }
 
@@ -261,7 +261,7 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
       }
     }
   }
-  console.log(`[ViewEngine] Building Asset Index: ${actors.length} actors, ${sections.length} sections, ${content.length} content, ${takes.length} takes, ${scenes.length} scenes`);
+  console.log(`[ViewEngine] Building Asset Index: ${actors.length} actors, ${bins.length} bins, ${media.length} media, ${takes.length} takes, ${scenes.length} scenes`);
   
   // LOG: Show first few items for debugging
   if (index.length > 0) {
@@ -279,7 +279,7 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
   if (!items || items.length === 0) return [];
   
   if (depth >= levels.length) {
-    return items.filter(i => i.content_id).map(item => { // Don't show shell items as leaves
+    return items.filter(i => i.media_id).map(item => { // Don't show shell items as leaves
       const assetType = ASSET_TYPES[item.asset_type] || ASSET_TYPES.audio;
       let label = item.filename;
       if (!label) {
@@ -430,8 +430,8 @@ export function applyFilters(asset, filter) {
 export function buildViewTree(viewId, data, customViews = []) {
   const view = getViewById(viewId, customViews);
   if (!view) return [];
-  const { actors = [], sections = [], content = [], takes = [], scenes = [] } = data;
-  let assets = buildAssetIndex(actors, sections, content, takes, scenes);
+  const { actors = [], bins = [], media = [], takes = [], scenes = [] } = data;
+  let assets = buildAssetIndex(actors, bins, media, takes, scenes);
 
   if (view.filter) {
     assets = assets.filter(a => applyFilters(a, view.filter));

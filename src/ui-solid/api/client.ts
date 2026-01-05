@@ -2,8 +2,8 @@ import { z } from 'zod';
 import {
   ActorSchema,
   SceneSchema,
-  SectionSchema,
-  ContentSchema,
+  BinSchema,
+  MediaSchema,
   TakeSchema,
   DefaultsSchema
 } from '../../shared/schemas/index.js';
@@ -97,96 +97,96 @@ export async function deleteScene(id: string) {
 }
 
 /**
- * Sections
+ * Bins
  */
-export async function getSections() {
-  const data = await fetchJson('/api/sections');
+export async function getBins() {
+  const data = await fetchJson('/api/bins');
   return {
-    sections: z.array(SectionSchema).parse(data.sections)
+    bins: z.array(BinSchema).parse(data.bins)
   };
 }
 
-export async function createSection(payload: any) {
-  const res = await fetch('/api/sections', {
+export async function createBin(payload: any) {
+  const res = await fetch('/api/bins', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Failed to create section`);
+  if (!res.ok) throw new Error(`Failed to create bin`);
   const data = (await res.json()) as any;
-  return { section: SectionSchema.parse(data.section) };
+  return { bin: BinSchema.parse(data.bin) };
 }
 
-export async function updateSection(id: string, payload: any) {
-  const res = await fetch(`/api/sections/${encodeURIComponent(id)}`, {
+export async function updateBin(id: string, payload: any) {
+  const res = await fetch(`/api/bins/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Failed to update section`);
+  if (!res.ok) throw new Error(`Failed to update bin`);
   const data = (await res.json()) as any;
-  return { section: SectionSchema.parse(data.section) };
+  return { bin: BinSchema.parse(data.bin) };
 }
 
-export async function deleteSection(id: string) {
-  const res = await fetch(`/api/sections/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete section`);
+export async function deleteBin(id: string) {
+  const res = await fetch(`/api/bins/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete bin`);
 }
 
 /**
- * Content
+ * Media
  */
-export async function getContent(params: { ownerId?: string, ownerType?: string, type?: string, sectionId?: string } = {}) {
+export async function getMedia(params: { ownerId?: string, ownerType?: string, type?: string, binId?: string } = {}) {
   const urlParams = new URLSearchParams();
   if (params.ownerId) urlParams.set('ownerId', params.ownerId);
   if (params.ownerType) urlParams.set('ownerType', params.ownerType);
   if (params.type) urlParams.set('type', params.type);
-  if (params.sectionId) urlParams.set('sectionId', params.sectionId);
+  if (params.binId) urlParams.set('binId', params.binId);
 
-  const data = await fetchJson(`/api/content${urlParams.toString() ? '?' + urlParams : ''}`);
+  const data = await fetchJson(`/api/media${urlParams.toString() ? '?' + urlParams : ''}`);
   return {
-    content: z.array(ContentSchema).parse(data.content)
+    media: z.array(MediaSchema).parse(data.media)
   };
 }
 
-export async function createContent(payload: any) {
-  const res = await fetch('/api/content', {
+export async function createMedia(payload: any) {
+  const res = await fetch('/api/media', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Failed to create content`);
+  if (!res.ok) throw new Error(`Failed to create media`);
   const data = (await res.json()) as any;
   return {
-    content: Array.isArray(data.content)
-      ? z.array(ContentSchema).parse(data.content)
-      : ContentSchema.parse(data.content),
+    media: Array.isArray(data.media)
+      ? z.array(MediaSchema).parse(data.media)
+      : MediaSchema.parse(data.media),
     duplicates_skipped: data.duplicates_skipped as string[] | undefined,
     message: data.message as string | undefined
   };
 }
 
-export async function updateContent(id: string, payload: any) {
-  const res = await fetch(`/api/content/${encodeURIComponent(id)}`, {
+export async function updateMedia(id: string, payload: any) {
+  const res = await fetch(`/api/media/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`Failed to update content`);
+  if (!res.ok) throw new Error(`Failed to update media`);
   const data = (await res.json()) as any;
-  return { content: ContentSchema.parse(data.content) };
+  return { media: MediaSchema.parse(data.media) };
 }
 
-export async function deleteContent(id: string) {
-  const res = await fetch(`/api/content/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete content`);
+export async function deleteMedia(id: string) {
+  const res = await fetch(`/api/media/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete media`);
 }
 
 /**
  * Takes
  */
-export async function getTakes(contentId?: string) {
-  const params = contentId ? `?contentId=${encodeURIComponent(contentId)}` : '';
+export async function getTakes(mediaId?: string) {
+  const params = mediaId ? `?mediaId=${encodeURIComponent(mediaId)}` : '';
   const data = await fetchJson(`/api/takes${params}`);
   return {
     takes: z.array(TakeSchema).parse(data.takes)
@@ -209,8 +209,8 @@ export async function deleteTake(id: string) {
   if (!res.ok && res.status !== 204) throw new Error(`Failed to delete take`);
 }
 
-export async function generateTakes(contentId: string, count = 1) {
-  const res = await fetch(`/api/content/${encodeURIComponent(contentId)}/generate`, {
+export async function generateTakes(mediaId: string, count = 1) {
+  const res = await fetch(`/api/media/${encodeURIComponent(mediaId)}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ count }),
@@ -243,13 +243,13 @@ export async function updateGlobalDefaults(payload: any) {
   return { defaults: DefaultsSchema.parse(data.defaults) };
 }
 
-export async function updateContentTypeDefaults(contentType: string, settings: any) {
-  const res = await fetch(`/api/defaults/${encodeURIComponent(contentType)}`, {
+export async function updateMediaTypeDefaults(mediaType: string, settings: any) {
+  const res = await fetch(`/api/defaults/${encodeURIComponent(mediaType)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });
-  if (!res.ok) throw new Error(`Failed to update content type defaults`);
+  if (!res.ok) throw new Error(`Failed to update media type defaults`);
   const data = (await res.json()) as any;
   return { defaults: DefaultsSchema.parse(data.defaults) };
 }
@@ -333,22 +333,22 @@ export async function switchProject(name: string) {
 /**
  * Batch operations
  */
-export async function previewBackfillTakes(options: { ownerId?: string, ownerType?: string, sectionId?: string, contentId?: string } = {}) {
+export async function previewBackfillTakes(options: { ownerId?: string, ownerType?: string, binId?: string, mediaId?: string } = {}) {
   const params = new URLSearchParams();
   if (options.ownerId) params.set('owner_id', options.ownerId);
   if (options.ownerType) params.set('owner_type', options.ownerType);
-  if (options.sectionId) params.set('section_id', options.sectionId);
-  if (options.contentId) params.set('content_id', options.contentId);
+  if (options.binId) params.set('bin_id', options.binId);
+  if (options.mediaId) params.set('media_id', options.mediaId);
 
   return fetchJson(`/api/batch/backfill-takes/preview?${params}`);
 }
 
-export async function backfillTakes(options: { ownerId?: string, ownerType?: string, sectionId?: string, contentId?: string } = {}) {
+export async function backfillTakes(options: { ownerId?: string, ownerType?: string, binId?: string, mediaId?: string } = {}) {
   const params = new URLSearchParams();
   if (options.ownerId) params.set('owner_id', options.ownerId);
   if (options.ownerType) params.set('owner_type', options.ownerType);
-  if (options.sectionId) params.set('section_id', options.sectionId);
-  if (options.contentId) params.set('content_id', options.contentId);
+  if (options.binId) params.set('bin_id', options.binId);
+  if (options.mediaId) params.set('media_id', options.mediaId);
 
   const res = await fetch(`/api/batch/backfill-takes?${params}`, { method: 'POST' });
   if (!res.ok) {
