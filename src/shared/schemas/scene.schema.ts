@@ -13,6 +13,9 @@ export const SceneSchema = z.object({
     // Default blocks for scene-level content
     default_blocks: DefaultBlocksSchema,
 
+    // Performance/Cast: Actors involved in this scene
+    actor_ids: z.array(IdSchema).default([]),
+
     // Completion tracking
     scene_complete: z.boolean().default(false),
 

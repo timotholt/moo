@@ -231,19 +231,41 @@ export function buildAssetIndex(actors, sections, content, takes, scenes = []) {
     }
   }
 
-  // 3. Add Shell Entries for Empty Scenes
+  // 3. Add Shell Entries for Scenes
   for (const scene of scenes) {
     if (!seenSceneIds.has(scene.id)) {
-      index.push({
+      const baseShell = {
         owner_type: 'scene',
         owner_id: scene.id,
         owner_name: scene.name,
         scene_id: scene.id,
         scene_name: scene.name,
-        status: '__empty__',
-        id: `shell-scene-${scene.id}`
-      });
+        status: '__empty__'
+      };
+
+      if (scene.actor_ids && Array.isArray(scene.actor_ids) && scene.actor_ids.length > 0) {
+        for (const actorId of scene.actor_ids) {
+          const actor = actorsById.get(actorId);
+          index.push({
+            ...baseShell,
+            id: `shell-scene-${scene.id}-actor-${actorId}`,
+            actor_id: actorId,
+            actor_name: actor?.display_name || 'Unknown Actor'
+          });
+        }
+      } else {
+        index.push({
+          ...baseShell,
+          id: `shell-scene-${scene.id}`
+        });
+      }
     }
+  }
+  console.log(`[ViewEngine] Building Asset Index: ${actors.length} actors, ${sections.length} sections, ${content.length} content, ${takes.length} takes, ${scenes.length} scenes`);
+  
+  // LOG: Show first few items for debugging
+  if (index.length > 0) {
+    console.log('[ViewEngine] Sample Index Item:', index[0]);
   }
   
   return index;
@@ -278,11 +300,19 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
   
   const level = levels[depth];
   const groups = new Map();
-  const UNASSIGNED_KEY = '__unassigned__';
   
   for (const item of items) {
     const rawValue = item[level.field];
-    const key = (rawValue === null || rawValue === undefined || rawValue === '') ? UNASSIGNED_KEY : String(rawValue);
+    
+    // STRICT HIERARCHY:
+    // If an item is missing the value for the REQUIRED tree level, 
+    // it is excluded from this specific branch of the tree.
+    // This prevents "Unknown" ghost folders.
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+      continue;
+    }
+    
+    const key = String(rawValue);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   }
@@ -290,9 +320,11 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
   const nodes = [];
   for (const [key, children] of groups) {
     let label = key;
-    if (key === UNASSIGNED_KEY) label = `Unknown ${level.field.replace('_id', '')}`;
-    else if (level.labelMap && level.labelMap[key]) label = level.labelMap[key];
-    else if (level.displayField && children[0]) label = children[0][level.displayField] || key;
+    if (level.labelMap && level.labelMap[key]) {
+      label = level.labelMap[key];
+    } else if (level.displayField && children[0]) {
+      label = children[0][level.displayField] || key;
+    }
     
     const currentId = `${level.field}:${key}`;
     const fullId = parentPath ? `${parentPath}/${currentId}` : currentId;
@@ -400,10 +432,12 @@ export function buildViewTree(viewId, data, customViews = []) {
   if (!view) return [];
   const { actors = [], sections = [], content = [], takes = [], scenes = [] } = data;
   let assets = buildAssetIndex(actors, sections, content, takes, scenes);
-  
+
   if (view.filter) {
     assets = assets.filter(a => applyFilters(a, view.filter));
   }
   
-  return groupByLevels(assets, view.levels);
+  const tree = groupByLevels(assets, view.levels);
+  console.log(`[ViewEngine] Built Tree for "${viewId}" (${view.name || 'Untitled'}): ${tree.length} root nodes`);
+  return tree;
 }

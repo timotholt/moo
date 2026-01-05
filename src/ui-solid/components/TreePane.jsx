@@ -22,6 +22,7 @@ import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { TREE_INDENT } from '../constants.js';
 import ViewTree from './ViewTree.jsx';
 import { PRESET_VIEWS, buildViewTree, getAllViews, getStickyName } from '../utils/viewEngine.js';
+import { storage } from '../utils/storage.js';
 import Collapse from './Collapse.jsx';
 
 function nodeKey(type, id) {
@@ -33,25 +34,15 @@ export default function TreePane(props) {
 
     // --- Persistence ---
     const [expanded, setExpanded] = createSignal((() => {
-        try {
-            const saved = localStorage.getItem('moo-tree-expanded');
-            return saved ? JSON.parse(saved) : { views: true, favorites: true };
-        } catch (e) {
-            return { views: true, favorites: true };
-        }
+        return storage.get(props.projectName, 'tree-expanded', { views: true, favorites: true });
     })());
 
     const [pinnedIds, setPinnedIds] = createSignal((() => {
-        try {
-            const saved = localStorage.getItem('moo-pinned-views');
-            return saved ? JSON.parse(saved) : ["by-actor"];
-        } catch (e) {
-            return ["by-actor"];
-        }
+        return storage.get(props.projectName, 'pinned-views', ["by-actor"]);
     })());
 
     const saveExpanded = (newState) => {
-        localStorage.setItem('moo-tree-expanded', JSON.stringify(newState));
+        storage.set(props.projectName, 'tree-expanded', newState);
     };
 
     const handleToggle = (key) => {
@@ -66,7 +57,7 @@ export default function TreePane(props) {
         e.stopPropagation();
         setPinnedIds(prev => {
             const newState = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id];
-            localStorage.setItem('moo-pinned-views', JSON.stringify(newState));
+            storage.set(props.projectName, 'pinned-views', newState);
             return newState;
         });
     };

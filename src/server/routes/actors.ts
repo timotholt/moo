@@ -2,7 +2,7 @@ import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Actor, Take, Section, Content, Defaults } from '../../types/index.js';
-import { ActorSchema } from '../../shared/schemas/index.js';
+import { ActorSchema, SceneSchema } from '../../shared/schemas/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { validate, validateReferences } from '../../utils/validation.js';
@@ -232,10 +232,17 @@ export function registerActorRoutes(fastify: FastifyInstance, getProjectContext:
     const takes = await readJsonl<Take>(paths.catalog.takes);
     const remainingTakes = takes.filter((t) => !removedContentIds.has(t.content_id));
 
+    // Update all scenes to remove this actor from their actor_ids list
+    const updatedScenes = catalog.scenes.map(s => ({
+      ...s,
+      actor_ids: s.actor_ids ? s.actor_ids.filter((aid: string) => aid !== id) : []
+    }));
+
     await writeJsonlAll(paths.catalog.actors, remainingActors, ActorSchema);
-    await writeJsonlAll(paths.catalog.sections, remainingSections); // Schema for section added later
-    await writeJsonlAll(paths.catalog.content, remainingContent);   // Schema for content added later
-    await writeJsonlAll(paths.catalog.takes, remainingTakes);       // Schema for take added later
+    await writeJsonlAll(paths.catalog.scenes, updatedScenes, SceneSchema);
+    await writeJsonlAll(paths.catalog.sections, remainingSections);
+    await writeJsonlAll(paths.catalog.content, remainingContent);
+    await writeJsonlAll(paths.catalog.takes, remainingTakes);
 
     reply.code(204);
     return null;

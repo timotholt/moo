@@ -7,6 +7,8 @@ import { useAppLog } from '../hooks/useAppLog.js';
 import { useUndoStack } from '../hooks/useUndoStack.js';
 import { useConsoleCapture } from '../hooks/useConsoleCapture.js';
 import { AppProvider } from '../contexts/AppContext.jsx';
+import { storage } from '../utils/storage.js';
+import { PRESET_VIEWS } from '../utils/viewEngine.js';
 
 export default function ProjectShell(props) {
     const [actors, setActors] = createSignal([]);
@@ -15,28 +17,22 @@ export default function ProjectShell(props) {
     const [takes, setTakes] = createSignal([]);
     const [scenes, setScenes] = createSignal([]);
     const [customViews, setCustomViews] = createSignal((() => {
-        try {
-            const saved = localStorage.getItem('moo-custom-views');
-            if (!saved) return [];
+        const key = 'custom-views';
+        let saved = storage.get(props.currentProject.name, key);
 
-            const parsed = JSON.parse(saved);
-
-            // Deduplicate by ID (keep first occurrence)
-            const seen = new Set();
-            const deduplicated = parsed.filter(view => {
-                if (seen.has(view.id)) return false;
-                seen.add(view.id);
-                return true;
-            });
-
-            // Save back deduplicated version
-            localStorage.setItem('moo-custom-views', JSON.stringify(deduplicated));
-
-            return deduplicated;
-        } catch (e) {
-            console.error('Failed to load custom views:', e);
-            return [];
+        // If first time/empty, initialize with presets
+        if (!saved || (Array.isArray(saved) && saved.length === 0)) {
+            saved = Object.values(PRESET_VIEWS);
+            storage.set(props.currentProject.name, key, saved);
         }
+
+        // Deduplicate by ID just in case
+        const seen = new Set();
+        return saved.filter(view => {
+            if (seen.has(view.id)) return false;
+            seen.add(view.id);
+            return true;
+        });
     })());
 
     const [loading, setLoading] = createSignal(true);
@@ -45,14 +41,7 @@ export default function ProjectShell(props) {
     const [expandNode, setExpandNode] = createSignal(null);
 
     // Resizable tree pane
-    const [treePaneWidth, setTreePaneWidth] = createSignal((() => {
-        try {
-            const saved = localStorage.getItem('moo-tree-pane-width');
-            return saved ? parseInt(saved, 10) : 300;
-        } catch (e) {
-            return 300;
-        }
-    })());
+    const [treePaneWidth, setTreePaneWidth] = createSignal(storage.get(props.currentProject.name, 'tree-pane-width', 300));
     const [isResizing, setIsResizing] = createSignal(false);
     let containerRef;
 
@@ -85,22 +74,14 @@ export default function ProjectShell(props) {
         }
     };
 
-    // Save tree width to localStorage
-
+    // Save tree width to storage
     createEffect(() => {
-        try {
-            localStorage.setItem('moo-tree-pane-width', String(treePaneWidth()));
-        } catch (e) {
-            console.warn('Failed to save tree pane width:', e);
-        }
+        storage.set(props.currentProject.name, 'tree-pane-width', treePaneWidth());
     });
 
+    // Save custom views to storage
     createEffect(() => {
-        try {
-            localStorage.setItem('moo-custom-views', JSON.stringify(customViews()));
-        } catch (e) {
-            console.warn('Failed to save custom views:', e);
-        }
+        storage.set(props.currentProject.name, 'custom-views', customViews());
     });
 
     // Handle resize drag
@@ -216,6 +197,7 @@ export default function ProjectShell(props) {
                             sections={sections()}
                             takes={takes()}
                             scenes={scenes()}
+                            projectName={props.currentProject.name}
                             customViews={customViews()}
                             onCustomViewsChange={setCustomViews}
                             selectedNode={selectedNode()}

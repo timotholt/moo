@@ -78,6 +78,7 @@ export function registerSceneRoutes(fastify: FastifyInstance, getProjectContext:
             name: body.name,
             description: body.description || '',
             default_blocks: body.default_blocks || defaultBlocks,
+            actor_ids: body.actor_ids || [],
             scene_complete: false,
             created_at: now,
             updated_at: now,

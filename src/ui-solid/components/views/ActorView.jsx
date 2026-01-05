@@ -70,13 +70,11 @@ export default function ActorView(props) {
 
         try {
             for (const name of names) {
-                // 1. Create the scene
-                const sceneResult = await props.sceneOps.createScene({ name });
-                const sceneId = sceneResult?.scene?.id;
-
-                if (!sceneId) {
-                    console.error('[ActorView] Failed to get valid scene ID from result:', sceneResult);
-                }
+                // 1. Create the scene and link it directly to this actor
+                await props.sceneOps.createScene({
+                    name,
+                    actor_ids: [props.actor.id]
+                });
             }
         } catch (err) {
             console.error('[ActorView] Error in batch scene creation:', err);

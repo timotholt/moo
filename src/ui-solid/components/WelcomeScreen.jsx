@@ -4,6 +4,7 @@ import FolderOpenIcon from '@suid/icons-material/FolderOpen';
 import DeleteIcon from '@suid/icons-material/Delete';
 import { getProjects, createProject, switchProject, deleteProject } from '../api/client.js';
 import TextInput from './TextInput.jsx';
+import { storage } from '../utils/storage.js';
 
 export default function WelcomeScreen(props) {
     const [projects, setProjects] = createSignal([]);
@@ -93,6 +94,8 @@ export default function WelcomeScreen(props) {
             setDeleting(true);
             setError(null);
             await deleteProject(project.name);
+            // Clear all project-scoped metadata from localStorage
+            storage.clearProject(project.name);
             await loadProjects();
             setDeleteDialogOpen(false);
             setProjectToDelete(null);

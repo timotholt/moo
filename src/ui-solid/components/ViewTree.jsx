@@ -23,6 +23,7 @@ import ArticleIcon from '@suid/icons-material/Article';
 import InsertDriveFileIcon from '@suid/icons-material/InsertDriveFile';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { TREE_INDENT } from '../constants.js';
+import { storage } from '../utils/storage.js';
 import Collapse from './Collapse.jsx';
 
 function getIconForType(iconType, fieldValue, contentType, fileIcon) {
@@ -187,27 +188,17 @@ function TreeNode(props) {
 }
 
 export default function ViewTree(props) {
-    const storageKey = () => `moo-view-expanded-${props.viewId}`;
+    const storageKey = () => `view-expanded-${props.viewId}`;
 
     const loadExpandedState = () => {
-        try {
-            const saved = localStorage.getItem(storageKey());
-            if (saved) return JSON.parse(saved);
-        } catch (e) {
-            console.warn('Failed to load view state:', e);
-        }
-        return {};
+        return storage.get(props.projectName, storageKey(), {});
     };
 
     const [expanded, setExpanded] = createSignal(loadExpandedState());
 
     // Persistence Effect
     createEffect(() => {
-        try {
-            localStorage.setItem(storageKey(), JSON.stringify(expanded()));
-        } catch (e) {
-            console.warn('Failed to save view state:', e);
-        }
+        storage.set(props.projectName, storageKey(), expanded());
     });
 
     // Programmatic Expansion Effect

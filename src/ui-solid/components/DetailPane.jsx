@@ -218,6 +218,8 @@ export default function DetailPane(props) {
                         onDelete={() => {
                             const next = props.customViews.filter(v => v.id !== props.selectedNode.id);
                             props.onCustomViewsChange(next);
+                            // Clear selection after deletion to prevent crash
+                            props.onSelect(null);
                         }}
                         operations={dataOps}
                         actorOps={actorOps}

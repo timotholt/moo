@@ -39,6 +39,14 @@ export function validateReferences(data: any, catalog: any): ReferenceValidation
         errors.push(`Invalid scene_id: ${data.scene_id}`);
     }
 
+    if (data.actor_ids && Array.isArray(data.actor_ids)) {
+        for (const id of data.actor_ids) {
+            if (!catalog.actors.some((a: any) => a.id === id)) {
+                errors.push(`Invalid actor_id in actor_ids: ${id}`);
+            }
+        }
+    }
+
     if (data.section_id && !catalog.sections.some((s: any) => s.id === data.section_id)) {
         errors.push(`Invalid section_id: ${data.section_id}`);
     }

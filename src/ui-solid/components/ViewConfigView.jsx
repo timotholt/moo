@@ -137,7 +137,7 @@ export default function ViewConfigView(props) {
         setFilters(Array.isArray(preset.filter) ? [...preset.filter] : []);
     };
 
-    const isPreset = createMemo(() => !!PRESET_VIEWS[props.view.id]);
+    const isPreset = createMemo(() => props.view?.id ? !!PRESET_VIEWS[props.view.id] : false);
 
     const getIcon = (iconName) => {
         const sx = { fontSize: '1rem' };

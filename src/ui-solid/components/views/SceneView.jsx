@@ -37,9 +37,20 @@ export default function SceneView(props) {
         const names = parsedActorNames();
         if (names.length === 0) return;
 
+        const newActorIds = [];
         for (const name of names) {
             // 1. Create the actor
-            await props.actorOps.createActor({ display_name: name });
+            const actorResult = await props.actorOps.createActor({ display_name: name });
+            const actorId = actorResult?.actor?.id;
+            if (actorId) newActorIds.push(actorId);
+        }
+
+        if (newActorIds.length > 0) {
+            // 2. Link actors to this scene directly
+            const currentIds = props.scene.actor_ids || [];
+            await props.sceneOps.updateScene(props.scene.id, {
+                actor_ids: Array.from(new Set([...currentIds, ...newActorIds]))
+            });
         }
         setBatchActorNames('');
     };
