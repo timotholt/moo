@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, createEffect } from 'solid-js';
+import { createSignal, createMemo, For, createEffect, Show, on } from 'solid-js';
 import {
     Box, Typography, TextField, Button, List, IconButton, Paper, Divider,
     ToggleButtonGroup, ToggleButton, Select, MenuItem, FormControl, InputLabel, Stack
@@ -13,24 +13,37 @@ import FolderIcon from '@suid/icons-material/Folder';
 import RecordVoiceOverIcon from '@suid/icons-material/RecordVoiceOver';
 import SettingsIcon from '@suid/icons-material/Settings';
 import AssessmentIcon from '@suid/icons-material/Assessment';
-
+import EditIcon from '@suid/icons-material/Edit';
+import CheckIcon from '@suid/icons-material/Check';
+import CloseIcon from '@suid/icons-material/Close';
 import { DIMENSIONS, getStickyName } from '../utils/viewEngine.js';
+import Collapse from './Collapse.jsx';
 
 export default function ViewConfigView(props) {
-    // props: view, onUpdate, onDelete
+    // props: view, onUpdate, onDelete, operations, actorOps, sceneOps
 
-    const [name, setName] = createSignal(props.view.name);
-    const [levels, setLevels] = createSignal([...props.view.levels]);
-    const [filters, setFilters] = createSignal(Array.isArray(props.view.filter) ? [...props.view.filter] : []);
+    // Use a unique key for the view instance to reset signals ONLY when switching views
+    const [name, setName] = createSignal('');
+    const [levels, setLevels] = createSignal([]);
+    const [filters, setFilters] = createSignal([]);
+    const [quickAddValue, setQuickAddValue] = createSignal('');
 
-    // Reset signals when switching views
-    createEffect(() => {
-        setName(props.view.name);
+    const [editingName, setEditingName] = createSignal(false);
+    const [hierarchyExpanded, setHierarchyExpanded] = createSignal(true);
+    const [filtersExpanded, setFiltersExpanded] = createSignal(true);
+
+    // Initial sync and sync on view ID change
+    createEffect(on(() => props.view?.id, (id) => {
+        if (!props.view) return;
+        setName(props.view.name || '');
         setLevels([...props.view.levels]);
         setFilters(Array.isArray(props.view.filter) ? [...props.view.filter] : []);
-    });
+        setEditingName(false);
+        setQuickAddValue('');
+    }, { defer: false }));
 
-    const displayTitle = createMemo(() => getStickyName({ name: name(), levels: levels() }));
+    const stickyName = createMemo(() => getStickyName({ name: '', levels: levels() }));
+    const displayTitle = createMemo(() => name() || stickyName());
 
     const handleSave = () => {
         props.onUpdate({
@@ -39,6 +52,37 @@ export default function ViewConfigView(props) {
             levels: levels(),
             filter: filters()
         });
+    };
+
+    const nextLevelType = createMemo(() => {
+        const first = levels()[0];
+        if (!first) return null;
+        if (first.field === 'actor_id' || (first.field === 'owner_id' && first.labelMap?.actor)) return 'actor';
+        if (first.field === 'scene_id' || (first.field === 'owner_id' && first.labelMap?.scene)) return 'scene';
+        if (first.field === 'owner_type') return 'actor'; // Default to actor for owner_type
+        return null;
+    });
+
+    const quickAddNames = createMemo(() => {
+        return quickAddValue().split(',').map(s => s.trim()).filter(s => s.length > 0);
+    });
+
+    const handleQuickAdd = async (e) => {
+        if (e) e.preventDefault();
+        const type = nextLevelType();
+        const names = quickAddNames();
+        if (names.length === 0) return;
+
+        if (type === 'actor') {
+            for (const n of names) {
+                await props.actorOps.createActor({ display_name: n });
+            }
+        } else if (type === 'scene') {
+            for (const n of names) {
+                await props.sceneOps.createScene({ name: n });
+            }
+        }
+        setQuickAddValue('');
     };
 
     const moveLevel = (index, direction) => {
@@ -97,184 +141,259 @@ export default function ViewConfigView(props) {
     };
 
     return (
-        <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box>
-                    <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>{displayTitle()}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Configure how this {props.view.category} bins and organizes your project data.
-                    </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={props.onDelete}>
-                        Delete
-                    </Button>
-                    <Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={handleSave}>
-                        Save Changes
-                    </Button>
-                </Box>
-            </Box>
-
-            <Paper sx={{ p: 3, mb: 3, borderRadius: '8px' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Identity
-                </Typography>
-                <TextField
-                    fullWidth
-                    label="Custom Name"
-                    placeholder={`Leave blank to use "${getStickyName({ name: '', levels: levels() })}"`}
-                    value={name()}
-                    onInput={(e) => setName(e.target.value)}
-                    variant="outlined"
-                    sx={{ mb: 1 }}
-                />
-                <Typography variant="caption" color="text.secondary">
-                    Changes here only affect the sidebar label. The logic remains purely based on the hierarchy below.
-                </Typography>
-            </Paper>
-
-            <Paper sx={{ p: 3, borderRadius: '8px' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Grouping Hierarchy
-                </Typography>
-
-                <List sx={{ mb: 3 }}>
-                    <For each={levels()}>
-                        {(level, idx) => (
-                            <Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', py: 1, gap: 2 }}>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 24 }}>
-                                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main' }}>{idx() + 1}</Typography>
-                                    </Box>
-
-                                    <Paper variant="outlined" sx={{ flexGrow: 1, p: '8px 16px', display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'action.hover' }}>
-                                        {getIcon(level.icon)}
-                                        <Typography variant="body1" sx={{ fontWeight: 600, flexGrow: 1 }}>
-                                            {DIMENSIONS.find(d => d.id === level.field)?.name || level.field}
-                                        </Typography>
-
-                                        <Box sx={{ display: 'flex' }}>
-                                            <IconButton size="small" onClick={() => moveLevel(idx(), -1)} disabled={idx() === 0}>
-                                                <ArrowUpwardIcon fontSize="small" />
-                                            </IconButton>
-                                            <IconButton size="small" onClick={() => moveLevel(idx(), 1)} disabled={idx() === levels().length - 1}>
-                                                <ArrowDownwardIcon fontSize="small" />
-                                            </IconButton>
-                                            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-                                            <IconButton size="small" color="error" onClick={() => removeLevel(idx())}>
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </Box>
-                                    </Paper>
-                                </Box>
-                                {idx() < levels().length - 1 && (
-                                    <Box sx={{ ml: '44px', borderLeft: '2px dashed', borderColor: 'divider', height: 16 }} />
-                                )}
+        <Show when={props.view}>
+            <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto' }}>
+                {/* Header Section */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                        <Show when={editingName()} fallback={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="h5" fontWeight={700}>{displayTitle()}</Typography>
+                                <IconButton size="small" onClick={() => setEditingName(true)}>
+                                    <EditIcon fontSize="small" />
+                                </IconButton>
                             </Box>
-                        )}
-                    </For>
-
-                    {levels().length === 0 && (
-                        <Typography sx={{ py: 2, textAlign: 'center', color: 'text.disabled', fontStyle: 'italic' }}>
-                            No grouping levels defined. This view will show a flat list.
-                        </Typography>
-                    )}
-                </List>
-
-                <Box sx={{ mt: 2 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1 }}>
-                        Add Dimension
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        <For each={availableDimensions()}>
-                            {(dim) => (
-                                <Button
+                        }>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 400 }}>
+                                <TextField
                                     size="small"
-                                    variant="outlined"
-                                    startIcon={<AddIcon fontSize="small" />}
-                                    onClick={() => addLevel(dim.id)}
-                                    sx={{ borderRadius: '16px' }}
-                                >
-                                    {dim.name}
-                                </Button>
-                            )}
-                        </For>
+                                    fullWidth
+                                    value={name()}
+                                    placeholder={stickyName()}
+                                    onInput={(e) => setName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') setEditingName(false);
+                                        if (e.key === 'Escape') { setName(props.view.name); setEditingName(false); }
+                                    }}
+                                    autoFocus
+                                />
+                                <IconButton size="small" color="primary" onClick={() => setEditingName(false)}>
+                                    <CheckIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={() => { setName(props.view.name); setEditingName(false); }}>
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
+                            </Box>
+                        </Show>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                            (if left blank "{stickyName()}" is used)
+                        </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={props.onDelete}>
+                            Delete
+                        </Button>
+                        <Button variant="contained" color="primary" startIcon={<SaveIcon />} onClick={handleSave}>
+                            Save Changes
+                        </Button>
                     </Box>
                 </Box>
-            </Paper>
 
-            <Paper sx={{ p: 3, mt: 3, borderRadius: '8px' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Filters (Selection Criteria)
-                    </Typography>
-                    <Button size="small" startIcon={<AddIcon />} onClick={addFilter}>
-                        Add Rule
-                    </Button>
-                </Box>
-
-                <Show when={filters().length > 0} fallback={
-                    <Typography sx={{ py: 2, textAlign: 'center', color: 'text.disabled', fontStyle: 'italic', fontSize: '0.85rem' }}>
-                        No filters active. Showing all project items.
-                    </Typography>
-                }>
-                    <Stack spacing={2}>
-                        <For each={filters()}>
-                            {(filter, idx) => (
-                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                    <FormControl size="small" sx={{ width: 140 }}>
-                                        <InputLabel>Field</InputLabel>
-                                        <Select
-                                            value={filter.field}
-                                            label="Field"
-                                            onChange={(e) => updateFilter(idx(), { field: e.target.value })}
-                                        >
-                                            <For each={DIMENSIONS}>
-                                                {(dim) => <MenuItem value={dim.id}>{dim.name}</MenuItem>}
-                                            </For>
-                                        </Select>
-                                    </FormControl>
-
-                                    <FormControl size="small" sx={{ width: 120 }}>
-                                        <InputLabel>Operator</InputLabel>
-                                        <Select
-                                            value={filter.op}
-                                            label="Operator"
-                                            onChange={(e) => updateFilter(idx(), { op: e.target.value })}
-                                        >
-                                            <MenuItem value="eq">is</MenuItem>
-                                            <MenuItem value="ne">is not</MenuItem>
-                                            <MenuItem value="contains">contains</MenuItem>
-                                            <MenuItem value="regex">regex</MenuItem>
-                                        </Select>
-                                    </FormControl>
-
-                                    <TextField
-                                        size="small"
-                                        label="Value"
-                                        sx={{ flexGrow: 1 }}
-                                        value={filter.value}
-                                        onInput={(e) => updateFilter(idx(), { value: e.target.value })}
-                                    />
-
-                                    <IconButton size="small" color="error" onClick={() => removeFilter(idx())}>
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                </Box>
-                            )}
-                        </For>
-                    </Stack>
+                {/* Smart Add Section */}
+                <Show when={nextLevelType()}>
+                    <Paper sx={{ mb: 3, borderRadius: '8px', overflow: 'hidden', border: '1px solid', borderColor: 'primary.main', bgcolor: 'primary.main', opacity: 0.05, position: 'absolute', pointerEvents: 'none', inset: 0, zIndex: -1 }} />
+                    <Paper sx={{ mb: 4, borderRadius: '8px', overflow: 'hidden', boxShadow: 3, border: '2px solid', borderColor: 'primary.light' }}>
+                        <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                Fast Track: Create {nextLevelType() === 'actor' ? 'Actors' : 'Scenes'}
+                            </Typography>
+                        </Box>
+                        <Box sx={{ p: 3 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Type one or more names separated by commas (e.g. <b>John, Paul, Mary</b>) to batch create them into this project.
+                            </Typography>
+                            <Stack direction="row" spacing={2} alignItems="flex-start">
+                                <TextField
+                                    fullWidth
+                                    size="medium"
+                                    placeholder={nextLevelType() === 'actor' ? "Enter actor names..." : "Enter scene names..."}
+                                    value={quickAddValue()}
+                                    onInput={(e) => setQuickAddValue(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+                                    sx={{ bgcolor: 'background.paper' }}
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    size="large"
+                                    onClick={handleQuickAdd}
+                                    disabled={quickAddNames().length === 0}
+                                    startIcon={<AddIcon />}
+                                    sx={{ height: '40px', px: 4, fontWeight: 700 }}
+                                >
+                                    Add {nextLevelType() === 'actor' ? 'Actor' : 'Scene'}{quickAddNames().length > 1 ? `s (${quickAddNames().length})` : ''}
+                                </Button>
+                            </Stack>
+                        </Box>
+                    </Paper>
                 </Show>
-                <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 1 }}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center' }}>Presets:</Typography>
-                    <Button size="small" variant="text" onClick={() => setFilters([{ field: 'status', op: 'ne', value: 'approved' }])}>
-                        Only Unapproved
-                    </Button>
-                    <Button size="small" variant="text" onClick={() => setFilters([{ field: 'status', op: 'eq', value: 'approved' }])}>
-                        Only Approved
-                    </Button>
-                </Box>
-            </Paper>
-        </Box>
+
+                {/* Hierarchy Section */}
+                <Paper sx={{ mb: 3, borderRadius: '8px', overflow: 'hidden' }}>
+                    <Box
+                        onClick={() => setHierarchyExpanded(!hierarchyExpanded())}
+                        sx={{ p: 2, bgcolor: 'action.hover', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                    >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Grouping Hierarchy
+                        </Typography>
+                        {hierarchyExpanded() ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
+                    </Box>
+
+                    <Collapse in={hierarchyExpanded()}>
+                        <Box sx={{ p: 3 }}>
+                            <List sx={{ mb: 3 }}>
+                                <For each={levels()}>
+                                    {(level, idx) => (
+                                        <Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', py: 1, gap: 2 }}>
+                                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 24 }}>
+                                                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main' }}>{idx() + 1}</Typography>
+                                                </Box>
+
+                                                <Paper variant="outlined" sx={{ flexGrow: 1, p: '8px 16px', display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'action.hover' }}>
+                                                    {getIcon(level.icon)}
+                                                    <Typography variant="body1" sx={{ fontWeight: 600, flexGrow: 1 }}>
+                                                        {DIMENSIONS.find(d => d.id === level.field)?.name || level.field}
+                                                    </Typography>
+
+                                                    <Box sx={{ display: 'flex' }}>
+                                                        <IconButton size="small" onClick={() => moveLevel(idx(), -1)} disabled={idx() === 0}>
+                                                            <ArrowUpwardIcon fontSize="small" />
+                                                        </IconButton>
+                                                        <IconButton size="small" onClick={() => moveLevel(idx(), 1)} disabled={idx() === levels().length - 1}>
+                                                            <ArrowDownwardIcon fontSize="small" />
+                                                        </IconButton>
+                                                        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                                                        <IconButton size="small" color="error" onClick={() => removeLevel(idx())}>
+                                                            <DeleteIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Paper>
+                                            </Box>
+                                            {idx() < levels().length - 1 && (
+                                                <Box sx={{ ml: '44px', borderLeft: '2px dashed', borderColor: 'divider', height: 16 }} />
+                                            )}
+                                        </Box>
+                                    )}
+                                </For>
+
+                                {levels().length === 0 && (
+                                    <Typography sx={{ py: 2, textAlign: 'center', color: 'text.disabled', fontStyle: 'italic' }}>
+                                        No grouping levels defined. This view will show a flat list.
+                                    </Typography>
+                                )}
+                            </List>
+
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1 }}>
+                                    Add Dimension
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                    <For each={availableDimensions()}>
+                                        {(dim) => (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<AddIcon fontSize="small" />}
+                                                onClick={() => addLevel(dim.id)}
+                                                sx={{ borderRadius: '16px' }}
+                                            >
+                                                {dim.name}
+                                            </Button>
+                                        )}
+                                    </For>
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Collapse>
+                </Paper>
+
+                {/* Filters Section */}
+                <Paper sx={{ mb: 3, borderRadius: '8px', overflow: 'hidden' }}>
+                    <Box
+                        onClick={() => setFiltersExpanded(!filtersExpanded())}
+                        sx={{ p: 2, bgcolor: 'action.hover', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                    >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Filters (Selection Criteria)
+                        </Typography>
+                        {filtersExpanded() ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
+                    </Box>
+
+                    <Collapse in={filtersExpanded()}>
+                        <Box sx={{ p: 3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                                <Button size="small" startIcon={<AddIcon />} onClick={addFilter}>
+                                    Add Rule
+                                </Button>
+                            </Box>
+
+                            <Show when={filters().length > 0} fallback={
+                                <Typography sx={{ py: 2, textAlign: 'center', color: 'text.disabled', fontStyle: 'italic', fontSize: '0.85rem' }}>
+                                    No filters active. Showing all project items.
+                                </Typography>
+                            }>
+                                <Stack spacing={2}>
+                                    <For each={filters()}>
+                                        {(filter, idx) => (
+                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                                <FormControl size="small" sx={{ width: 140 }}>
+                                                    <InputLabel>Field</InputLabel>
+                                                    <Select
+                                                        value={filter.field}
+                                                        label="Field"
+                                                        onChange={(e) => updateFilter(idx(), { field: e.target.value })}
+                                                    >
+                                                        <For each={DIMENSIONS}>
+                                                            {(dim) => <MenuItem value={dim.id}>{dim.name}</MenuItem>}
+                                                        </For>
+                                                    </Select>
+                                                </FormControl>
+
+                                                <FormControl size="small" sx={{ width: 120 }}>
+                                                    <InputLabel>Operator</InputLabel>
+                                                    <Select
+                                                        value={filter.op}
+                                                        label="Operator"
+                                                        onChange={(e) => updateFilter(idx(), { op: e.target.value })}
+                                                    >
+                                                        <MenuItem value="eq">is</MenuItem>
+                                                        <MenuItem value="ne">is not</MenuItem>
+                                                        <MenuItem value="contains">contains</MenuItem>
+                                                        <MenuItem value="regex">regex</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+
+                                                <TextField
+                                                    size="small"
+                                                    label="Value"
+                                                    sx={{ flexGrow: 1 }}
+                                                    value={filter.value}
+                                                    onInput={(e) => updateFilter(idx(), { value: e.target.value })}
+                                                />
+
+                                                <IconButton size="small" color="error" onClick={() => removeFilter(idx())}>
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Box>
+                                        )}
+                                    </For>
+                                </Stack>
+                            </Show>
+                            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 1 }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center' }}>Presets:</Typography>
+                                <Button size="small" variant="text" onClick={() => setFilters([{ field: 'status', op: 'ne', value: 'approved' }])}>
+                                    Only Unapproved
+                                </Button>
+                                <Button size="small" variant="text" onClick={() => setFilters([{ field: 'status', op: 'eq', value: 'approved' }])}>
+                                    Only Approved
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Collapse>
+                </Paper>
+            </Box>
+        </Show>
     );
 }

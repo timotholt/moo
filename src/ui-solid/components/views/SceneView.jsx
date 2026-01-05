@@ -1,19 +1,49 @@
-import { createSignal, Show } from 'solid-js';
-import {
-    Box, Typography, TextField, Stack,
-    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button
-} from '@suid/material';
-import DetailHeader from '../DetailHeader.jsx';
-import CompleteButton from '../CompleteButton.jsx';
-import SectionManagement from '../SectionManagement.jsx';
-import ProviderSettingsEditor from '../ProviderSettingsEditor.jsx';
+import { createMemo } from 'solid-js';
+import { DIMENSIONS } from '../../utils/viewEngine.js';
+import AddIcon from '@suid/icons-material/Add';
 
 export default function SceneView(props) {
-    // props: scene, sections, operations (useDataOperations result)
+    // props: scene, sections, operations (useDataOperations result), viewConfig, groupNode, actorOps, sceneOps
+
+    const nextLevel = createMemo(() => {
+        if (!props.viewConfig || !props.groupNode) return null;
+        const levels = props.viewConfig.levels;
+        const index = levels.findIndex(l => l.field === props.groupNode.field);
+        if (index === -1 || index >= levels.length - 1) return null;
+        return levels[index + 1];
+    });
+
+    const nextLevelDim = createMemo(() => {
+        if (!nextLevel()) return null;
+        return DIMENSIONS.find(d => d.id === nextLevel().field);
+    });
 
     const [editingName, setEditingName] = createSignal(false);
     const [tempName, setTempName] = createSignal('');
     const [deleteDialogOpen, setDeleteDialogOpen] = createSignal(false);
+
+    const [batchActorNames, setBatchActorNames] = createSignal('');
+    const parsedActorNames = createMemo(() => batchActorNames().split(',').map(s => s.trim()).filter(s => s.length > 0));
+
+    const handleAddActors = async () => {
+        const names = parsedActorNames();
+        if (names.length === 0) return;
+
+        for (const name of names) {
+            // 1. Create the actor
+            const actorResult = await props.actorOps.createActor({ display_name: name });
+            const actorId = actorResult?.actor?.id;
+
+            if (actorId) {
+                // 2. Create a section for this actor in the current scene
+                await props.operations.createSection(actorId, 'actor', 'dialogue', {
+                    name: `Scene: ${props.scene.name}`,
+                    scene_id: props.scene.id
+                });
+            }
+        }
+        setBatchActorNames('');
+    };
 
     const handleStartEdit = () => {
         setTempName(props.scene.name);
@@ -46,7 +76,7 @@ export default function SceneView(props) {
     };
 
     return (
-        <Box>
+        <Box sx={{ p: 3, height: '100%', overflowY: 'auto' }}>
             <DetailHeader
                 title={props.scene.name}
                 subtitle={`Scene ID: ${props.scene.id}`}
@@ -70,7 +100,7 @@ export default function SceneView(props) {
                             size="small"
                             fullWidth
                             value={tempName()}
-                            onChange={(e) => setTempName(e.target.value)}
+                            onInput={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -79,15 +109,45 @@ export default function SceneView(props) {
                 </Box>
             </Show>
 
-            <Stack spacing={3}>
-                {/* Default Blocks */}
+            <Stack spacing={4} sx={{ mt: 2 }}>
+                {/* Context-Aware Fast Track */}
+                <Show when={nextLevelDim()?.id === 'actor_id'}>
+                    <Paper sx={{ p: 3, borderRadius: '8px', border: '2px solid', borderColor: 'primary.light', bgcolor: 'action.hover' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1, color: 'primary.main' }}>
+                            Fast Track: Add Actors for this Scene
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Enter actor names (comma-separated) to create actors and linked cues for {props.scene.name}.
+                        </Typography>
+                        <Stack direction="row" spacing={2}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="e.g. Hero, Villain, Narrator"
+                                value={batchActorNames()}
+                                onInput={(e) => setBatchActorNames(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddActors()}
+                            />
+                            <Button
+                                variant="contained"
+                                onClick={handleAddActors}
+                                disabled={parsedActorNames().length === 0}
+                                startIcon={<AddIcon />}
+                                sx={{ whiteSpace: 'nowrap' }}
+                            >
+                                Add Actor{parsedActorNames().length > 1 ? `s (${parsedActorNames().length})` : ''}
+                            </Button>
+                        </Stack>
+                    </Paper>
+                </Show>
+
                 <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
                     <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
                         <Typography variant="subtitle2">Default Settings</Typography>
                     </Box>
                     <Box sx={{ p: 2 }}>
                         <ProviderSettingsEditor
-                            contentType="music" // Scenes often have music or sfx defaults
+                            contentType="music"
                             settings={props.scene.default_blocks?.music}
                             voices={props.operations.voices()}
                             loadingVoices={props.operations.loadingVoices()}
@@ -103,13 +163,18 @@ export default function SceneView(props) {
                 </Box>
 
                 {/* Section Management */}
-                <SectionManagement
-                    owner={props.scene}
-                    ownerType="scene"
-                    sections={props.sections}
-                    onCreateSection={props.operations.createSection}
-                    creatingContent={props.operations.creatingContent()}
-                />
+                <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        {nextLevelDim()?.id === 'section_id' ? 'Manage Cues/Sections' : 'Dialogue Cues'}
+                    </Typography>
+                    <SectionManagement
+                        owner={props.scene}
+                        ownerType="scene"
+                        sections={props.sections}
+                        onCreateSection={props.operations.createSection}
+                        creatingContent={props.operations.creatingContent()}
+                    />
+                </Box>
             </Stack>
 
             {/* Delete Confirmation Dialog */}

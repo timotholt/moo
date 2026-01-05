@@ -8,8 +8,24 @@ import CompleteButton from '../CompleteButton.jsx';
 import SectionManagement from '../SectionManagement.jsx';
 import ProviderSettingsEditor from '../ProviderSettingsEditor.jsx';
 
+import { DIMENSIONS } from '../../utils/viewEngine.js';
+import AddIcon from '@suid/icons-material/Add';
+
 export default function ActorView(props) {
-    // props: actor, sections, operations (useDataOperations result)
+    // props: actor, sections, operations (useDataOperations result), viewConfig, groupNode
+
+    const nextLevel = createMemo(() => {
+        if (!props.viewConfig || !props.groupNode) return null;
+        const levels = props.viewConfig.levels;
+        const index = levels.findIndex(l => l.field === props.groupNode.field);
+        if (index === -1 || index >= levels.length - 1) return null;
+        return levels[index + 1];
+    });
+
+    const nextLevelDim = createMemo(() => {
+        if (!nextLevel()) return null;
+        return DIMENSIONS.find(d => d.id === nextLevel().field);
+    });
 
     const [editingName, setEditingName] = createSignal(false);
     const [tempName, setTempName] = createSignal('');
@@ -45,8 +61,32 @@ export default function ActorView(props) {
         await props.operations.updateActorField(props.actor.id, { actor_complete: newStatus });
     };
 
+    const [batchSceneNames, setBatchSceneNames] = createSignal('');
+    const parsedSceneNames = createMemo(() => batchSceneNames().split(',').map(s => s.trim()).filter(s => s.length > 0));
+
+    const handleAddScenes = async () => {
+        const names = parsedSceneNames();
+        if (names.length === 0) return;
+
+        for (const name of names) {
+            // 1. Create the scene
+            const sceneResult = await props.sceneOps.createScene({ name });
+            const sceneId = sceneResult?.scene?.id;
+
+            if (sceneId) {
+                // 2. Create a section for this actor in that scene
+                // Default to a dialogue section
+                await props.operations.createSection(props.actor.id, 'actor', 'dialogue', {
+                    name: `${name} (Cue)`,
+                    scene_id: sceneId
+                });
+            }
+        }
+        setBatchSceneNames('');
+    };
+
     return (
-        <Box>
+        <Box sx={{ p: 3, height: '100%', overflowY: 'auto' }}>
             <DetailHeader
                 title={props.actor.display_name}
                 subtitle={`Actor ID: ${props.actor.id}`}
@@ -71,7 +111,7 @@ export default function ActorView(props) {
                             size="small"
                             fullWidth
                             value={tempName()}
-                            onChange={(e) => setTempName(e.target.value)}
+                            onInput={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -80,8 +120,38 @@ export default function ActorView(props) {
                 </Box>
             </Show>
 
-            <Stack spacing={3}>
-                {/* Base Filename */}
+            <Stack spacing={4} sx={{ mt: 2 }}>
+                {/* Context-Aware Fast Track */}
+                <Show when={nextLevelDim()?.id === 'scene_id'}>
+                    <Paper sx={{ p: 3, borderRadius: '8px', border: '2px solid', borderColor: 'primary.light', bgcolor: 'action.hover' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1, color: 'primary.main' }}>
+                            Fast Track: Add Scenes for this Actor
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Enter scene names (comma-separated) to automatically create scenes and linked cues for {props.actor.display_name}.
+                        </Typography>
+                        <Stack direction="row" spacing={2}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="e.g. Opening Scene, Forest Chase, Finale"
+                                value={batchSceneNames()}
+                                onInput={(e) => setBatchSceneNames(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddScenes()}
+                            />
+                            <Button
+                                variant="contained"
+                                onClick={handleAddScenes}
+                                disabled={parsedSceneNames().length === 0}
+                                startIcon={<AddIcon />}
+                                sx={{ whiteSpace: 'nowrap' }}
+                            >
+                                Add Scene{parsedSceneNames().length > 1 ? `s (${parsedSceneNames().length})` : ''}
+                            </Button>
+                        </Stack>
+                    </Paper>
+                </Show>
+
                 <Box>
                     <Typography variant="overline" color="text.secondary">
                         Base Filename
@@ -114,13 +184,18 @@ export default function ActorView(props) {
                 </Box>
 
                 {/* Section Management */}
-                <SectionManagement
-                    owner={props.actor}
-                    ownerType="actor"
-                    sections={props.sections}
-                    onCreateSection={props.operations.createSection}
-                    creatingContent={props.operations.creatingContent()}
-                />
+                <Box>
+                    <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        {nextLevelDim()?.id === 'section_id' ? 'Manage Cues/Sections' : 'Dialogue Cues'}
+                    </Typography>
+                    <SectionManagement
+                        owner={props.actor}
+                        ownerType="actor"
+                        sections={props.sections}
+                        onCreateSection={props.operations.createSection}
+                        creatingContent={props.operations.creatingContent()}
+                    />
+                </Box>
             </Stack>
 
             {/* Delete Confirmation Dialog */}

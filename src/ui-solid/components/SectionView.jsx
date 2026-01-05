@@ -50,19 +50,25 @@ export default function SectionView(props) {
         await props.operations.toggleSectionComplete(props.sectionData.id, newStatus);
     };
 
+    const parsedNames = createMemo(() => {
+        return contentName().split(',').map(s => s.trim()).filter(s => s.length > 0);
+    });
+
     const handleCreateContent = async (e) => {
-        e.preventDefault();
-        if (!contentName()) return;
+        if (e) e.preventDefault();
+        const names = parsedNames();
+        if (names.length === 0) return;
 
-        props.operations.setContentName(contentName());
-        props.operations.setContentPrompt(contentPrompt());
-
-        await props.operations.createContent(
-            props.sectionData.owner_id,
-            props.sectionData.owner_type,
-            props.contentType,
-            props.sectionData.id
-        );
+        for (const name of names) {
+            props.operations.setContentName(name);
+            props.operations.setContentPrompt(contentPrompt());
+            await props.operations.createContent(
+                props.sectionData.owner_id,
+                props.sectionData.owner_type,
+                props.contentType,
+                props.sectionData.id
+            );
+        }
 
         // Clear local form
         setContentName('');
@@ -93,7 +99,7 @@ export default function SectionView(props) {
                             size="small"
                             fullWidth
                             value={tempName()}
-                            onChange={(e) => setTempName(e.target.value)}
+                            onInput={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -143,32 +149,37 @@ export default function SectionView(props) {
                 </Paper>
 
                 {/* Add Content Form */}
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom>Add Content to Section</Typography>
-                    <Stack spacing={2} component="form" onSubmit={handleCreateContent}>
+                <Paper variant="outlined" sx={{ p: 2, border: '1px solid', borderColor: 'primary.light' }}>
+                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 700 }}>Quick Add {props.contentType} Content</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                        Enter names separated by commas to batch create multiple items.
+                    </Typography>
+                    <Stack spacing={2}>
                         <TextField
-                            label="Name (e.g., CUE_001)"
+                            label="Content Name(s)"
+                            placeholder="e.g. CUE_001, CUE_002, CUE_003"
                             size="small"
                             fullWidth
                             value={contentName()}
-                            onChange={(e) => setContentName(e.target.value)}
-                            required
+                            onInput={(e) => setContentName(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleCreateContent()}
                         />
                         <TextField
-                            label="Prompt/Text"
+                            label="Shared Prompt/Text (Optional)"
                             size="small"
                             fullWidth
                             multiline
                             rows={2}
                             value={contentPrompt()}
-                            onChange={(e) => setContentPrompt(e.target.value)}
+                            onInput={(e) => setContentPrompt(e.target.value)}
                         />
                         <Button
                             variant="contained"
-                            type="submit"
-                            disabled={props.operations.creatingContent() || !contentName()}
+                            onClick={handleCreateContent}
+                            disabled={props.operations.creatingContent() || parsedNames().length === 0}
+                            startIcon={props.operations.creatingContent() ? undefined : <AddIcon />}
                         >
-                            {props.operations.creatingContent() ? 'Creating...' : 'Add Content'}
+                            {props.operations.creatingContent() ? 'Creating...' : `Add Content${parsedNames().length > 1 ? `s (${parsedNames().length})` : ''}`}
                         </Button>
                     </Stack>
                 </Paper>

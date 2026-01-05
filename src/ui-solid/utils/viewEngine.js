@@ -10,7 +10,7 @@ export const DIMENSIONS = [
   { id: 'owner_type', name: 'Owner Type', icon: 'folder', labelMap: { actor: 'Actors', scene: 'Scenes', global: 'Global' } },
   { id: 'scene_id', name: 'Scene', icon: 'folder', displayField: 'scene_name' },
   { id: 'actor_id', name: 'Actor', icon: 'person', displayField: 'actor_name' },
-  { id: 'section_id', name: 'Section', icon: 'folder', displayField: 'section_name' },
+  { id: 'section_id', name: 'Cue / Section', icon: 'folder', displayField: 'section_name' },
   { id: 'content_type', name: 'Type', icon: 'type', labelMap: { dialogue: 'Dialogue', music: 'Music', sfx: 'SFX', image: 'Image', video: 'Video' } },
   { id: 'status', name: 'Status', icon: 'status' },
   { id: 'content_id', name: 'Content', icon: 'content', displayField: 'name', isTerminal: true },
@@ -34,8 +34,8 @@ export const PRESET_VIEWS = {
     name: '', // Sticky: by actor
     category: 'view',
     levels: [
-      { field: 'owner_type', labelMap: { actor: 'Actors', scene: 'Scenes', global: 'Global' }, icon: 'folder' },
-      { field: 'owner_id', displayField: 'owner_name', icon: 'person' },
+      { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
+      { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
       { field: 'section_id', displayField: 'section_name', icon: 'folder' },
       { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true },
     ]
@@ -46,7 +46,7 @@ export const PRESET_VIEWS = {
     category: 'view',
     levels: [
       { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
-      { field: 'owner_id', displayField: 'owner_name', icon: 'person' },
+      { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
       { field: 'section_id', displayField: 'section_name', icon: 'folder' },
       { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true },
     ]
@@ -251,7 +251,7 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
     const dimDef = DIMENSIONS.find(d => d.id === level.field);
     const isTerminal = dimDef?.isTerminal || level.isTerminal;
     
-    const childNodes = isTerminal ? [] : groupByLevels(children, levels, depth + 1, fullId);
+    const childNodes = isTerminal ? groupByLevels(children, levels, 999, fullId) : groupByLevels(children, levels, depth + 1, fullId);
     
     const statuses = children.map(c => c.status).filter(s => s !== '__none__' && s !== '__empty__');
     let groupStatus = 'gray';

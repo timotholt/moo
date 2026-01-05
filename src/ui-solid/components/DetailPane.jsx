@@ -48,85 +48,70 @@ export default function DetailPane(props) {
         deleteScene: sceneOps.deleteScene
     });
 
-    const viewData = createMemo(() => {
-        if (!props.selectedNode) return { view: 'welcome' };
+    // Stable type identification to prevent remounts
+    const activeType = createMemo(() => props.selectedNode?.type || 'welcome');
 
-        const { type, id } = props.selectedNode;
+    // Resolve entity data based on selection
+    const resolvedData = createMemo(() => {
+        const node = props.selectedNode;
+        if (!node) return null;
 
+        const { type, id } = node;
         switch (type) {
-            case 'root':
-                return { view: 'root' };
-            case 'defaults':
-                return { view: 'defaults' };
-            case 'provider-default':
-                return { view: 'provider-default', contentType: id };
-            case 'console':
-                return { view: 'console' };
-            case 'history':
-                return { view: 'history' };
-            case 'actor': {
-                const actor = props.actors.find(a => a.id === id);
-                return { view: 'actor', actor };
-            }
-            case 'scene': {
-                const scene = props.scenes.find(s => s.id === id);
-                return { view: 'scene', scene };
-            }
+            case 'actor': return { actor: props.actors.find(a => a.id === id) };
+            case 'scene': return { scene: props.scenes.find(s => s.id === id) };
             case 'section': {
                 const section = props.sections.find(s => s.id === id);
                 let owner = null;
                 if (section?.owner_type === 'actor') owner = props.actors.find(a => a.id === section.owner_id);
                 else if (section?.owner_type === 'scene') owner = props.scenes.find(s => s.id === section.owner_id);
-                return { view: 'section', section, owner, contentType: section?.content_type };
+                return { section, owner };
             }
             case 'content': {
                 const item = props.content.find(c => c.id === id);
                 let owner = null;
                 if (item?.owner_type === 'actor') owner = props.actors.find(a => a.id === item.owner_id);
                 else if (item?.owner_type === 'scene') owner = props.scenes.find(s => s.id === item.owner_id);
-                return { view: 'content', item, owner };
-            }
-            case 'take': {
-                const take = props.takes.find(t => t.id === id);
-                const item = props.content.find(c => c.id === take?.content_id);
-                let owner = null;
-                if (item?.owner_type === 'actor') owner = props.actors.find(a => a.id === item.owner_id);
-                else if (item?.owner_type === 'scene') owner = props.scenes.find(s => s.id === item.owner_id);
-                return { view: 'content', item, owner };
+                return { item, owner };
             }
             case 'view-config': {
                 const view = props.customViews.find(v => v.id === id) || PRESET_VIEWS[id];
-                return { view: 'view-config', viewData: view };
+                return { viewData: view };
             }
             case 'view-group': {
-                // If it's a known entity group, redirect to that entity's view
-                if (props.selectedNode.field === 'owner_id' || props.selectedNode.field === 'actor_id') {
-                    const actor = props.actors.find(a => a.id === props.selectedNode.fieldValue);
-                    if (actor) return { view: 'actor', actor };
-                    const scene = props.scenes.find(s => s.id === props.selectedNode.fieldValue);
-                    if (scene) return { view: 'scene', scene };
+                // If it's a known entity group, resolve it
+                if (node.field === 'owner_id' || node.field === 'actor_id') {
+                    const actor = props.actors.find(a => a.id === node.fieldValue);
+                    if (actor) return { actor, typeOverride: 'actor' };
+                    const scene = props.data.scenes.find(s => s.id === node.fieldValue);
+                    if (scene) return { scene, typeOverride: 'scene' };
                 }
-                if (props.selectedNode.field === 'scene_id') {
-                    const scene = props.scenes.find(s => s.id === props.selectedNode.fieldValue);
-                    if (scene) return { view: 'scene', scene };
+                if (node.field === 'scene_id') {
+                    const scene = props.scenes.find(s => s.id === node.fieldValue);
+                    if (scene) return { scene, typeOverride: 'scene' };
                 }
-                if (props.selectedNode.field === 'section_id') {
-                    const section = props.sections.find(s => s.id === props.selectedNode.fieldValue);
+                if (node.field === 'section_id') {
+                    const section = props.sections.find(s => s.id === node.fieldValue);
                     if (section) {
                         let owner = null;
                         if (section.owner_type === 'actor') owner = props.actors.find(a => a.id === section.owner_id);
                         else if (section.owner_type === 'scene') owner = props.scenes.find(s => s.id === section.owner_id);
-                        return { view: 'section', section, owner, contentType: section.content_type };
+                        return { section, owner, typeOverride: 'section' };
                     }
                 }
-                return { view: 'view-group', id };
+                return null;
             }
-            default:
-                return { view: 'welcome' };
+            default: return null;
         }
     });
 
-    const commonError = () => dataOps.error() || actorOps.error() || sceneOps.error();
+    const activeViewConfig = createMemo(() => {
+        const node = props.selectedNode;
+        if (!node) return null;
+        if (node.type === 'view-config') return resolvedData()?.viewData;
+        if (node.viewId) return props.customViews.find(v => v.id === node.viewId) || PRESET_VIEWS[node.viewId];
+        return null;
+    });
 
     return (
         <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
@@ -135,71 +120,75 @@ export default function DetailPane(props) {
                     <Typography color="text.secondary">Select an item to view details.</Typography>
                 </Box>
             }>
-                <Match when={viewData().view === 'welcome'}>
+                <Match when={activeType() === 'welcome'}>
                     <NoSelectionView error={commonError()} />
                 </Match>
 
-                <Match when={viewData().view === 'root'}>
+                <Match when={activeType() === 'root'}>
                     <RootView actorOps={actorOps} sceneOps={sceneOps} error={commonError()} />
                 </Match>
 
-                <Match when={viewData().view === 'defaults'}>
+                <Match when={activeType() === 'defaults'}>
                     <DefaultsView />
                 </Match>
 
-                <Match when={viewData().view === 'console'}>
-                    <BrowserConsoleView
-                        entries={props.consoleEntries}
-                        onClear={props.onClearConsole}
-                    />
+                <Match when={activeType() === 'console'}>
+                    <BrowserConsoleView entries={props.consoleEntries} onClear={props.onClearConsole} />
                 </Match>
 
-                <Match when={viewData().view === 'history'}>
-                    <HistoryView
-                        logs={props.logs}
-                        undoRedo={props.undoRedo}
-                        onClearLogs={props.onClearLogs}
-                    />
+                <Match when={activeType() === 'history'}>
+                    <HistoryView logs={props.logs} undoRedo={props.undoRedo} onClearLogs={props.onClearLogs} />
                 </Match>
 
-                <Match when={viewData().view === 'provider-default'}>
+                <Match when={activeType() === 'provider-default'}>
                     <ProviderDefaultsView
-                        contentType={viewData().contentType}
+                        contentType={props.selectedNode?.id}
                         voices={dataOps.voices}
                         loadingVoices={dataOps.loadingVoices}
                         error={commonError()}
                     />
                 </Match>
 
-                <Match when={viewData().view === 'actor'}>
+                {/* Main Entity Redirects */}
+                <Match when={activeType() === 'actor' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'actor')}>
                     <ActorView
-                        actor={viewData().actor}
+                        actor={resolvedData()?.actor}
                         sections={props.sections}
                         operations={dataOps}
+                        actorOps={actorOps}
+                        sceneOps={sceneOps}
+                        viewConfig={activeViewConfig()}
+                        groupNode={props.selectedNode}
                     />
                 </Match>
 
-                <Match when={viewData().view === 'scene'}>
+                <Match when={activeType() === 'scene' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'scene')}>
                     <SceneView
-                        scene={viewData().scene}
+                        scene={resolvedData()?.scene}
                         sections={props.sections}
                         operations={dataOps}
+                        actorOps={actorOps}
+                        sceneOps={sceneOps}
+                        viewConfig={activeViewConfig()}
+                        groupNode={props.selectedNode}
                     />
                 </Match>
 
-                <Match when={viewData().view === 'section'}>
+                <Match when={activeType() === 'section' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'section')}>
                     <SectionView
-                        sectionData={viewData().section}
-                        owner={viewData().owner}
-                        contentType={viewData().contentType}
+                        sectionData={resolvedData()?.section}
+                        owner={resolvedData()?.owner}
+                        contentType={resolvedData()?.section?.content_type}
                         operations={dataOps}
+                        viewConfig={activeViewConfig()}
+                        groupNode={props.selectedNode}
                     />
                 </Match>
 
-                <Match when={viewData().view === 'content'}>
+                <Match when={activeType() === 'content'}>
                     <ContentView
-                        item={viewData().item}
-                        owner={viewData().owner}
+                        item={resolvedData()?.item}
+                        owner={resolvedData()?.owner}
                         sections={props.sections}
                         allTakes={props.takes}
                         onContentUpdated={props.onRefresh}
@@ -214,9 +203,10 @@ export default function DetailPane(props) {
                         error={commonError()}
                     />
                 </Match>
-                <Match when={viewData().view === 'view-config'}>
+
+                <Match when={activeType() === 'view-config'}>
                     <ViewConfigView
-                        view={viewData().viewData}
+                        view={resolvedData()?.viewData}
                         onUpdate={(updated) => {
                             const next = props.customViews.some(v => v.id === updated.id)
                                 ? props.customViews.map(v => v.id === updated.id ? updated : v)
@@ -224,12 +214,16 @@ export default function DetailPane(props) {
                             props.onCustomViewsChange(next);
                         }}
                         onDelete={() => {
-                            const next = props.customViews.filter(v => v.id !== viewData().viewData.id);
+                            const next = props.customViews.filter(v => v.id !== props.selectedNode.id);
                             props.onCustomViewsChange(next);
                         }}
+                        operations={dataOps}
+                        actorOps={actorOps}
+                        sceneOps={sceneOps}
                     />
                 </Match>
-                <Match when={viewData().view === 'view-group'}>
+
+                <Match when={activeType() === 'view-group'}>
                     <GroupView
                         groupNode={props.selectedNode}
                         data={{
@@ -240,6 +234,7 @@ export default function DetailPane(props) {
                             takes: props.takes
                         }}
                         operations={dataOps}
+                        viewConfig={activeViewConfig()}
                     />
                 </Match>
             </Switch>

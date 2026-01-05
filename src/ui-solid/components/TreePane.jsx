@@ -222,6 +222,15 @@ export default function TreePane(props) {
                                                                     {pinnedIds().includes(item.id) ? <StarIcon sx={{ fontSize: '0.75rem' }} /> : <StarBorderIcon sx={{ fontSize: '0.75rem' }} />}
                                                                 </IconButton>
                                                             )}
+                                                            {isView && (
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={(e) => { e.stopPropagation(); props.onSelect({ type: 'root', id: 'root' }); }}
+                                                                    sx={{ p: 0, opacity: 0.6, '&:hover': { opacity: 1, color: 'primary.main' } }}
+                                                                >
+                                                                    <AddIcon sx={{ fontSize: '0.9rem' }} />
+                                                                </IconButton>
+                                                            )}
                                                             {(isView || item.isDefaults) && (
                                                                 <Box onClick={(e) => { e.stopPropagation(); handleToggle(itemKey); }} sx={{ display: 'flex', alignItems: 'center', opacity: 0.5 }}>
                                                                     {expanded()[itemKey] ? <ExpandLessIcon sx={{ fontSize: '0.75rem' }} /> : <ExpandMoreIcon sx={{ fontSize: '0.75rem' }} />}
@@ -245,6 +254,8 @@ export default function TreePane(props) {
                                                                 selectedNode={props.selectedNode}
                                                                 onSelect={props.onSelect}
                                                                 baseDepth={2}
+                                                                onAddActor={() => props.onSelect({ type: 'root', id: 'root' })}
+                                                                onAddScene={() => props.onSelect({ type: 'root', id: 'root' })}
                                                             />
                                                         </Show>
                                                         <Show when={item.isDefaults}>

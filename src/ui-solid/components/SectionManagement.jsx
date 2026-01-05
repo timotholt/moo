@@ -1,8 +1,26 @@
-import { Box, Typography, Button, Stack } from '@suid/material';
-import { For, Show } from 'solid-js';
+import { Box, Typography, Button, Stack, TextField } from '@suid/material';
+import { createSignal, For, Show, createMemo } from 'solid-js';
 
 export default function SectionManagement(props) {
     // props: owner, ownerType, sections, onCreateSection, creatingContent
+    const [namesValue, setNamesValue] = createSignal('');
+
+    const parsedNames = createMemo(() => {
+        return namesValue().split(',').map(s => s.trim()).filter(s => s.length > 0);
+    });
+
+    const handleCreate = async (type) => {
+        const names = parsedNames();
+        if (names.length === 0) {
+            // Default behavior if empty: create one section with default name
+            await props.onCreateSection(props.owner.id, props.ownerType, type);
+        } else {
+            for (const name of names) {
+                await props.onCreateSection(props.owner.id, props.ownerType, type, { name });
+            }
+        }
+        setNamesValue('');
+    };
 
     return (
         <Box sx={{ mt: 3 }}>
@@ -10,8 +28,18 @@ export default function SectionManagement(props) {
                 Content Sections
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-                Create multiple sections for different types of content (e.g., combat dialogue, story music, etc.)
+                Enter names (comma separated) for multiple sections, then select the type to create them.
             </Typography>
+
+            <Box sx={{ mt: 2, mb: 2 }}>
+                <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Section names, e.g. Battle_Dialogue, Story_Intro"
+                    value={namesValue()}
+                    onInput={(e) => setNamesValue(e.target.value)}
+                />
+            </Box>
 
             <Stack spacing={1} sx={{ mt: 1 }}>
                 {/* Show existing sections categorized by type */}
@@ -78,11 +106,11 @@ export default function SectionManagement(props) {
                             <Button
                                 size="small"
                                 variant="outlined"
-                                onClick={() => props.onCreateSection(props.owner.id, props.ownerType, type)}
+                                onClick={() => handleCreate(type)}
                                 disabled={props.creatingContent}
                                 sx={{ fontSize: '0.75rem' }}
                             >
-                                + Add {type} section
+                                Add {type} {parsedNames().length > 1 ? `Sections (${parsedNames().length})` : 'Section'}
                             </Button>
                         )}
                     </For>

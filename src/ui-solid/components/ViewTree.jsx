@@ -1,6 +1,6 @@
 import { createSignal, createEffect, For, Show } from 'solid-js';
 import {
-    Box, List, ListItemButton, ListItemText, ListItemIcon
+    Box, List, ListItemButton, ListItemText, ListItemIcon, Button
 } from '@suid/material';
 import ExpandLess from '@suid/icons-material/ExpandLess';
 import ExpandMore from '@suid/icons-material/ExpandMore';
@@ -253,8 +253,16 @@ export default function ViewTree(props) {
 
     return (
         <Show when={props.tree && props.tree.length > 0} fallback={
-            <Box sx={{ pl: `${TREE_INDENT.BASE + (props.baseDepth || 1) * TREE_INDENT.STEP}px`, py: '0.25rem', color: 'text.disabled' }}>
-                <em style={{ fontSize: '0.8rem' }}>No items</em>
+            <Box sx={{ pl: `${TREE_INDENT.BASE + (props.baseDepth || 1) * TREE_INDENT.STEP}px`, py: '0.5rem', color: 'text.disabled' }}>
+                <em style={{ fontSize: '0.8rem', display: 'block', mb: 1 }}>No items found</em>
+                <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => props.onAddActor && props.onAddActor()}
+                    sx={{ fontSize: '0.7rem', p: 0, minWidth: 0, textTransform: 'none' }}
+                >
+                    + Create First Item
+                </Button>
             </Box>
         }>
             <List component="div" disablePadding>
