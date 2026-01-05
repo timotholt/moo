@@ -156,32 +156,53 @@ export default function App() {
         return createTheme({
             palette: {
                 mode: mode,
+                primary: {
+                    main: mode === 'dark' ? 'hsl(210, 80%, 70%)' : 'hsl(210, 80%, 50%)',
+                },
                 ...(mode === 'dark' && {
+                    background: {
+                        default: 'hsl(215, 25%, 10%)',
+                        paper: 'hsl(215, 25%, 14%)',
+                    },
                     text: {
-                        primary: 'hsla(0, 0%, 100%, 0.7)',
-                        secondary: 'hsla(0, 0%, 100%, 0.7)',
-                        disabled: 'hsla(0, 0%, 100%, 0.38)',
+                        primary: 'hsla(0, 0%, 100%, 0.85)',
+                        secondary: 'hsla(0, 0%, 100%, 0.65)',
+                        disabled: 'hsla(0, 0%, 100%, 0.35)',
                     },
                     success: {
-                        main: 'hsla(123, 38%, 57%, 0.8)',
-                        light: 'hsla(123, 38%, 72%, 1)',
+                        main: 'hsla(145, 60%, 65%, 0.8)',
                     },
                     error: {
-                        main: 'hsla(4, 60%, 58%, 0.7)',
-                        light: 'hsla(4, 60%, 72%, 1)',
+                        main: 'hsla(4, 75%, 65%, 0.8)',
                     },
                     warning: {
-                        main: 'hsl(32, 100%, 45%)',
-                        light: 'hsl(32, 100%, 60%)',
-                    },
-                    common: {
-                        white: 'hsla(0, 0%, 100%, 1)',
+                        main: 'hsl(35, 90%, 65%)',
                     },
                 }),
             },
             typography: {
-                fontSize: 14 * scale,
+                fontSize: 14, // Base for SUID calculation
+                htmlFontSize: 16,
+                body1: { fontSize: `${0.875 * scale}rem` },
+                body2: { fontSize: `${0.8 * scale}rem` },
+                button: { fontSize: `${0.75 * scale}rem` },
+                caption: { fontSize: `${0.7 * scale}rem` },
+                overline: { fontSize: `${0.65 * scale}rem` },
+                h6: { fontSize: `${1.1 * scale}rem` },
             },
+            components: {
+                MuiPaper: {
+                    styleOverrides: {
+                        root: {
+                            backgroundImage: 'none',
+                            ...(mode === 'dark' && {
+                                border: '1px solid hsla(0, 0%, 100%, 0.05)',
+                                backdropFilter: 'blur(10px)',
+                            }),
+                        }
+                    }
+                }
+            }
         });
     });
 

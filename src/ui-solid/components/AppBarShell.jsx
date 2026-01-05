@@ -26,7 +26,7 @@ export default function AppBarShell(props) {
                             sx={{ fontWeight: 400, fontSize: '0.7rem', color: 'text.disabled', mt: 0.5 }}
                             noWrap
                         >
-                            Media Output Organizer
+                            Media Organizer of Organizers
                         </Typography>
                     </Box>
                     <ProjectSelector
