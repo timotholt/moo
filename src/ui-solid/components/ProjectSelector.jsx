@@ -127,14 +127,14 @@ export default function ProjectSelector(props) {
             setLoading(true);
             await deleteProject(projectToDelete().name);
             await loadProjects();
-            setDeleteDialogOpen(false);
-            setProjectToDelete(null);
-
             // If we deleted the current project, clear selection
             if (props.currentProject?.name === projectToDelete().name && props.onProjectChange) {
                 props.onProjectChange(null);
                 localStorage.removeItem(LAST_PROJECT_KEY);
             }
+
+            setDeleteDialogOpen(false);
+            setProjectToDelete(null);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -329,7 +329,7 @@ export default function ProjectSelector(props) {
                         autoFocus
                         margin="dense"
                         label="New Project Name"
-                        fullWidth                        on:input={(e) => setCopyNewName(e.target.value)}
+                        fullWidth on:input={(e) => setCopyNewName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCopyProject()}
                     />
                 </DialogContent>

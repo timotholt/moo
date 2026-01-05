@@ -13,12 +13,23 @@ export function useSectionOperations(props) {
             setCreating(true);
             setError(null);
 
+            let name = customName || contentType;
+            let extraData = {};
+
+            if (customName && typeof customName === 'object') {
+                name = customName.name || contentType;
+                extraData = customName;
+            }
+
             const sectionData = {
                 owner_id: ownerId,
                 owner_type: ownerType,
                 content_type: contentType,
-                name: customName || contentType
+                name: name,
+                ...extraData
             };
+
+            console.log('[useSectionOperations] Creating section with payload:', sectionData);
 
             const result = await createSection(sectionData);
 

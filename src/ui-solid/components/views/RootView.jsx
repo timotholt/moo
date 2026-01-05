@@ -31,23 +31,24 @@ export default function RootView(props) {
                 <Typography variant="subtitle2" gutterBottom>
                     Add New Actor
                 </Typography>
-                <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Actor name (e.g. Hero, Narrator, Merchant)"                    on:input={(e) => setActorName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddActor()}
-                    sx={{ mb: 2 }}
-                />
-
-                <Button
-                    variant="contained"
-                    size="small"
-                    disabled={!actorName().trim() || props.actorOps.creating()}
-                    onClick={handleAddActor}
-                    sx={{ mb: 4 }}
-                >
-                    {props.actorOps.creating() ? 'Creating…' : 'Add Actor'}
-                </Button>
+                <Stack direction="row" spacing={1}>
+                    <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Actor name (e.g. Hero, Narrator)"
+                        on:input={(e) => setActorName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddActor()}
+                    />
+                    <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!actorName().trim() || props.actorOps.creating()}
+                        onClick={handleAddActor}
+                        sx={{ whiteSpace: 'nowrap' }}
+                    >
+                        {props.actorOps.creating() ? 'Creating…' : 'Add Actor'}
+                    </Button>
+                </Stack>
             </Box>
 
             <Divider sx={{ my: 4 }} />
@@ -56,22 +57,24 @@ export default function RootView(props) {
                 <Typography variant="subtitle2" gutterBottom>
                     Add New Scene
                 </Typography>
-                <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Scene name (e.g. Intro, Battle_01, End_Credits)"                    on:input={(e) => setSceneName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddScene()}
-                    sx={{ mb: 2 }}
-                />
-
-                <Button
-                    variant="contained"
-                    size="small"
-                    disabled={!sceneName().trim() || props.sceneOps.creating()}
-                    onClick={handleAddScene}
-                >
-                    {props.sceneOps.creating() ? 'Creating…' : 'Add Scene'}
-                </Button>
+                <Stack direction="row" spacing={1}>
+                    <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Scene name (e.g. Intro, Battle_01)"
+                        on:input={(e) => setSceneName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddScene()}
+                    />
+                    <Button
+                        variant="contained"
+                        size="small"
+                        disabled={!sceneName().trim() || props.sceneOps.creating()}
+                        onClick={handleAddScene}
+                        sx={{ whiteSpace: 'nowrap' }}
+                    >
+                        {props.sceneOps.creating() ? 'Creating…' : 'Add Scene'}
+                    </Button>
+                </Stack>
             </Box>
 
             {(props.error || props.actorOps.error() || props.sceneOps.error()) && (

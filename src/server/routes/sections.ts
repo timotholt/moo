@@ -42,6 +42,11 @@ export function registerSectionRoutes(fastify: FastifyInstance, getProjectContex
       return { error: 'owner_type and content_type are required' };
     }
 
+    if ((body.owner_type === 'actor' || body.owner_type === 'scene') && !body.owner_id) {
+      reply.code(400);
+      return { error: 'owner_id is required for actors and scenes' };
+    }
+
     // Read catalog once and save snapshot
     const catalog = await readCatalog(paths);
     const sectionName = body.name || body.content_type;
@@ -62,6 +67,7 @@ export function registerSectionRoutes(fastify: FastifyInstance, getProjectContex
       owner_id: body.owner_id ?? null,
       content_type: body.content_type as any,
       name: body.name || body.content_type,
+      scene_id: body.scene_id ?? null,
       default_blocks: body.default_blocks || { [body.content_type]: { provider: 'inherit' } },
       section_complete: false,
       created_at: now,

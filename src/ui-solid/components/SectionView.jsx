@@ -98,7 +98,7 @@ export default function SectionView(props) {
                     <Stack direction="row" spacing={1}>
                         <TextField
                             size="small"
-                            fullWidth                            on:input={(e) => setTempName(e.target.value)}
+                            fullWidth on:input={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -118,20 +118,20 @@ export default function SectionView(props) {
 
                 {/* Collapsible Provider Settings */}
                 <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-                    <Box
+                    <Stack
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
                         sx={{
                             p: 2,
                             cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
                             bgcolor: 'action.hover'
                         }}
                         onClick={() => setSettingsExpanded(!settingsExpanded())}
                     >
                         <Typography variant="subtitle2">Provider Settings</Typography>
-                        {settingsExpanded() ? <ExpandLess /> : <ExpandMore />}
-                    </Box>
+                        {settingsExpanded() ? <ExpandMore /> : <ExpandLess />}
+                    </Stack>
                     <Collapse in={settingsExpanded()}>
                         <Box sx={{ p: 2 }}>
                             <ProviderSettingsEditor
@@ -158,7 +158,7 @@ export default function SectionView(props) {
                             label="Content Name(s)"
                             placeholder="e.g. CUE_001, CUE_002, CUE_003"
                             size="small"
-                            fullWidth                            on:input={(e) => setContentName(e.target.value)}
+                            fullWidth on:input={(e) => setContentName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleCreateContent()}
                         />
                         <TextField
@@ -166,7 +166,7 @@ export default function SectionView(props) {
                             size="small"
                             fullWidth
                             multiline
-                            rows={2}                            on:input={(e) => setContentPrompt(e.target.value)}
+                            rows={2} on:input={(e) => setContentPrompt(e.target.value)}
                         />
                         <Button
                             variant="contained"

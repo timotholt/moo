@@ -14,10 +14,10 @@
     "format": "prettier --write .",
     "verify": "pnpm run lint && pnpm run build && pnpm run test",
     "dev:api": "tsx src/server.ts",
-    "dev:ui": "vite",
+    "dev:ui": "vite --config vite.solid.config.mjs",
+    "dev:ui:react": "vite",
     "dev": "pnpm run dev:api",
-    "dev:app": "pnpm exec concurrently \"pnpm run dev:api\" \"pnpm run dev:solid\"",
-    "dev:solid": "vite --config vite.solid.config.mjs"
+    "dev:app": "pnpm exec concurrently \"pnpm run dev:api\" \"pnpm run dev:ui\""
   },
   "keywords": [],
   "author": "",

@@ -4,6 +4,7 @@ import {
 } from '@suid/material';
 import ExpandLessIcon from '@suid/icons-material/ExpandLess';
 import ExpandMoreIcon from '@suid/icons-material/ExpandMore';
+import KeyboardArrowRightIcon from '@suid/icons-material/KeyboardArrowRight';
 import PersonIcon from '@suid/icons-material/Person';
 import SettingsIcon from '@suid/icons-material/Settings';
 import RecordVoiceOverIcon from '@suid/icons-material/RecordVoiceOver';
@@ -179,7 +180,7 @@ export default function TreePane(props) {
                                         </IconButton>
                                     </Show>
                                     <Box sx={{ display: 'flex', alignItems: 'center', p: 0, m: 0, opacity: 0.5 }}>
-                                        {expanded()[cat.id] ? <ExpandLessIcon sx={{ fontSize: '0.75rem' }} /> : <ExpandMoreIcon sx={{ fontSize: '0.75rem' }} />}
+                                        {expanded()[cat.id] ? <ExpandMoreIcon sx={{ fontSize: '0.75rem' }} /> : <KeyboardArrowRightIcon sx={{ fontSize: '0.75rem' }} />}
                                     </Box>
                                 </Box>
                             </ListItemButton>
@@ -235,7 +236,7 @@ export default function TreePane(props) {
                                                             )}
                                                             {(isView || item.isDefaults) && (
                                                                 <Box onClick={(e) => { e.stopPropagation(); handleToggle(itemKey); }} sx={{ display: 'flex', alignItems: 'center', opacity: 0.5 }}>
-                                                                    {expanded()[itemKey] ? <ExpandLessIcon sx={{ fontSize: '0.75rem' }} /> : <ExpandMoreIcon sx={{ fontSize: '0.75rem' }} />}
+                                                                    {expanded()[itemKey] ? <ExpandMoreIcon sx={{ fontSize: '0.75rem' }} /> : <KeyboardArrowRightIcon sx={{ fontSize: '0.75rem' }} />}
                                                                 </Box>
                                                             )}
                                                         </Box>

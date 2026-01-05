@@ -4,6 +4,7 @@ import {
 } from '@suid/material';
 import ExpandLess from '@suid/icons-material/ExpandLess';
 import ExpandMore from '@suid/icons-material/ExpandMore';
+import KeyboardArrowRight from '@suid/icons-material/KeyboardArrowRight';
 import PersonIcon from '@suid/icons-material/Person';
 import FolderIcon from '@suid/icons-material/Folder';
 import RecordVoiceOverIcon from '@suid/icons-material/RecordVoiceOver';
@@ -154,8 +155,8 @@ function TreeNode(props) {
                         onClick={handleToggle}
                         sx={{ display: 'flex', alignItems: 'center', p: 0, m: 0 }}
                     >
-                        <Show when={isExpanded()} fallback={<ExpandMore sx={{ fontSize: '0.75rem' }} />}>
-                            <ExpandLess sx={{ fontSize: '0.75rem' }} />
+                        <Show when={isExpanded()} fallback={<KeyboardArrowRight sx={{ fontSize: '0.75rem' }} />}>
+                            <ExpandMore sx={{ fontSize: '0.75rem' }} />
                         </Show>
                     </Box>
                 </Show>

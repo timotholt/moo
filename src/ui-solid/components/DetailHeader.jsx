@@ -1,7 +1,10 @@
-import { Box, Typography, IconButton } from '@suid/material';
+import { Box, Typography, IconButton, TextField } from '@suid/material';
 import EditIcon from '@suid/icons-material/Edit';
 import DeleteIcon from '@suid/icons-material/Delete';
+import CheckIcon from '@suid/icons-material/Check';
+import CloseIcon from '@suid/icons-material/Close';
 import Tooltip from './Tooltip.jsx';
+import { Show } from 'solid-js';
 
 export default function DetailHeader(props) {
     return (
@@ -16,24 +19,43 @@ export default function DetailHeader(props) {
         }}>
             <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="h5" component="h1" noWrap title={props.title}>
-                        {props.title}
-                    </Typography>
+                    <Show when={props.isEditing} fallback={
+                        <Typography variant="h5" component="h1" noWrap title={props.title}>
+                            {props.title}
+                        </Typography>
+                    }>
+                        <TextField
+                            size="small"
+                            value={props.editValue}
+                            on:input={props.onEditChange}
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') props.onEditSave();
+                                if (e.key === 'Escape') props.onEditCancel();
+                            }}
+                            sx={{ flexGrow: 1, maxWidth: '400px' }}
+                        />
+                    </Show>
 
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        {props.onEdit && (
-                            <Tooltip title={props.editTooltip || "Edit"} arrow>
-                                <span>
-                                    <IconButton
-                                        size="small"
-                                        onClick={props.onEdit}
-                                        disabled={props.editDisabled}
-                                    >
-                                        <EditIcon fontSize="small" />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                        )}
+                        <Show when={props.isEditing} fallback={
+                            <Show when={props.onEdit}>
+                                <Tooltip title={props.editTooltip || "Edit"} arrow>
+                                    <span>
+                                        <IconButton
+                                            size="small"
+                                            onClick={props.onEdit}
+                                            disabled={props.editDisabled}
+                                        >
+                                            <EditIcon fontSize="small" />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                            </Show>
+                        }>
+                            <IconButton onClick={props.onEditSave} color="primary" size="small"><CheckIcon fontSize="small" /></IconButton>
+                            <IconButton onClick={props.onEditCancel} size="small"><CloseIcon fontSize="small" /></IconButton>
+                        </Show>
 
                         {props.onDelete && (
                             <Tooltip title={props.deleteTooltip || "Delete"} arrow>
@@ -52,11 +74,11 @@ export default function DetailHeader(props) {
                     </Box>
                 </Box>
 
-                {props.subtitle && (
+                <Show when={!props.isEditing && props.subtitle}>
                     <Typography variant="body2" color="text.secondary" noWrap>
                         {props.subtitle}
                     </Typography>
-                )}
+                </Show>
             </Box>
 
             {/* Right actions area (e.g. Complete button) */}

@@ -68,21 +68,35 @@ export default function ActorView(props) {
         const names = parsedSceneNames();
         if (names.length === 0) return;
 
-        for (const name of names) {
-            // 1. Create the scene
-            const sceneResult = await props.sceneOps.createScene({ name });
-            const sceneId = sceneResult?.scene?.id;
+        console.log('[[CACHE_BUST_VERIFICATION]] handleAddScenes called with names:', names);
 
-            if (sceneId) {
-                // 2. Create a section for this actor in that scene
-                // Default to a dialogue section
-                await props.operations.createSection(props.actor.id, 'actor', 'dialogue', {
-                    name: `${name} (Cue)`,
-                    scene_id: sceneId
-                });
+        try {
+            for (const name of names) {
+                // 1. Create the scene
+                console.log('[ActorView] Creating scene:', name);
+                const sceneResult = await props.sceneOps.createScene({ name });
+                const sceneId = sceneResult?.scene?.id;
+                console.log('[ActorView] Created scene, ID:', sceneId);
+
+                if (sceneId) {
+                    // 2. Create a section for this actor in that scene
+                    // Default to a dialogue section
+                    console.log('[ActorView] Creating section for actor:', props.actor.id, 'in scene:', sceneId);
+                    await props.operations.createSection(props.actor.id, 'actor', 'dialogue', {
+                        name: `${name} (Cue)`,
+                        scene_id: sceneId
+                    });
+                } else {
+                    console.error('[ActorView] Failed to get valid scene ID from result:', sceneResult);
+                    // TODO: Show error toast
+                }
             }
+        } catch (err) {
+            console.error('[ActorView] Error in batch scene creation:', err);
+            // TODO: Show error toast
+        } finally {
+            setBatchSceneNames('');
         }
-        setBatchSceneNames('');
     };
 
     return (
@@ -93,6 +107,11 @@ export default function ActorView(props) {
                 onEdit={handleStartEdit}
                 onDelete={handleDeleteClick}
                 deleteDisabled={props.operations.deleting && props.operations.deleting()}
+                isEditing={editingName()}
+                editValue={tempName()}
+                onEditChange={(e) => setTempName(e.target.value)}
+                onEditSave={handleSaveName}
+                onEditCancel={handleCancelEdit}
                 rightActions={
                     <CompleteButton
                         isComplete={props.actor.actor_complete}
@@ -101,22 +120,6 @@ export default function ActorView(props) {
                     />
                 }
             />
-
-            {/* Inline Name Edit */}
-            <Show when={editingName()}>
-                <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>Rename Actor</Typography>
-                    <Stack direction="row" spacing={1}>
-                        <TextField
-                            size="small"
-                            fullWidth                            on:input={(e) => setTempName(e.target.value)}
-                            autoFocus
-                        />
-                        <Button variant="contained" onClick={handleSaveName}>Save</Button>
-                        <Button onClick={handleCancelEdit}>Cancel</Button>
-                    </Stack>
-                </Box>
-            </Show>
 
             <Stack spacing={4} sx={{ mt: 2 }}>
                 {/* Context-Aware Fast Track */}
@@ -132,7 +135,7 @@ export default function ActorView(props) {
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="e.g. Opening Scene, Forest Chase, Finale"                                on:input={(e) => setBatchSceneNames(e.target.value)}
+                                placeholder="e.g. Opening Scene, Forest Chase, Finale" on:input={(e) => setBatchSceneNames(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddScenes()}
                             />
                             <Button
