@@ -113,6 +113,8 @@ export default function DetailPane(props) {
         return null;
     });
 
+    const commonError = () => dataOps.error() || actorOps.error() || sceneOps.error();
+
     return (
         <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
             <Switch fallback={
