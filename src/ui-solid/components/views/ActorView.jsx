@@ -1,6 +1,6 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createMemo, Show } from 'solid-js';
 import {
-    Box, Typography, TextField, Stack,
+    Box, Typography, TextField, Stack, Paper,
     Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button
 } from '@suid/material';
 import DetailHeader from '../DetailHeader.jsx';
@@ -109,9 +109,7 @@ export default function ActorView(props) {
                     <Stack direction="row" spacing={1}>
                         <TextField
                             size="small"
-                            fullWidth
-                            value={tempName()}
-                            onInput={(e) => setTempName(e.target.value)}
+                            fullWidth                            on:input={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -134,9 +132,7 @@ export default function ActorView(props) {
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="e.g. Opening Scene, Forest Chase, Finale"
-                                value={batchSceneNames()}
-                                onInput={(e) => setBatchSceneNames(e.target.value)}
+                                placeholder="e.g. Opening Scene, Forest Chase, Finale"                                on:input={(e) => setBatchSceneNames(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddScenes()}
                             />
                             <Button

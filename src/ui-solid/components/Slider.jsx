@@ -13,7 +13,7 @@ export default function Slider(props) {
                 max={props.max ?? 100}
                 step={props.step ?? 1}
                 value={props.value ?? 0}
-                onInput={(e) => {
+                on:input={(e) => {
                     const val = parseFloat(e.target.value);
                     if (props.onChange) {
                         props.onChange(e, val);

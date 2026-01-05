@@ -35,9 +35,7 @@ export default function SectionManagement(props) {
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Section names, e.g. Battle_Dialogue, Story_Intro"
-                    value={namesValue()}
-                    onInput={(e) => setNamesValue(e.target.value)}
+                    placeholder="Section names, e.g. Battle_Dialogue, Story_Intro"                    on:input={(e) => setNamesValue(e.target.value)}
                 />
             </Box>
 

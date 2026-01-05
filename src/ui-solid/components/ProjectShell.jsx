@@ -17,8 +17,24 @@ export default function ProjectShell(props) {
     const [customViews, setCustomViews] = createSignal((() => {
         try {
             const saved = localStorage.getItem('moo-custom-views');
-            return saved ? JSON.parse(saved) : [];
+            if (!saved) return [];
+
+            const parsed = JSON.parse(saved);
+
+            // Deduplicate by ID (keep first occurrence)
+            const seen = new Set();
+            const deduplicated = parsed.filter(view => {
+                if (seen.has(view.id)) return false;
+                seen.add(view.id);
+                return true;
+            });
+
+            // Save back deduplicated version
+            localStorage.setItem('moo-custom-views', JSON.stringify(deduplicated));
+
+            return deduplicated;
         } catch (e) {
+            console.error('Failed to load custom views:', e);
             return [];
         }
     })());

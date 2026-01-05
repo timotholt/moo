@@ -34,9 +34,7 @@ export default function RootView(props) {
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Actor name (e.g. Hero, Narrator, Merchant)"
-                    value={actorName()}
-                    onChange={(e) => setActorName(e.target.value)}
+                    placeholder="Actor name (e.g. Hero, Narrator, Merchant)"                    on:input={(e) => setActorName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddActor()}
                     sx={{ mb: 2 }}
                 />
@@ -61,9 +59,7 @@ export default function RootView(props) {
                 <TextField
                     fullWidth
                     size="small"
-                    placeholder="Scene name (e.g. Intro, Battle_01, End_Credits)"
-                    value={sceneName()}
-                    onChange={(e) => setSceneName(e.target.value)}
+                    placeholder="Scene name (e.g. Intro, Battle_01, End_Credits)"                    on:input={(e) => setSceneName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddScene()}
                     sx={{ mb: 2 }}
                 />

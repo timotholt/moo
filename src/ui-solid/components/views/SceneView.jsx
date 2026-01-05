@@ -1,4 +1,12 @@
-import { createMemo } from 'solid-js';
+import { createSignal, createMemo, Show } from 'solid-js';
+import {
+    Box, Typography, TextField, Stack, Button, Paper,
+    Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
+} from '@suid/material';
+import DetailHeader from '../DetailHeader.jsx';
+import CompleteButton from '../CompleteButton.jsx';
+import SectionManagement from '../SectionManagement.jsx';
+import ProviderSettingsEditor from '../ProviderSettingsEditor.jsx';
 import { DIMENSIONS } from '../../utils/viewEngine.js';
 import AddIcon from '@suid/icons-material/Add';
 
@@ -98,9 +106,7 @@ export default function SceneView(props) {
                     <Stack direction="row" spacing={1}>
                         <TextField
                             size="small"
-                            fullWidth
-                            value={tempName()}
-                            onInput={(e) => setTempName(e.target.value)}
+                            fullWidth                            on:input={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -123,9 +129,7 @@ export default function SceneView(props) {
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="e.g. Hero, Villain, Narrator"
-                                value={batchActorNames()}
-                                onInput={(e) => setBatchActorNames(e.target.value)}
+                                placeholder="e.g. Hero, Villain, Narrator"                                on:input={(e) => setBatchActorNames(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddActors()}
                             />
                             <Button

@@ -79,7 +79,9 @@ export default function TreePane(props) {
             category,
             levels: [
                 { field: 'actor_id', displayField: 'actor_name', icon: 'person' },
-                { field: 'content_id', displayField: 'cue_id', icon: 'content', isTerminal: true }
+                { field: 'scene_id', displayField: 'scene_name', icon: 'folder' },
+                { field: 'section_id', displayField: 'section_name', icon: 'folder' },
+                { field: 'content_id', displayField: 'name', icon: 'content', isTerminal: true }
             ]
         };
         props.onCustomViewsChange([...props.customViews, newView]);

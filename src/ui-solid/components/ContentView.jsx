@@ -370,9 +370,7 @@ export default function ContentView(props) {
             }>
                 <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <TextField
-                        size="small"
-                        value={name()}
-                        onChange={(e) => setName(e.target.value)}
+                        size="small"                        on:input={(e) => setName(e.target.value)}
                         placeholder={props.item.name}
                         autoFocus
                         sx={{ flexGrow: 1 }}
@@ -401,9 +399,7 @@ export default function ContentView(props) {
                     size="small"
                     label="Prompt"
                     multiline
-                    rows={3}
-                    value={prompt()}
-                    onChange={(e) => setPrompt(e.target.value)}
+                    rows={3}                    on:input={(e) => setPrompt(e.target.value)}
                     onBlur={() => prompt() !== props.item.prompt && handleSaveField('prompt', prompt())}
                     disabled={isDisabled() || saving()}
                 />

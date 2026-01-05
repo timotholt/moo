@@ -289,8 +289,7 @@ export default function ProviderSettingsEditor(props) {
                             size="small"
                             label="Min Approved"
                             type="number"
-                            value={currentSettings().approval_count_default || 1}
-                            onChange={(e) => handleChange('approval_count_default', parseInt(e.target.value) || 1)}
+                            on:input={(e) => handleChange('approval_count_default', parseInt(e.target.value) || 1)}
                             inputProps={{ min: 1, max: 5 }}
                             sx={{ width: 140 }}
                         />
@@ -298,8 +297,7 @@ export default function ProviderSettingsEditor(props) {
                             size="small"
                             label="Min Candidates"
                             type="number"
-                            value={currentSettings().min_candidates || 1}
-                            onChange={(e) => handleChange('min_candidates', parseInt(e.target.value) || 1)}
+                            on:input={(e) => handleChange('min_candidates', parseInt(e.target.value) || 1)}
                             inputProps={{ min: 1, max: 10 }}
                             sx={{ width: 140 }}
                         />
@@ -342,9 +340,7 @@ export default function ProviderSettingsEditor(props) {
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                             <TextField
                                 size="small"
-                                label="Duration (mm:ss)"
-                                value={durationText()}
-                                onChange={(e) => {
+                                label="Duration (mm:ss)" on:input={(e) => {
                                     setDurationText(e.target.value);
                                     const width_secs = parseMmSsToSeconds(e.target.value);
                                     if (width_secs != null) handleChange('duration_seconds', width_secs);
@@ -372,8 +368,7 @@ export default function ProviderSettingsEditor(props) {
                                 label="Prompt Template"
                                 placeholder="{prompt}"
                                 helperText="Variables: {name}, {prompt}, {section_name}"
-                                value={currentSettings().templates?.prompt || ''}
-                                onChange={(e) => {
+                                on:input={(e) => {
                                     const currentTemplates = currentSettings().templates || {};
                                     handleChange('templates', { ...currentTemplates, prompt: e.target.value });
                                 }}
@@ -384,8 +379,7 @@ export default function ProviderSettingsEditor(props) {
                                 label="Filename Template"
                                 placeholder="{name}_{take_number}"
                                 helperText="Variables: {name}, {take_number}, {owner_name}"
-                                value={currentSettings().templates?.filename || ''}
-                                onChange={(e) => {
+                                on:input={(e) => {
                                     const currentTemplates = currentSettings().templates || {};
                                     handleChange('templates', { ...currentTemplates, filename: e.target.value });
                                 }}

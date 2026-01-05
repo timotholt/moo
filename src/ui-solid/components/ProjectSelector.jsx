@@ -10,7 +10,7 @@ import ContentCopyIcon from '@suid/icons-material/ContentCopy';
 import KeyboardArrowDownIcon from '@suid/icons-material/KeyboardArrowDown';
 import { getProjects, createProject, deleteProject, copyProject, switchProject } from '../api/client.js';
 
-const LAST_PROJECT_KEY = 'audiomanager-last-project';
+const LAST_PROJECT_KEY = 'moo-last-project';
 
 export default function ProjectSelector(props) {
     const [anchorEl, setAnchorEl] = createSignal(null);
@@ -46,10 +46,13 @@ export default function ProjectSelector(props) {
         loadProjects();
     });
 
-    // Auto-open last project on mount
-    createEffect(() => {
-        const autoOpenProject = async () => {
-            if (!props.currentProject && projects().length > 0) {
+    // Auto-open last project ONLY ONCE on mount
+    onMount(async () => {
+        if (!props.currentProject) {
+            // Wait a tiny bit for projects to load if they haven't
+            if (projects().length === 0) await loadProjects();
+
+            if (projects().length > 0) {
                 const lastProject = localStorage.getItem(LAST_PROJECT_KEY);
                 const projectToOpen = lastProject
                     ? projects().find(p => p.name === lastProject)
@@ -67,8 +70,7 @@ export default function ProjectSelector(props) {
                     }
                 }
             }
-        };
-        autoOpenProject();
+        }
     });
 
     const handleClick = (event) => {
@@ -287,8 +289,7 @@ export default function ProjectSelector(props) {
                         margin="dense"
                         label="Project Name"
                         fullWidth
-                        value={newProjectName()}
-                        onChange={(e) => setNewProjectName(e.target.value)}
+                        on:input={(e) => setNewProjectName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
                     />
                 </DialogContent>
@@ -328,9 +329,7 @@ export default function ProjectSelector(props) {
                         autoFocus
                         margin="dense"
                         label="New Project Name"
-                        fullWidth
-                        value={copyNewName()}
-                        onChange={(e) => setCopyNewName(e.target.value)}
+                        fullWidth                        on:input={(e) => setCopyNewName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCopyProject()}
                     />
                 </DialogContent>

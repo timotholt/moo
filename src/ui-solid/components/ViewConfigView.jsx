@@ -16,7 +16,8 @@ import AssessmentIcon from '@suid/icons-material/Assessment';
 import EditIcon from '@suid/icons-material/Edit';
 import CheckIcon from '@suid/icons-material/Check';
 import CloseIcon from '@suid/icons-material/Close';
-import { DIMENSIONS, getStickyName } from '../utils/viewEngine.js';
+import RestartAltIcon from '@suid/icons-material/RestartAlt';
+import { DIMENSIONS, getStickyName, PRESET_VIEWS } from '../utils/viewEngine.js';
 import Collapse from './Collapse.jsx';
 
 export default function ViewConfigView(props) {
@@ -128,6 +129,16 @@ export default function ViewConfigView(props) {
         return DIMENSIONS.filter(d => !usedFields.has(d.id));
     });
 
+    const handleReset = () => {
+        const preset = PRESET_VIEWS[props.view.id];
+        if (!preset) return;
+        setName(preset.name || '');
+        setLevels([...preset.levels]);
+        setFilters(Array.isArray(preset.filter) ? [...preset.filter] : []);
+    };
+
+    const isPreset = createMemo(() => !!PRESET_VIEWS[props.view.id]);
+
     const getIcon = (iconName) => {
         const sx = { fontSize: '1rem' };
         switch (iconName) {
@@ -158,9 +169,8 @@ export default function ViewConfigView(props) {
                                 <TextField
                                     size="small"
                                     fullWidth
-                                    value={name()}
                                     placeholder={stickyName()}
-                                    onInput={(e) => setName(e.target.value)}
+                                    on:input={(e) => setName(e.target.value)}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') setEditingName(false);
                                         if (e.key === 'Escape') { setName(props.view.name); setEditingName(false); }
@@ -180,6 +190,11 @@ export default function ViewConfigView(props) {
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Show when={isPreset()}>
+                            <Button variant="outlined" color="primary" onClick={handleReset} startIcon={<RestartAltIcon />}>
+                                Reset to Defaults
+                            </Button>
+                        </Show>
                         <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={props.onDelete}>
                             Delete
                         </Button>
@@ -206,9 +221,7 @@ export default function ViewConfigView(props) {
                                 <TextField
                                     fullWidth
                                     size="medium"
-                                    placeholder={nextLevelType() === 'actor' ? "Enter actor names..." : "Enter scene names..."}
-                                    value={quickAddValue()}
-                                    onInput={(e) => setQuickAddValue(e.target.value)}
+                                    placeholder={nextLevelType() === 'actor' ? "Enter actor names..." : "Enter scene names..."} on:input={(e) => setQuickAddValue(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
                                     sx={{ bgcolor: 'background.paper' }}
                                 />
@@ -369,8 +382,7 @@ export default function ViewConfigView(props) {
                                                     size="small"
                                                     label="Value"
                                                     sx={{ flexGrow: 1 }}
-                                                    value={filter.value}
-                                                    onInput={(e) => updateFilter(idx(), { value: e.target.value })}
+                                                    on:input={(e) => updateFilter(idx(), { value: e.target.value })}
                                                 />
 
                                                 <IconButton size="small" color="error" onClick={() => removeFilter(idx())}>

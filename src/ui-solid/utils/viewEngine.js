@@ -13,7 +13,7 @@ export const DIMENSIONS = [
   { id: 'section_id', name: 'Cue / Section', icon: 'folder', displayField: 'section_name' },
   { id: 'content_type', name: 'Type', icon: 'type', labelMap: { dialogue: 'Dialogue', music: 'Music', sfx: 'SFX', image: 'Image', video: 'Video' } },
   { id: 'status', name: 'Status', icon: 'status' },
-  { id: 'content_id', name: 'Content', icon: 'content', displayField: 'name', isTerminal: true },
+  { id: 'content_id', name: 'Content / Take', icon: 'content', displayField: 'name', isTerminal: true },
 ];
 
 export function getStickyName(view) {

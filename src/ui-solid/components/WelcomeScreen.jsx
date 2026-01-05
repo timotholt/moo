@@ -143,9 +143,7 @@ export default function WelcomeScreen(props) {
                     <TextField
                         fullWidth
                         size="small"
-                        placeholder="Project name"
-                        value={newProjectName()}
-                        onChange={(e) => setNewProjectName(e.target.value)}
+                        placeholder="Project name"                        on:input={(e) => setNewProjectName(e.target.value)}
                         onKeyDown={handleKeyDown}
                         disabled={creating()}
                     />

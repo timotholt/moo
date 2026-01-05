@@ -234,9 +234,7 @@ export default function SettingsDialog(props) {
                             size="small"
                             fullWidth
                             label="API Key"
-                            type={showElevenLabsKey() ? 'text' : 'password'}
-                            value={elevenLabsApiKey()}
-                            onChange={(e) => handleElevenLabsKeyChange(e.target.value)}
+                            type={showElevenLabsKey() ? 'text' : 'password'} on:input={(e) => handleElevenLabsKeyChange(e.target.value)}
                             placeholder="Enter your ElevenLabs API key"
                             InputProps={{
                                 endAdornment: (
@@ -338,8 +336,7 @@ export default function SettingsDialog(props) {
                             fullWidth
                             label="API Key"
                             type={showApiKey() ? 'text' : 'password'}
-                            value={llmSettings().apiKey}
-                            onChange={(e) => handleLLMSettingChange('apiKey', e.target.value)}
+                            on:input={(e) => handleLLMSettingChange('apiKey', e.target.value)}
                             placeholder="Enter your API key"
                             InputProps={{
                                 endAdornment: (
@@ -417,8 +414,7 @@ export default function SettingsDialog(props) {
                                             fullWidth
                                             multiline
                                             rows={4}
-                                            value={llmSettings().systemPrompts?.generate || ''}
-                                            onChange={(e) => handleSystemPromptChange('generate', e.target.value)}
+                                            on:input={(e) => handleSystemPromptChange('generate', e.target.value)}
                                             placeholder={defaultPrompts().generate || 'Using default...'}
                                             sx={DESIGN_SYSTEM.components.formControl}
                                         />
@@ -437,8 +433,7 @@ export default function SettingsDialog(props) {
                                             fullWidth
                                             multiline
                                             rows={4}
-                                            value={llmSettings().systemPrompts?.improve || ''}
-                                            onChange={(e) => handleSystemPromptChange('improve', e.target.value)}
+                                            on:input={(e) => handleSystemPromptChange('improve', e.target.value)}
                                             placeholder={defaultPrompts().improve || 'Using default...'}
                                             sx={DESIGN_SYSTEM.components.formControl}
                                         />

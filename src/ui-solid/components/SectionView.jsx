@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createMemo, Show } from 'solid-js';
 import {
     Box, Typography, TextField, Stack, Button,
     Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions
@@ -9,6 +9,7 @@ import Collapse from './Collapse.jsx';
 import DetailHeader from './DetailHeader.jsx';
 import CompleteButton from './CompleteButton.jsx';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
+import AddIcon from '@suid/icons-material/Add';
 
 export default function SectionView(props) {
     // props: sectionData, owner, contentType, operations (useDataOperations result)
@@ -97,9 +98,7 @@ export default function SectionView(props) {
                     <Stack direction="row" spacing={1}>
                         <TextField
                             size="small"
-                            fullWidth
-                            value={tempName()}
-                            onInput={(e) => setTempName(e.target.value)}
+                            fullWidth                            on:input={(e) => setTempName(e.target.value)}
                             autoFocus
                         />
                         <Button variant="contained" onClick={handleSaveName}>Save</Button>
@@ -159,9 +158,7 @@ export default function SectionView(props) {
                             label="Content Name(s)"
                             placeholder="e.g. CUE_001, CUE_002, CUE_003"
                             size="small"
-                            fullWidth
-                            value={contentName()}
-                            onInput={(e) => setContentName(e.target.value)}
+                            fullWidth                            on:input={(e) => setContentName(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleCreateContent()}
                         />
                         <TextField
@@ -169,9 +166,7 @@ export default function SectionView(props) {
                             size="small"
                             fullWidth
                             multiline
-                            rows={2}
-                            value={contentPrompt()}
-                            onInput={(e) => setContentPrompt(e.target.value)}
+                            rows={2}                            on:input={(e) => setContentPrompt(e.target.value)}
                         />
                         <Button
                             variant="contained"
