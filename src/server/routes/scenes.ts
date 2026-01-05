@@ -151,15 +151,21 @@ export function registerSceneRoutes(fastify: FastifyInstance, getProjectContext:
 
         const remainingScenes = catalog.scenes.filter(s => s.id !== id);
 
-        // Cascade delete logic: Sections/Content belonging to this scene
-        // We handle sections owned by 'scene' type
-        const remainingSections = catalog.sections.filter(s => !(s.owner_id === id && s.owner_type === 'scene'));
+        // Cascade delete logic: 
+        // 1. Sections owned by 'scene' type
+        // 2. Sections referencing this scene via scene_id (even if owned by actor)
+        const remainingSections = catalog.sections.filter(s =>
+            !(s.owner_id === id && s.owner_type === 'scene') &&
+            !(s.scene_id === id)
+        );
         const removedSectionIds = new Set(catalog.sections
-            .filter(s => s.owner_id === id && s.owner_type === 'scene')
+            .filter(s => (s.owner_id === id && s.owner_type === 'scene') || (s.scene_id === id))
             .map(s => s.id));
 
         const remainingContent = catalog.content.filter(c =>
-            !(c.owner_id === id && c.owner_type === 'scene') && !removedSectionIds.has(c.section_id)
+            !(c.owner_id === id && c.owner_type === 'scene') &&
+            !(c.scene_id === id) &&
+            !removedSectionIds.has(c.section_id)
         );
 
         await writeJsonlAll(paths.catalog.scenes, remainingScenes, SceneSchema);

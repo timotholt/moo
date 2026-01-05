@@ -1,9 +1,10 @@
 import { createSignal, createEffect, createMemo, Show, For, onCleanup } from 'solid-js';
 import {
-    Box, Typography, TextField, IconButton, Dialog, DialogTitle, DialogContent,
+    Box, Typography, IconButton, Dialog, DialogTitle, DialogContent,
     DialogActions, Button, List, ListItem, ListItemIcon, ListItemText,
     CircularProgress, Paper
 } from '@suid/material';
+import TextInput from './TextInput.jsx';
 import Tooltip from './Tooltip.jsx';
 import Collapse from './Collapse.jsx';
 import DeleteIcon from '@suid/icons-material/Delete';
@@ -369,8 +370,10 @@ export default function ContentView(props) {
                 />
             }>
                 <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TextField
-                        size="small"                        on:input={(e) => setName(e.target.value)}
+                    <TextInput
+                        size="small"
+                        value={name()}
+                        onValueChange={setName}
                         placeholder={props.item.name}
                         autoFocus
                         sx={{ flexGrow: 1 }}
@@ -394,12 +397,14 @@ export default function ContentView(props) {
                         <RestartAltIcon fontSize="small" />
                     </IconButton>
                 </Box>
-                <TextField
+                <TextInput
                     fullWidth
                     size="small"
                     label="Prompt"
                     multiline
-                    rows={3}                    on:input={(e) => setPrompt(e.target.value)}
+                    rows={3}
+                    value={prompt()}
+                    onValueChange={setPrompt}
                     onBlur={() => prompt() !== props.item.prompt && handleSaveField('prompt', prompt())}
                     disabled={isDisabled() || saving()}
                 />

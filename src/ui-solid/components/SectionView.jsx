@@ -83,6 +83,11 @@ export default function SectionView(props) {
                 subtitle={`Section ID: ${props.sectionData.id}`}
                 onEdit={handleStartEdit}
                 onDelete={handleDeleteClick}
+                isEditing={editingName()}
+                editValue={tempName()}
+                onEditChange={setTempName}
+                onEditSave={handleSaveName}
+                onEditCancel={() => setEditingName(false)}
                 rightActions={
                     <CompleteButton
                         isComplete={props.sectionData.section_complete}
@@ -92,20 +97,7 @@ export default function SectionView(props) {
                 }
             />
 
-            <Show when={editingName()}>
-                <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>Rename Section</Typography>
-                    <Stack direction="row" spacing={1}>
-                        <TextField
-                            size="small"
-                            fullWidth on:input={(e) => setTempName(e.target.value)}
-                            autoFocus
-                        />
-                        <Button variant="contained" onClick={handleSaveName}>Save</Button>
-                        <Button onClick={() => setEditingName(false)}>Cancel</Button>
-                    </Stack>
-                </Box>
-            </Show>
+
 
             <Stack spacing={3}>
                 {/* Parent Owner Link */}

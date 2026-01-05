@@ -1,4 +1,5 @@
-import { Box, Typography, Button, Stack, TextField } from '@suid/material';
+import { Box, Typography, Button, Stack } from '@suid/material';
+import TextInput from './TextInput.jsx';
 import { createSignal, For, Show, createMemo } from 'solid-js';
 
 export default function SectionManagement(props) {
@@ -32,10 +33,12 @@ export default function SectionManagement(props) {
             </Typography>
 
             <Box sx={{ mt: 2, mb: 2 }}>
-                <TextField
+                <TextInput
                     fullWidth
                     size="small"
-                    placeholder="Section names, e.g. Battle_Dialogue, Story_Intro"                    on:input={(e) => setNamesValue(e.target.value)}
+                    placeholder="Section names, e.g. Battle_Dialogue, Story_Intro"
+                    value={namesValue()}
+                    onValueChange={setNamesValue}
                 />
             </Box>
 

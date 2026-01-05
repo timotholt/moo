@@ -83,7 +83,7 @@ export default function DetailPane(props) {
                 if (node.field === 'owner_id' || node.field === 'actor_id') {
                     const actor = props.actors.find(a => a.id === node.fieldValue);
                     if (actor) return { actor, typeOverride: 'actor' };
-                    const scene = props.data.scenes.find(s => s.id === node.fieldValue);
+                    const scene = props.scenes.find(s => s.id === node.fieldValue);
                     if (scene) return { scene, typeOverride: 'scene' };
                 }
                 if (node.field === 'scene_id') {

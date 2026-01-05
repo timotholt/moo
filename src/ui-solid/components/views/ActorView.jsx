@@ -74,16 +74,8 @@ export default function ActorView(props) {
                 const sceneResult = await props.sceneOps.createScene({ name });
                 const sceneId = sceneResult?.scene?.id;
 
-                if (sceneId) {
-                    // 2. Create a section for this actor in that scene
-                    // Default to a dialogue section
-                    await props.operations.createSection(props.actor.id, 'actor', 'dialogue', {
-                        name: name,
-                        scene_id: sceneId
-                    });
-                } else {
+                if (!sceneId) {
                     console.error('[ActorView] Failed to get valid scene ID from result:', sceneResult);
-                    // TODO: Show error toast
                 }
             }
         } catch (err) {
@@ -104,7 +96,7 @@ export default function ActorView(props) {
                 deleteDisabled={props.operations.deleting && props.operations.deleting()}
                 isEditing={editingName()}
                 editValue={tempName()}
-                onEditChange={(e) => setTempName(e.target.value)}
+                onEditChange={setTempName}
                 onEditSave={handleSaveName}
                 onEditCancel={handleCancelEdit}
                 rightActions={

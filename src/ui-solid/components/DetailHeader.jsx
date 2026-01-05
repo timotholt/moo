@@ -1,4 +1,5 @@
-import { Box, Typography, IconButton, TextField } from '@suid/material';
+import { Box, Typography, IconButton } from '@suid/material';
+import TextInput from './TextInput.jsx';
 import EditIcon from '@suid/icons-material/Edit';
 import DeleteIcon from '@suid/icons-material/Delete';
 import CheckIcon from '@suid/icons-material/Check';
@@ -24,16 +25,16 @@ export default function DetailHeader(props) {
                             {props.title}
                         </Typography>
                     }>
-                        <TextField
+                        <TextInput
                             size="small"
-                            value={props.editValue}
-                            on:input={props.onEditChange}
+                            value={props.editValue || ''}
+                            onValueChange={props.onEditChange}
                             autoFocus
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') props.onEditSave();
-                                if (e.key === 'Escape') props.onEditCancel();
+                                if (e.key === 'Enter') props.onEditSave?.();
+                                if (e.key === 'Escape') props.onEditCancel?.();
                             }}
-                            sx={{ flexGrow: 1, maxWidth: '400px' }}
+                            sx={{ flexGrow: 1 }}
                         />
                     </Show>
 
@@ -47,7 +48,7 @@ export default function DetailHeader(props) {
                                             onClick={props.onEdit}
                                             disabled={props.editDisabled}
                                         >
-                                            <EditIcon fontSize="small" />
+                                            <EditIcon sx={{ fontSize: '0.875rem' }} />
                                         </IconButton>
                                     </span>
                                 </Tooltip>

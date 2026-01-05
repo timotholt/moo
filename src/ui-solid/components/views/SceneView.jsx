@@ -39,16 +39,7 @@ export default function SceneView(props) {
 
         for (const name of names) {
             // 1. Create the actor
-            const actorResult = await props.actorOps.createActor({ display_name: name });
-            const actorId = actorResult?.actor?.id;
-
-            if (actorId) {
-                // 2. Create a section for this actor in the current scene
-                await props.operations.createSection(actorId, 'actor', 'dialogue', {
-                    name: `Scene: ${props.scene.name}`,
-                    scene_id: props.scene.id
-                });
-            }
+            await props.actorOps.createActor({ display_name: name });
         }
         setBatchActorNames('');
     };
@@ -90,6 +81,11 @@ export default function SceneView(props) {
                 subtitle={`Scene ID: ${props.scene.id}`}
                 onEdit={handleStartEdit}
                 onDelete={handleDeleteClick}
+                isEditing={editingName()}
+                editValue={tempName()}
+                onEditChange={setTempName}
+                onEditSave={handleSaveName}
+                onEditCancel={handleCancelEdit}
                 rightActions={
                     <CompleteButton
                         isComplete={props.scene.scene_complete}
@@ -98,22 +94,6 @@ export default function SceneView(props) {
                     />
                 }
             />
-
-            {/* Inline Name Edit */}
-            <Show when={editingName()}>
-                <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>Rename Scene</Typography>
-                    <Stack direction="row" spacing={1}>
-                        <TextField
-                            size="small"
-                            fullWidth                            on:input={(e) => setTempName(e.target.value)}
-                            autoFocus
-                        />
-                        <Button variant="contained" onClick={handleSaveName}>Save</Button>
-                        <Button onClick={handleCancelEdit}>Cancel</Button>
-                    </Stack>
-                </Box>
-            </Show>
 
             <Stack spacing={4} sx={{ mt: 2 }}>
                 {/* Context-Aware Fast Track */}
@@ -129,7 +109,7 @@ export default function SceneView(props) {
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="e.g. Hero, Villain, Narrator"                                on:input={(e) => setBatchActorNames(e.target.value)}
+                                placeholder="e.g. Hero, Villain, Narrator" on:input={(e) => setBatchActorNames(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddActors()}
                             />
                             <Button
