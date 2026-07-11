@@ -27,11 +27,28 @@ export const MediaSchema = z.object({
     // Filename (without take number)
     filename: z.string().optional(),
 
+    // Game-facing identity and library organization (all optional for V2
+    // compatibility; new authoring flows should populate them deliberately).
+    cue_key: z.string().min(1).max(160).optional(),
+    tags: z.array(z.string().min(1).max(80)).optional(),
+    variation_group: z.string().min(1).max(160).optional(),
+    locale: z.string().min(2).max(35).optional(),
+    looping: z.boolean().optional(),
+    mix_bus: z.string().min(1).max(80).optional(),
+    export_filename: z.string().min(1).max(255).optional(),
+
+    // Explicitly chosen approved takes. Approval and selection are separate:
+    // an approved take is a candidate; a selected take is a deliverable.
+    selected_take_ids: z.array(IdSchema).optional(),
+
     // Default blocks (overrides for this specific item)
     default_blocks: DefaultBlocksSchema.optional(),
 
     // Completion tracking
     all_approved: z.boolean().default(false),
+    // A human may stop generation early when the approved takes satisfy their
+    // taste, even when the default approval target has not been reached.
+    completion_override: z.boolean().optional(),
 
     // Optional: Scene linkage (for actor media used in specific scenes)
     scene_id: IdSchema.optional(),

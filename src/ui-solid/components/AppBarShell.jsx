@@ -2,6 +2,7 @@ import { createSignal } from 'solid-js';
 import { AppBar, Toolbar, Typography, Box, Button, IconButton } from '@suid/material';
 import SettingsIcon from '@suid/icons-material/Settings';
 import AutoFixHighIcon from '@suid/icons-material/AutoFixHigh';
+import PublishIcon from '@suid/icons-material/Publish';
 import SettingsDialog from './SettingsDialog.jsx';
 import ProjectSelector from './ProjectSelector.jsx';
 
@@ -34,6 +35,20 @@ export default function AppBarShell(props) {
                         onProjectChange={props.onProjectChange}
                     />
                     <Box sx={{ flexGrow: 1 }} />
+                    {props.currentProject && (
+                        <Button
+                            size="small"
+                            variant="contained"
+                            color="success"
+                            startIcon={<PublishIcon />}
+                            onClick={props.onPublishRelease}
+                            disabled={props.publishing}
+                            sx={{ mr: 1, fontSize: '0.75rem', py: 0.25 }}
+                            title="Export selected approved takes as a release"
+                        >
+                            {props.publishing ? 'Publishing...' : 'Publish Release'}
+                        </Button>
+                    )}
                     {props.currentProject && (
                         <Button
                             size="small"

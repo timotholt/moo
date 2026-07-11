@@ -18,8 +18,7 @@ import RefreshIcon from '@suid/icons-material/Refresh';
 import AutoAwesomeIcon from '@suid/icons-material/AutoAwesome';
 import AutoFixHighIcon from '@suid/icons-material/AutoFixHigh';
 import RestartAltIcon from '@suid/icons-material/RestartAlt';
-import { deleteMedia, updateMedia, updateBin, updateActor, updateScene, updateTake, generateTakes, deleteTake } from '../api/client.js';
-import CompleteButton from './CompleteButton.jsx';
+import { deleteMedia, updateMedia, updateTake, generateTakes, deleteTake, selectMediaTakes } from '../api/client.js';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { buildMediaPath } from '../utils/pathBuilder.js';
@@ -86,7 +85,8 @@ export default function MediaView(props) {
     const [expandedTakeId, setExpandedTakeId] = createSignal(null);
     const [editingName, setEditingName] = createSignal(false);
 
-    const isDisabled = () => !!props.item.all_approved;
+    // Completion is derived from approved takes; it is not a manual lock.
+    const isDisabled = () => false;
 
     // Resolve inherited settings for this media item
     const inheritedSettings = createMemo(() => {
@@ -198,6 +198,22 @@ export default function MediaView(props) {
             baseLog.logError(`Failed to update take status: ${err.message}`);
         } finally {
             if (status.onStatusChange) status.onStatusChange('');
+        }
+    };
+
+    const handleSaveReviewNote = async (take, reviewNote) => {
+        if (reviewNote === (take.review_note || '')) return;
+        try {
+            setSaving(true);
+            const result = await updateTake(take.id, { review_note: reviewNote });
+            if (result.take) {
+                setOptimisticTakes(prev => prev.map(item => item.id === take.id ? result.take : item));
+                if (props.onTakeUpdated) props.onTakeUpdated(result.take);
+            }
+        } catch (err) {
+            setLocalError(err.message || String(err));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -317,6 +333,22 @@ export default function MediaView(props) {
     };
 
     const approvedCount = () => takes().filter(t => t.status === 'approved').length;
+    const isSelectedTake = (takeId) => (props.item.selected_take_ids || []).includes(takeId);
+    const toggleSelectedTake = async (take) => {
+        if (take.status !== 'approved') return;
+        const next = isSelectedTake(take.id)
+            ? (props.item.selected_take_ids || []).filter((id) => id !== take.id)
+            : [...(props.item.selected_take_ids || []), take.id];
+        try {
+            setSaving(true);
+            const result = await selectMediaTakes(props.item.id, next);
+            if (props.onMediaUpdated) props.onMediaUpdated(result.media);
+        } catch (err) {
+            setLocalError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
     const requiredApprovals = () => {
         return effectiveSettings().approval_count_default || 1;
     };
@@ -343,54 +375,27 @@ export default function MediaView(props) {
                     editDisabled={isDisabled()}
                     deleteDisabled={isDisabled()}
                     rightActions={
-                        <CompleteButton
-                            isComplete={props.item.all_approved}
-                            onToggle={async () => {
+                        <Button
+                            variant={(props.item.completion_override || approvedCount() >= requiredApprovals()) ? 'contained' : 'outlined'}
+                            size="small"
+                            color="success"
+                            disabled={saving() || approvedCount() === 0}
+                            onClick={async () => {
+                                setSaving(true);
                                 try {
-                                    setSaving(true);
-                                    setLocalError(null);
-                                    const nextAllApproved = !props.item.all_approved;
-                                    const result = await updateMedia(props.item.id, { all_approved: nextAllApproved });
-
+                                    const result = await updateMedia(props.item.id, { completion_override: !props.item.completion_override });
                                     if (result.media && props.onMediaUpdated) props.onMediaUpdated(result.media);
-
-                                    // Logging
-                                    const path = buildMediaPath(
-                                        props.item.owner_type,
-                                        props.item.owner_id,
-                                        props.item.bin_id,
-                                        props.item.name,
-                                        { actors: props.actors, scenes: props.scenes, bins: props.bins }
-                                    );
-                                    if (nextAllApproved) baseLog.logInfo(`user marked ${path} as complete`);
-                                    else baseLog.logInfo(`user marked ${path} as incomplete`);
-
-                                    // Cascade incomplete
-                                    if (!nextAllApproved) {
-                                        if (props.item.bin_id) {
-                                            const bResult = await updateBin(props.item.bin_id, { bin_complete: false });
-                                            if (bResult.bin && props.onBinUpdated) props.onBinUpdated(bResult.bin);
-                                        }
-                                        if (props.item.owner_id) {
-                                            if (props.item.owner_type === 'actor') {
-                                                const aResult = await updateActor(props.item.owner_id, { actor_complete: false });
-                                                if (aResult.actor && props.onActorUpdated) props.onActorUpdated(aResult.actor);
-                                            } else if (props.item.owner_type === 'scene') {
-                                                const scResult = await updateScene(props.item.owner_id, { scene_complete: false });
-                                                if (scResult.scene && props.onSceneUpdated) props.onSceneUpdated(scResult.scene);
-                                            }
-                                        }
-                                    }
                                 } catch (err) {
                                     setLocalError(err.message);
                                 } finally {
                                     setSaving(false);
                                 }
                             }}
-                            disabled={saving()}
-                            itemType="media"
-                            approvedCount={approvedCount()}
-                        />
+                        >
+                            {(props.item.completion_override || approvedCount() >= requiredApprovals())
+                                ? 'complete ✓'
+                                : `finish early (${approvedCount()}/${requiredApprovals()})`}
+                        </Button>
                     }
                 />
             }>
@@ -524,6 +529,15 @@ export default function MediaView(props) {
                                     </Box>
                                     <IconButton
                                         size="small"
+                                        onClick={() => toggleSelectedTake(take)}
+                                        disabled={take.status !== 'approved' || saving()}
+                                        title={isSelectedTake(take.id) ? 'Remove selected deliverable' : 'Select as deliverable'}
+                                        sx={{ p: 0.25, color: isSelectedTake(take.id) ? 'warning.main' : 'text.disabled' }}
+                                    >
+                                        <span style={{ 'font-size': '0.8rem' }}>★</span>
+                                    </IconButton>
+                                    <IconButton
+                                        size="small"
                                         onClick={() => handleTakeStatus(take.id, take.status === 'approved' ? 'new' : 'approved')}
                                         disabled={isDisabled()}
                                         sx={{
@@ -608,6 +622,17 @@ export default function MediaView(props) {
                                         <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
                                             <strong>Hash:</strong> {take.hash_sha256 || 'unknown'}
                                         </Typography>
+                                        <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block', mt: 0.75 }}>
+                                            <strong>Reviewed:</strong> {take.reviewed_at ? formatStatusDate(take.reviewed_at) : 'not yet'}
+                                        </Typography>
+                                        <TextInput
+                                            fullWidth
+                                            size="small"
+                                            label="Review note"
+                                            defaultValue={take.review_note || ''}
+                                            onBlur={(event) => handleSaveReviewNote(take, event.currentTarget.value)}
+                                            sx={{ mt: 1, '& .MuiInputBase-input': { fontSize: '0.75rem' } }}
+                                        />
                                     </Box>
                                 </Collapse>
                             </Box>
@@ -620,7 +645,7 @@ export default function MediaView(props) {
                     {(() => {
                         const settings = effectiveSettings();
                         const voiceMissing = props.item.media_type === 'dialogue' && (!settings || !settings.voice_id);
-                        const disabled = () => isDisabled() || generatingTakes() || voiceMissing;
+                        const disabled = () => generatingTakes() || voiceMissing || approvedCount() >= requiredApprovals();
 
                         // Calculate counts
                         const undecidedCount = takes().filter(t => t.status === 'new').length;
@@ -628,7 +653,7 @@ export default function MediaView(props) {
                         const minCandidates = settings.min_candidates || 1;
                         const minApprovedTakes = settings.approval_count_default || 1;
 
-                        const isComplete = props.item.all_approved;
+                        const isComplete = props.item.completion_override || approvedCountVal >= minApprovedTakes;
                         const hasEnoughApproved = approvedCountVal >= minApprovedTakes;
                         const needed = (isComplete || hasEnoughApproved) ? 0 : Math.max(0, minCandidates - undecidedCount);
 

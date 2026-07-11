@@ -4,7 +4,6 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { importActorsCommand } from './commands/import-actors.js';
-import { importDialoguesCommand } from './commands/import-dialogues.js';
 import { probeAudio } from '../services/audio/ffprobe.js';
 import { normalizeAudio } from '../services/audio/normalize.js';
 import { transcodeAudio } from '../services/audio/transcode.js';
@@ -12,6 +11,7 @@ import { hashFile, verifyHash } from '../services/audio/hash.js';
 import { loadConfig, saveConfig } from '../services/config.js';
 import { getAudioProvider } from '../services/provider-factory.js';
 import { runBatchGeneration } from '../services/generation.js';
+import { initializeProject } from '../services/project-initializer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,13 +37,19 @@ program
     .command('init')
     .description('Initialize a new MOO project')
     .argument('<path>', 'Project directory path')
-    .action((path) => {
-        console.log(`Initializing project in ${path}...`);
-        // TODO: Implement init logic
+    .action(async (path) => {
+        try {
+            await initializeProject(path, {
+                defaultsTemplatePath: join(__dirname, '../templates/defaults.template.json'),
+            });
+            console.log(`Initialized MOO project in ${path}`);
+        } catch (err) {
+            console.error('Error initializing project:', err);
+            process.exit(1);
+        }
     });
 
 program.addCommand(importActorsCommand);
-program.addCommand(importDialoguesCommand);
 
 // Audio commands
 const audioCommand = new Command('audio').description('Audio processing commands');

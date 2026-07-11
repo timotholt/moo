@@ -56,4 +56,13 @@ describe('calculateCueLifecycle', () => {
       is_complete: true,
     });
   });
+
+  it('allows an author to finish early after approving a take they like', () => {
+    const lifecycle = calculateCueLifecycle(
+      { ...media, completion_override: true },
+      [take('take-1', 'approved')],
+      3,
+    );
+    expect(lifecycle).toMatchObject({ is_complete: true, is_overridden: true, approved_take_count: 1 });
+  });
 });

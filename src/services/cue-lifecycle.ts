@@ -13,6 +13,7 @@ export interface CueLifecycle {
   approved_take_ids: string[];
   selected_take_ids: string[];
   is_complete: boolean;
+  is_overridden: boolean;
 }
 
 /**
@@ -34,7 +35,9 @@ export function calculateCueLifecycle(
     ? mediaWithSelection.selected_take_ids.filter((id): id is string => typeof id === 'string')
     : [];
   const normalizedTarget = Math.max(1, approvalTarget);
-  const isComplete = approvedTakes.length >= normalizedTarget;
+  const isOverridden = (media as { completion_override?: boolean }).completion_override === true
+    && approvedTakes.length > 0;
+  const isComplete = isOverridden || approvedTakes.length >= normalizedTarget;
 
   return {
     status: cueTakes.length === 0 ? 'draft' : isComplete ? 'approved' : 'review_needed',
@@ -47,5 +50,6 @@ export function calculateCueLifecycle(
     approved_take_ids: approvedTakes.map((take) => take.id),
     selected_take_ids: selectedTakeIds,
     is_complete: isComplete,
+    is_overridden: isOverridden,
   };
 }

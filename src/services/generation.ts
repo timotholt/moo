@@ -1,18 +1,21 @@
 import fs from 'fs-extra';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { getProjectPaths } from '../utils/paths.js';
-import { readJsonl, appendJsonl, ensureJsonlFile } from '../utils/jsonl.js';
+import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../utils/jsonl.js';
 import { generateId } from '../utils/ids.js';
 import { getAudioProvider } from './provider-factory.js';
 import { probeAudio } from './audio/ffprobe.js';
 import { hashFile } from './audio/hash.js';
 import { writeMetadata, buildMetadataFromTake } from './audio/metadata.js';
-import type { Actor, Media, Take, GenerationJob, GenerationJobItemSummary, Bin } from '../types/index.js';
+import type { Actor, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
+import { getExtensionForType } from '../utils/pathConstruction.js';
 
 const DEBUG_BATCH_GENERATION = false;
 
 export interface BatchGenerationOptions {
     actorId?: string;
+    binId?: string;
+    mediaId?: string;
     contentType?: 'dialogue' | 'music' | 'sfx';
     mediaType?: 'dialogue' | 'music' | 'sfx';
     dryRun?: boolean;
@@ -22,25 +25,72 @@ export interface BatchGenerationResult {
     job: GenerationJob;
 }
 
-export async function runBatchGeneration(
+export async function requestGenerationCancellation(projectRoot: string, jobId: string): Promise<GenerationJob> {
+    const paths = getProjectPaths(projectRoot);
+    const jobs = await readJsonl<GenerationJob>(paths.catalog.generationJobs);
+    const index = jobs.findIndex((job) => job.id === jobId);
+    if (index < 0) throw new Error('Generation job not found');
+    if (jobs[index].status !== 'running') throw new Error('Only running generation jobs can be cancelled');
+
+    const updated = { ...jobs[index], cancel_requested_at: jobs[index].cancel_requested_at ?? new Date().toISOString() };
+    jobs[index] = updated;
+    await writeJsonlAll(paths.catalog.generationJobs, jobs);
+    return updated;
+}
+
+async function isCancellationRequested(paths: ReturnType<typeof getProjectPaths>, jobId: string): Promise<boolean> {
+    const jobs = await readJsonl<GenerationJob>(paths.catalog.generationJobs);
+    return jobs.some((job) => job.id === jobId && Boolean(job.cancel_requested_at));
+}
+
+const activeBatchRuns = new Map<string, Promise<BatchGenerationResult>>();
+
+function batchRequestKey(projectRoot: string, options: BatchGenerationOptions): string {
+    return JSON.stringify({
+        projectRoot,
+        actorId: options.actorId ?? null,
+        binId: options.binId ?? null,
+        mediaId: options.mediaId ?? null,
+        contentType: options.contentType ?? options.mediaType ?? null,
+        dryRun: !!options.dryRun,
+    });
+}
+
+export function runBatchGeneration(
+    projectRoot: string,
+    options: BatchGenerationOptions = {},
+): Promise<BatchGenerationResult> {
+    const key = batchRequestKey(projectRoot, options);
+    const active = activeBatchRuns.get(key);
+    if (active) return active;
+
+    const run = executeBatchGeneration(projectRoot, options).finally(() => activeBatchRuns.delete(key));
+    activeBatchRuns.set(key, run);
+    return run;
+}
+
+async function executeBatchGeneration(
     projectRoot: string,
     options: BatchGenerationOptions = {}
 ): Promise<BatchGenerationResult> {
     const paths = getProjectPaths(projectRoot);
 
-    await ensureJsonlFile(paths.catalog.takes);
+    await Promise.all([
+        ensureJsonlFile(paths.catalog.takes),
+        ensureJsonlFile(paths.catalog.generationJobs),
+    ]);
 
-    const [actors, mediaItems, existingTakes, bins] = await Promise.all([
+    const [actors, scenes, mediaItems, existingTakes, bins] = await Promise.all([
         readJsonl<Actor>(paths.catalog.actors),
+        readJsonl<Scene>(paths.catalog.scenes),
         readJsonl<Media>(paths.catalog.media),
         readJsonl<Take>(paths.catalog.takes),
         readJsonl<Bin>(paths.catalog.bins),
     ]);
 
     const actorsById = new Map<string, Actor>(actors.map((a) => [a.id, a]));
+    const scenesById = new Map<string, Scene>(scenes.map((s) => [s.id, s]));
     const binsById = new Map<string, Bin>(bins.map((b) => [b.id, b]));
-
-    const provider = await getAudioProvider(projectRoot);
 
     const startedAt = new Date().toISOString();
     const job: GenerationJob = {
@@ -50,28 +100,51 @@ export async function runBatchGeneration(
         total_media: 0,
         total_takes_created: 0,
         items: [],
+        request: {
+            actor_id: options.actorId,
+            bin_id: options.binId,
+            media_id: options.mediaId,
+            media_type: options.contentType ?? options.mediaType,
+            dry_run: !!options.dryRun,
+        },
     };
 
     const items: GenerationJobItemSummary[] = [];
+    await appendJsonl(paths.catalog.generationJobs, job);
+
+    let provider: Awaited<ReturnType<typeof getAudioProvider>> | null = null;
+    try {
+      provider = options.dryRun ? null : await getAudioProvider(projectRoot);
 
     // Filter media: incomplete only, optional actor/mediaType filters
     const requestedType = options.contentType ?? options.mediaType;
     const filteredMedia = mediaItems.filter((m) => {
         if (m.all_approved) return false;
         if (options.actorId && m.owner_id !== options.actorId) return false;
+        if (options.binId && m.bin_id !== options.binId) return false;
+        if (options.mediaId && m.id !== options.mediaId) return false;
         if (requestedType && m.media_type !== requestedType) return false;
         return true;
     });
 
+    let cancelled = false;
     for (const media of filteredMedia) {
+        if (await isCancellationRequested(paths, job.id)) {
+            cancelled = true;
+            break;
+        }
         const itemSummary: GenerationJobItemSummary = {
             media_id: media.id,
             generated_takes: 0,
         };
 
-        const actor = actorsById.get(media.owner_id || '');
-        if (!actor && media.owner_type === 'actor') {
-            itemSummary.error = 'actor_not_found';
+        const owner = media.owner_type === 'actor'
+            ? actorsById.get(media.owner_id || '') ?? null
+            : media.owner_type === 'scene'
+                ? scenesById.get(media.owner_id || '') ?? null
+                : null;
+        if (!owner && media.owner_type !== 'global') {
+            itemSummary.error = 'owner_not_found';
             items.push(itemSummary);
             continue;
         }
@@ -93,14 +166,8 @@ export async function runBatchGeneration(
             globalDefaults = await fs.readJson(defaultsPath);
         }
 
-        const resolved = resolveDefaultBlock(media.media_type, media, bin, actor, globalDefaults);
+        const resolved = resolveDefaultBlock(media.media_type, media, bin, owner, globalDefaults);
         const settings = resolved.settings;
-
-        // For now we only support dialogue generation
-        if (media.media_type !== 'dialogue') {
-            items.push(itemSummary);
-            continue;
-        }
 
         const targetApprovals = settings.approval_count_default ?? 1;
         const minCandidates = settings.min_candidates ?? 1;
@@ -110,10 +177,13 @@ export async function runBatchGeneration(
         const undecidedCount = takesForMedia.filter((t) => t.status === 'new').length;
 
         // Don't backfill if we already have enough approved takes
-        let needed = 0;
-        if (approvedCount < targetApprovals) {
-            needed = Math.max(0, minCandidates - undecidedCount);
-        }
+        // Approval is the budget stop condition. Once the cue has enough good
+        // takes, do not spend more tokens merely to satisfy a larger candidate
+        // pool setting. Until then, maintain the review pool and ensure enough
+        // candidates exist to make the remaining approvals possible.
+        const needed = approvedCount >= targetApprovals
+            ? 0
+            : Math.max(0, Math.max(minCandidates, targetApprovals - approvedCount) - undecidedCount);
 
         if (needed <= 0) {
             items.push(itemSummary);
@@ -129,19 +199,38 @@ export async function runBatchGeneration(
         const baseTakeNumber = takesForMedia.reduce((max, t) => Math.max(max, t.take_number), 0);
 
         for (let i = 1; i <= needed; i++) {
+            // Deliberately check only between provider calls. An in-flight
+            // ElevenLabs request is allowed to complete and is saved as a take.
+            if (await isCancellationRequested(paths, job.id)) {
+                cancelled = true;
+                break;
+            }
             try {
-                const buffer = await provider.generateDialogue(media.prompt || media.name, settings.voice_id ?? '', {
-                    stability: settings.stability,
-                    similarity_boost: settings.similarity_boost,
-                }, settings.model_id);
+                if (!provider) throw new Error('Audio provider unavailable');
+                const prompt = media.prompt || media.name;
+                let buffer: Buffer;
+                if (media.media_type === 'dialogue') {
+                    if (!settings.voice_id) throw new Error('No voice_id resolved for dialogue');
+                    buffer = await provider.generateDialogue(prompt, settings.voice_id, {
+                        stability: settings.stability,
+                        similarity_boost: settings.similarity_boost,
+                    }, settings.model_id);
+                } else if (media.media_type === 'music') {
+                    buffer = await provider.generateMusic(prompt, { duration_seconds: settings.duration_seconds });
+                } else if (media.media_type === 'sfx') {
+                    buffer = await provider.generateSFX(prompt, { duration_seconds: settings.duration_seconds });
+                } else {
+                    throw new Error(`Generation not supported for ${media.media_type}`);
+                }
 
                 const takeNumber = baseTakeNumber + i;
 
                 // Construct path using common utility
                 const { constructTakePath } = await import('../utils/pathConstruction.js');
-                const relativePath = constructTakePath(media, bin, takeNumber, actor?.base_filename);
+                const actorBaseFilename = owner && 'base_filename' in owner ? owner.base_filename : undefined;
+                const relativePath = constructTakePath(media, bin, takeNumber, actorBaseFilename);
                 const fullFilePath = join(paths.root, relativePath);
-                const folderPath = join(projectRoot, join(paths.root, relativePath), '..');
+                const folderPath = dirname(fullFilePath);
 
                 await fs.ensureDir(folderPath);
                 await fs.writeFile(fullFilePath, buffer);
@@ -160,7 +249,7 @@ export async function runBatchGeneration(
                     filename: join(relativePath).split(/[/\\]/).pop() || 'file.mp3',
                     path: relativePath,
                     status: 'new',
-                    format: 'wav',
+                    format: getExtensionForType(media.media_type),
                     size_bytes: buffer.length,
                     duration_sec: durationSec || 0,
                     hash_sha256: hash,
@@ -173,10 +262,10 @@ export async function runBatchGeneration(
                         provider: settings.provider as any,
                         resolved_from: resolved.resolvedFrom as any,
                         full_settings: settings as any,
-                        prompt: media.prompt || media.name,
+                        prompt,
                         owner_type: media.owner_type,
                         owner_id: media.owner_id ?? null,
-                        owner_name: actor ? actor.display_name : 'Global',
+                        owner_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
                         bin_name: bin.name,
                         generated_at: now
                     },
@@ -189,7 +278,7 @@ export async function runBatchGeneration(
                 // Embed metadata
                 try {
                     const metadata = buildMetadataFromTake(take, media, {
-                        actor_name: actor?.display_name || 'Global',
+                        actor_name: owner && 'display_name' in owner ? owner.display_name : 'Global',
                         bin_name: bin.name,
                     });
                     await writeMetadata(fullFilePath, fullFilePath, metadata);
@@ -206,13 +295,32 @@ export async function runBatchGeneration(
         }
 
         items.push(itemSummary);
+        if (cancelled) break;
     }
 
     job.total_media = filteredMedia.length;
     job.items = items;
     job.total_takes_created = items.reduce((sum, item) => sum + item.generated_takes, 0);
-    job.status = 'completed';
-    job.completed_at = new Date().toISOString();
-
-    return { job };
+      job.status = cancelled ? 'cancelled' : items.some((item) => item.error) ? 'failed' : 'completed';
+      job.completed_at = new Date().toISOString();
+      return { job };
+    } catch (error) {
+      job.status = 'failed';
+      job.completed_at = new Date().toISOString();
+      job.items = items;
+      throw error;
+    } finally {
+      const jobs = await readJsonl<GenerationJob>(paths.catalog.generationJobs);
+      const jobIndex = jobs.findIndex((candidate) => candidate.id === job.id);
+      if (jobIndex >= 0) {
+        const cancelRequestedAt = jobs[jobIndex].cancel_requested_at;
+        if (cancelRequestedAt) {
+          job.cancel_requested_at = cancelRequestedAt;
+          if (job.status === 'running') job.status = 'cancelled';
+        }
+        jobs[jobIndex] = job;
+      }
+      else jobs.push(job);
+      await writeJsonlAll(paths.catalog.generationJobs, jobs);
+    }
 }

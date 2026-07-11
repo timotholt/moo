@@ -68,6 +68,10 @@ export const TakeSchema = z.object({
     // Status
     status: TakeStatusSchema.default('new'),
     status_changed_at: TimestampSchema.optional(),
+    // Human review record. MOO is local-first, so there is no required user
+    // identity; the timestamp and freeform note preserve authoring intent.
+    review_note: z.string().max(2000).optional(),
+    reviewed_at: TimestampSchema.optional(),
 
     // Generation metadata
     generated_by: ProviderSchema.optional(),
@@ -90,6 +94,8 @@ export const CreateTakeSchema = TakeSchema.omit({
 }).partial({
     status: true,
     status_changed_at: true,
+    review_note: true,
+    reviewed_at: true,
     generated_by: true,
     generated_at: true,
     generation_params: true,

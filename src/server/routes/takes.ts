@@ -3,12 +3,15 @@ import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Take, Media } from '../../types/index.js';
 import { TakeSchema } from '../../shared/schemas/index.js';
+import { MediaSchema } from '../../shared/schemas/index.js';
 import { readJsonl, writeJsonlAll } from '../../utils/jsonl.js';
 import { validateReferences } from '../../utils/validation.js';
 import { readCatalog, saveSnapshot } from './snapshots.js';
 import { describeChanges } from '../../utils/diffDescriber.js';
 import { updateMetadata } from '../../services/audio/metadata.js';
 import { buildMediaPath } from '../../utils/pathBuilder.js';
+import { resolveDefaultBlock } from '../../utils/defaultBlockResolver.js';
+import { calculateCueLifecycle } from '../../services/cue-lifecycle.js';
 
 type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
 
@@ -64,11 +67,15 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     }
 
     const currentTake = takes[takeIndex];
+    const now = new Date().toISOString();
+    const statusChanged = body.status !== undefined && body.status !== currentTake.status;
     const updatedTake: Take = {
       ...currentTake,
       ...body,
       id,
-      updated_at: new Date().toISOString(),
+      status_changed_at: statusChanged ? now : currentTake.status_changed_at,
+      reviewed_at: statusChanged && body.status !== 'new' ? now : currentTake.reviewed_at,
+      updated_at: now,
     };
 
     // Find context for snapshot message
@@ -96,6 +103,30 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     takes[takeIndex] = updatedTake;
     await writeJsonlAll(paths.catalog.takes, takes, TakeSchema);
 
+    // Keep the legacy completion flag a derived compatibility projection until
+    // consumers move fully to the lifecycle read model.
+    let lifecycle = null;
+    if (mediaItem) {
+      const bin = catalog.bins.find((item) => item.id === mediaItem.bin_id);
+      const owner = mediaItem.owner_type === 'actor'
+        ? catalog.actors.find((item) => item.id === mediaItem.owner_id) ?? null
+        : mediaItem.owner_type === 'scene'
+          ? catalog.scenes.find((item) => item.id === mediaItem.owner_id) ?? null
+          : null;
+      if (bin) {
+        const defaults = await fs.pathExists(paths.moo.defaults) ? await fs.readJson(paths.moo.defaults) : null;
+        const settings = resolveDefaultBlock(mediaItem.media_type, mediaItem, bin, owner, defaults).settings;
+        lifecycle = calculateCueLifecycle(mediaItem, takes, settings.approval_count_default ?? 1);
+        const mediaIndex = catalog.media.findIndex((item) => item.id === mediaItem.id);
+        catalog.media[mediaIndex] = {
+          ...mediaItem,
+          all_approved: lifecycle.is_complete,
+          updated_at: new Date().toISOString(),
+        };
+        await writeJsonlAll(paths.catalog.media, catalog.media, MediaSchema);
+      }
+    }
+
     // Update metadata in audio file
     try {
       const fullPath = join(ctx.projectRoot, updatedTake.path);
@@ -109,7 +140,7 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
       request.log.warn({ err: metaErr, takeId: id }, 'Failed to update metadata in audio file');
     }
 
-    return { take: updatedTake };
+    return { take: updatedTake, lifecycle };
   });
 
   fastify.delete('/api/takes/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {

@@ -12,6 +12,8 @@ import HistoryView from './HistoryView.jsx';
 import BrowserConsoleView from './BrowserConsoleView.jsx';
 import ViewConfigView from './ViewConfigView.jsx';
 import GroupView from './views/GroupView.jsx';
+import ReviewQueue from './ReviewQueue.jsx';
+import GenerationJobsView from './GenerationJobsView.jsx';
 import { PRESET_VIEWS } from '../utils/viewEngine.js';
 import { useActorOperations } from '../hooks/useActorOperations.jsx';
 import { useSceneOperations } from '../hooks/useSceneOperations.jsx';
@@ -153,6 +155,17 @@ export default function DetailPane(props) {
 
                 <Match when={activeType() === 'history'}>
                     <HistoryView logs={props.logs} undoRedo={props.undoRedo} onClearLogs={props.onClearLogs} />
+                </Match>
+
+                <Match when={activeType() === 'review'}>
+                    <ReviewQueue
+                        refreshToken={props.refreshToken}
+                        onOpenMedia={(id) => props.onSelect({ type: 'media', id })}
+                    />
+                </Match>
+
+                <Match when={activeType() === 'jobs'}>
+                    <GenerationJobsView refreshToken={props.refreshToken} onRefresh={props.onRefresh} />
                 </Match>
 
                 <Match when={activeType() === 'provider-default'}>

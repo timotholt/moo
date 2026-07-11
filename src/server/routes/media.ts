@@ -204,9 +204,12 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         const currentMedia = catalog.media[mediaIndex];
 
+        // Completion is derived from take approval counts. Keep accepting older
+        // clients that send all_approved, but never let that value become truth.
+        const { all_approved: _legacyCompletion, selected_take_ids: _selection, ...changes } = body;
         const updatedMedia: Media = {
             ...currentMedia,
-            ...body,
+            ...changes,
             id,
             updated_at: new Date().toISOString(),
         };
@@ -229,9 +232,63 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
             return { error: 'Invalid media data', details: validation.errors };
         }
 
+        if (Object.hasOwn(changes, 'completion_override')) {
+            const bin = catalog.bins.find((item) => item.id === currentMedia.bin_id);
+            const owner = currentMedia.owner_type === 'actor'
+                ? catalog.actors.find((item) => item.id === currentMedia.owner_id) ?? null
+                : currentMedia.owner_type === 'scene'
+                    ? catalog.scenes.find((item) => item.id === currentMedia.owner_id) ?? null
+                    : null;
+            const defaults = await fs.pathExists(paths.moo.defaults) ? await fs.readJson(paths.moo.defaults) : null;
+            const takes = await readJsonl<Take>(paths.catalog.takes, TakeSchema);
+            if (bin) {
+                const settings = resolveDefaultBlock(updatedMedia.media_type, updatedMedia, bin, owner, defaults).settings;
+                updatedMedia.all_approved = calculateCueLifecycle(updatedMedia, takes, settings.approval_count_default ?? 1).is_complete;
+            }
+        }
         catalog.media[mediaIndex] = updatedMedia;
         await writeJsonlAll(paths.catalog.media, catalog.media, MediaSchema);
 
+        return { media: updatedMedia };
+    });
+
+    fastify.put('/api/media/:id/selection', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+        const ctx = getProjectContext();
+        if (!ctx) {
+            reply.code(400);
+            return { error: 'No project selected' };
+        }
+
+        const body = request.body as { take_ids?: string[] } | null;
+        const takeIds = [...new Set(body?.take_ids || [])];
+        if (!Array.isArray(body?.take_ids)) {
+            reply.code(400);
+            return { error: 'take_ids must be an array' };
+        }
+
+        const catalog = await readCatalog(ctx.paths);
+        const mediaIndex = catalog.media.findIndex((item) => item.id === request.params.id);
+        if (mediaIndex === -1) {
+            reply.code(404);
+            return { error: 'Media not found' };
+        }
+
+        const takes = await readJsonl<Take>(ctx.paths.catalog.takes, TakeSchema);
+        const selectedTakes = takes.filter((take) => takeIds.includes(take.id));
+        if (selectedTakes.length !== takeIds.length || selectedTakes.some((take) => take.media_id !== request.params.id || take.status !== 'approved')) {
+            reply.code(400);
+            return { error: 'Selected takes must be approved takes belonging to this media item' };
+        }
+
+        const currentMedia = catalog.media[mediaIndex];
+        const updatedMedia: Media = {
+            ...currentMedia,
+            selected_take_ids: takeIds,
+            updated_at: new Date().toISOString(),
+        };
+        await saveSnapshot(ctx.paths, `Select ${takeIds.length} deliverable take(s) for ${currentMedia.name}`, catalog);
+        catalog.media[mediaIndex] = updatedMedia;
+        await writeJsonlAll(ctx.paths.catalog.media, catalog.media, MediaSchema);
         return { media: updatedMedia };
     });
 

@@ -59,8 +59,16 @@ export interface GenerationJob {
     id: string;
     started_at: string;
     completed_at?: string;
-    status: 'running' | 'completed' | 'failed';
+    status: 'running' | 'completed' | 'failed' | 'cancelled';
+    cancel_requested_at?: string;
     total_media: number;
     total_takes_created: number;
     items: GenerationJobItemSummary[];
+    request?: {
+        actor_id?: string;
+        bin_id?: string;
+        media_id?: string;
+        media_type?: 'dialogue' | 'music' | 'sfx';
+        dry_run: boolean;
+    };
 }

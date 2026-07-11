@@ -5,7 +5,7 @@ import ProjectShell from './components/ProjectShell.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import AudioPlayerBar from './components/AudioPlayerBar.jsx';
 import WelcomeScreen from './components/WelcomeScreen.jsx';
-import { getProviderCredits, backfillTakes } from './api/client.js';
+import { getProviderCredits, backfillTakes, publishRelease } from './api/client.js';
 
 // Font size multipliers
 const FONT_SIZE_SCALES = {
@@ -33,6 +33,7 @@ export default function App() {
     const [providerCredits, setProviderCredits] = createSignal('');
     const [currentProject, setCurrentProject] = createSignal(null);
     const [backfillRunning, setBackfillRunning] = createSignal(false);
+    const [publishing, setPublishing] = createSignal(false);
 
     // Solid: Refs are variables or assigned via ref prop
     let projectShellRef;
@@ -107,6 +108,21 @@ export default function App() {
             setTimeout(() => setStatusText(''), 5000);
         } finally {
             setBackfillRunning(false);
+        }
+    };
+
+    const handlePublishRelease = async () => {
+        if (publishing()) return;
+        const releaseId = window.prompt('Release ID (optional)', 'release-' + new Date().toISOString().slice(0, 10));
+        if (releaseId === null) return;
+        setPublishing(true);
+        try {
+            const result = await publishRelease(releaseId);
+            setStatusText(`Published ${result.exported_count} selected take(s) to ${result.release_id}${result.skipped?.length ? `; skipped ${result.skipped.length}` : ''}`);
+        } catch (err) {
+            setStatusText(`Publish failed: ${err.message}`);
+        } finally {
+            setPublishing(false);
         }
     };
 
@@ -271,6 +287,8 @@ export default function App() {
                     onProjectChange={setCurrentProject}
                     onBackfillAll={handleBackfillAll}
                     backfillRunning={backfillRunning()}
+                    onPublishRelease={handlePublishRelease}
+                    publishing={publishing()}
                 />
                 <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     <Show

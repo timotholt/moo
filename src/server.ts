@@ -15,6 +15,8 @@ import { registerSnapshotRoutes } from './server/routes/snapshots.js';
 import { registerBatchRoutes } from './server/routes/batch.js';
 import llmRoutes from './server/routes/llm.js';
 import { registerSceneRoutes } from './server/routes/scenes.js';
+import { registerPublishRoutes } from './server/routes/publish.js';
+import { registerReviewRoutes } from './server/routes/review.js';
 import projectRoutes, { setCurrentProject, getCurrentProjectPath } from './server/routes/projects.js';
 
 const fastify = Fastify({
@@ -88,6 +90,8 @@ registerMediaRoutes(fastify, getProjectContextNullable);
 registerTakeRoutes(fastify, getProjectContextNullable);
 registerBinRoutes(fastify, getProjectContextNullable);
 registerSceneRoutes(fastify, getProjectContextNullable);
+registerPublishRoutes(fastify, getProjectContextNullable);
+registerReviewRoutes(fastify, getProjectContextNullable);
 registerDefaultsRoutes(fastify, getProjectContextNullable);
 registerProviderRoutes(fastify, getProjectContextNullable);
 registerGenerationRoutes(fastify, getProjectContextNullable);

@@ -37,6 +37,7 @@ export default function ProjectShell(props) {
     const [error, setError] = createSignal(null);
     const [selectedNode, setSelectedNode] = createSignal(null);
     const [expandNode, setExpandNode] = createSignal(null);
+    const [dataVersion, setDataVersion] = createSignal(0);
 
     const [treePaneWidth, setTreePaneWidth] = createSignal(storage.get(props.currentProject.name, 'tree-pane-width', 300));
     const [isResizing, setIsResizing] = createSignal(false);
@@ -123,6 +124,7 @@ export default function ProjectShell(props) {
             setBins(binsRes.bins || []);
             setTakes(takesRes.takes || []);
             setScenes(scenesRes.scenes || []);
+            setDataVersion((version) => version + 1);
             setError(null);
 
             const actorCount = actorsRes.actors?.length || 0;
@@ -218,6 +220,8 @@ export default function ProjectShell(props) {
                             capitalizationConversion={props.capitalizationConversion}
                             onExpandNode={setExpandNode}
                             onRefresh={reloadData}
+                            refreshToken={dataVersion()}
+                            onSelect={setSelectedNode}
                             customViews={customViews()}
                             onCustomViewsChange={setCustomViews}
                         />

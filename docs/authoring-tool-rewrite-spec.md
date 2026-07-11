@@ -77,12 +77,9 @@ There is one persisted job model for single and batch generation. Jobs record re
 - Publishing creates `exports/<release-id>/audio/` plus `manifest.json` and a human-readable report.
 - The manifest carries cue key, selected files, hashes, duration, format, tags, loop/mix intent, and provenance.
 
-## Migration and compatibility
+## Clean-start scope
 
-1. New projects use only the V2 layout.
-2. Existing legacy projects are detected and migrated by an explicit command with a dry-run report.
-3. Read-only legacy compatibility is temporary; new writes use V2 only.
-4. No migration deletes source files or legacy catalog data.
+MOO is being rebuilt without existing users, legacy projects, or audio libraries to preserve. New projects use only the V2 layout. Migration, legacy compatibility, and existing-file import are explicitly out of scope unless future requirements introduce them.
 
 ## Quality gates
 

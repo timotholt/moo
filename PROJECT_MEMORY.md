@@ -30,10 +30,19 @@ MOO currently uses filesystem data, not SQLite or another database.
 ## Current implementation facts
 
 - Project creation is implemented by the API and initializes the V2 `.moo/` JSONL files, media folders, config, and defaults.
-- The CLI `moo init <path>` command exists but is currently a TODO and does not initialize anything.
+- The CLI `moo init <path>` and API project creation both use the canonical V2 project initializer.
+- Take review decisions persist `status_changed_at` and `reviewed_at`; expanded take details provide a persistent local-first `review_note`.
+- System → review queue is server-derived from cue lifecycle and excludes cues that meet their target or were finished early.
 - The API keeps the selected project only in server process memory; it is not persisted across restarts.
 - The intended catalog source is JSONL. The flat-file spec also describes embedded audio metadata as a recovery/portability layer, but this should be verified against the active code before relying on it.
 
 ## Working assumptions
 
 When extending MOO, preserve project-local portability, keep Fireteam integration separate, and treat the V2 `.moo/` layout versus legacy `catalog/` and `projects/` fixtures as an explicit migration/compatibility concern.
+
+Current rewrite scope starts clean: there are no existing users, legacy project data, or audio files that must be migrated or imported. Do not spend implementation effort on compatibility, migration tooling, or existing-file ingestion unless that scope changes later.
+
+## Collaboration preference
+
+- At the end of every implementation milestone, report the recommended next model and reasoning effort before continuing.
+- Default to `gpt-5.6-terra` at `low` for bounded UI, test, documentation, and mechanical work; use `gpt-5.6-terra` at `medium` for generation, migration, reconciliation, and other cross-cutting contract changes.

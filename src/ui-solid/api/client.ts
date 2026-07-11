@@ -177,6 +177,47 @@ export async function updateMedia(id: string, payload: any) {
   return { media: MediaSchema.parse(data.media) };
 }
 
+export async function selectMediaTakes(id: string, takeIds: string[]) {
+  const res = await fetch(`/api/media/${encodeURIComponent(id)}/selection`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ take_ids: takeIds }),
+  });
+  if (!res.ok) throw new Error(`Failed to select takes: ${await res.text()}`);
+  const data = await res.json() as any;
+  return { media: MediaSchema.parse(data.media) };
+}
+
+export async function publishRelease(releaseId?: string) {
+  const res = await fetch('/api/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ release_id: releaseId }),
+  });
+  if (!res.ok) throw new Error(`Failed to publish release: ${await res.text()}`);
+  return res.json();
+}
+
+export function getReviewQueue() {
+  return fetchJson('/api/review-queue');
+}
+
+export function getGenerationJobs() {
+  return fetchJson('/api/jobs');
+}
+
+export async function retryGenerationJob(id: string) {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/retry`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to retry generation job: ${await res.text()}`);
+  return res.json();
+}
+
+export async function cancelGenerationJob(id: string) {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to cancel generation job: ${await res.text()}`);
+  return res.json();
+}
+
 export async function deleteMedia(id: string) {
   const res = await fetch(`/api/media/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 204) throw new Error(`Failed to delete media`);

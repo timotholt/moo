@@ -20,6 +20,8 @@ import AddIcon from '@suid/icons-material/Add';
 import VideoFileIcon from '@suid/icons-material/VideoFile';
 import ImageIcon from '@suid/icons-material/Image';
 import DescriptionIcon from '@suid/icons-material/Description';
+import FactCheckIcon from '@suid/icons-material/FactCheck';
+import PendingActionsIcon from '@suid/icons-material/PendingActions';
 
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { TREE_INDENT } from '../constants.js';
@@ -213,6 +215,8 @@ export default function TreePane(props) {
         { id: 'summaries', name: 'summaries', icon: <AssessmentIcon sx={{ fontSize: '0.875rem' }} />, items: summaryViews(), canAdd: true },
         {
             id: 'system', name: 'system', icon: <SettingsIcon sx={{ fontSize: '0.875rem' }} />, items: [
+                { id: 'review-queue', name: 'review queue', nodeType: 'review', nodeId: 'queue', icon: <FactCheckIcon sx={{ fontSize: '0.75rem' }} /> },
+                { id: 'generation-jobs', name: 'generation jobs', nodeType: 'jobs', nodeId: 'jobs', icon: <PendingActionsIcon sx={{ fontSize: '0.75rem' }} /> },
                 { id: 'console', name: 'console', nodeType: 'console', nodeId: 'console', icon: <TerminalIcon sx={{ fontSize: '0.75rem' }} /> },
                 { id: 'history', name: 'history', nodeType: 'history', nodeId: 'logs', icon: <HistoryIcon sx={{ fontSize: '0.75rem' }} /> },
                 {
