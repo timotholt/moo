@@ -217,17 +217,6 @@ export default function App() {
                             }),
                         }
                     }
-                },
-                MuiInputLabel: {
-                    styleOverrides: {
-                        root: {
-                            '&.MuiInputLabel-shrink': {
-                                backgroundColor: mode === 'dark' ? 'hsl(215, 25%, 14%)' : '#fff',
-                                paddingLeft: '4px',
-                                paddingRight: '4px',
-                            }
-                        }
-                    }
                 }
             }
         });

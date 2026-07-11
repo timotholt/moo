@@ -1,0 +1,14 @@
+{"id":"1783745111669-vwdjb6oh9","timestamp":"2026-07-11T04:45:11.669Z","type":"error","message":"Generation failed: Failed to generate takes","details":null}
+{"id":"1783745281935-snef4hyoa","timestamp":"2026-07-11T04:48:01.935Z","type":"error","message":"Generation failed: Failed to generate takes: ENOENT: no such file or directory, open '/Users/timotholt/Projects/moo/projects/fireteam/actors/john/dialogue/commands/a_s_a_p_001.mp3'","details":null}
+{"id":"1783745342993-eqp4ab3qv","timestamp":"2026-07-11T04:49:02.993Z","type":"error","message":"Generation failed: Failed to generate takes: ENOENT: no such file or directory, open '/Users/timotholt/Projects/moo/projects/fireteam/actors/john/dialogue/commands/a_s_a_p_001.mp3'","details":null}
+{"id":"1783746073942-1zkpxdnei","timestamp":"2026-07-11T05:01:13.942Z","type":"error","message":"Generation failed: Failed to generate takes: spawn ffprobe ENOENT","details":null}
+{"id":"1783747797303-hk3a7um8m","timestamp":"2026-07-11T05:29:57.303Z","type":"info","message":"user approved actor → Unknown → Foul Language → ah_hell_1 → ah_hell_1_003.mp3","details":null}
+{"id":"1783747853635-aqo4ruwdw","timestamp":"2026-07-11T05:30:53.635Z","type":"info","message":"user unapproved actor → Unknown → Foul Language → ah_hell_1 → ah_hell_1_003.mp3","details":null}
+{"id":"1783747895947-slcqpi0pu","timestamp":"2026-07-11T05:31:35.947Z","type":"info","message":"user approved actor → Unknown → Foul Language → ah_hell_1 → ah_hell_1_006.mp3","details":null}
+{"id":"1783747901061-99c9imui6","timestamp":"2026-07-11T05:31:41.061Z","type":"info","message":"user approved actor → Unknown → Foul Language → ah_hell_1 → ah_hell_1_004.mp3","details":null}
+{"id":"1783747907193-rlv9j2hem","timestamp":"2026-07-11T05:31:47.193Z","type":"info","message":"user unapproved actor → Unknown → Foul Language → ah_hell_1 → ah_hell_1_004.mp3","details":null}
+{"id":"1783747911288-w7vyyxu14","timestamp":"2026-07-11T05:31:51.288Z","type":"info","message":"user approved actor → Unknown → Foul Language → ah_hell_1 → ah_hell_1_003.mp3","details":null}
+{"id":"1783747945761-dknjh4vz7","timestamp":"2026-07-11T05:32:25.761Z","type":"info","message":"user approved actor → Unknown → Foul Language → ah_hell_2 → ah_hell_2_004.mp3","details":null}
+{"id":"1783748513249-012ndo7kn","timestamp":"2026-07-11T05:41:53.249Z","type":"info","message":"user approved actor → Unknown → Foul Language → alright_good_to_go_1 → alright_good_to_go_1_005.mp3","details":null}
+{"id":"1783748637181-492l2m2lv","timestamp":"2026-07-11T05:43:57.181Z","type":"info","message":"user approved actor → Unknown → Foul Language → alright_good_to_go_2 → alright_good_to_go_2_007.mp3","details":null}
+{"id":"1783748695707-g92b79z8j","timestamp":"2026-07-11T05:44:55.707Z","type":"info","message":"user approved actor → Unknown → Foul Language → ammo_pack_ready_1 → ammo_pack_ready_1_005.mp3","details":null}

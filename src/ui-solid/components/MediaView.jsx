@@ -636,7 +636,7 @@ export default function MediaView(props) {
                     {(() => {
                         const settings = effectiveSettings();
                         const voiceMissing = props.item.media_type === 'dialogue' && (!settings || !settings.voice_id);
-                        const disabled = () => generatingTakes() || voiceMissing || approvedCount() >= requiredApprovals();
+                        const disabled = () => generatingTakes() || voiceMissing;
 
                         // Calculate counts
                         const undecidedCount = takes().filter(t => t.status === 'new').length;
@@ -687,8 +687,14 @@ export default function MediaView(props) {
                             );
                         } else {
                             backfillButton = (
-                                <Button variant="outlined" size="small" disabled sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1, opacity: 0.5 }}>
-                                    Candidates Met ({undecidedCount}/{minCandidates})
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={disabled()}
+                                    onClick={() => handleGenerateTakesCount(minCandidates)}
+                                    sx={{ ...DESIGN_SYSTEM.typography.small, flex: 1 }}
+                                >
+                                    {generatingTakes() ? 'Generating...' : `Generate ${minCandidates} More`}
                                 </Button>
                             );
                         }

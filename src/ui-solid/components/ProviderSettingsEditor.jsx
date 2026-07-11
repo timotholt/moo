@@ -203,8 +203,9 @@ export default function ProviderSettingsEditor(props) {
             {/* Inherit/Custom Mode */}
             <Show when={props.allowInherit}>
                 <FormControl size="small" fullWidth>
-                    <InputLabel>Provider Mode</InputLabel>
+                    <InputLabel id="provider-mode-label">Provider Mode</InputLabel>
                     <Select
+                        labelId="provider-mode-label"
                         value={isInheriting() ? 'inherit' : 'custom'}
                         label="Provider Mode"
                         onChange={(e) => handleModeChange(e.target.value)}
@@ -219,8 +220,9 @@ export default function ProviderSettingsEditor(props) {
             <Show when={!isInheriting()}>
                 <Stack spacing={2}>
                     <FormControl size="small" fullWidth>
-                        <InputLabel>Provider</InputLabel>
+                        <InputLabel id="provider-label">Provider</InputLabel>
                         <Select
+                            labelId="provider-label"
                             value={currentSettings().provider || 'elevenlabs'}
                             label="Provider"
                             onChange={(e) => handleChange('provider', e.target.value)}
@@ -255,8 +257,9 @@ export default function ProviderSettingsEditor(props) {
                         <Stack spacing={2}>
                             <Show when={props.mediaType === 'dialogue'}>
                                 <FormControl size="small" fullWidth>
-                                    <InputLabel>Model</InputLabel>
+                                    <InputLabel id="model-label">Model</InputLabel>
                                     <Select
+                                        labelId="model-label"
                                         value={currentSettings().model_id || 'eleven_multilingual_v2'}
                                         label="Model"
                                         onChange={(e) => {
@@ -284,8 +287,9 @@ export default function ProviderSettingsEditor(props) {
 
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                     <FormControl size="small" fullWidth>
-                                        <InputLabel>Voice</InputLabel>
+                                        <InputLabel id="voice-label">Voice</InputLabel>
                                         <Select
+                                            labelId="voice-label"
                                             value={currentSettings().voice_id || ''}
                                             label="Voice"
                                             onChange={(e) => handleChange('voice_id', e.target.value)}
@@ -381,8 +385,9 @@ export default function ProviderSettingsEditor(props) {
 
                     <Show when={props.mediaType === 'image'}>
                         <FormControl size="small" fullWidth>
-                            <InputLabel>Model</InputLabel>
+                            <InputLabel id="image-model-label">Model</InputLabel>
                             <Select
+                                labelId="image-model-label"
                                 value={currentSettings().model || 'dall-e-3'}
                                 label="Model"
                                 onChange={(e) => handleChange('model', e.target.value)}
@@ -392,8 +397,9 @@ export default function ProviderSettingsEditor(props) {
                             </Select>
                         </FormControl>
                         <FormControl size="small" fullWidth>
-                            <InputLabel>Quality</InputLabel>
+                            <InputLabel id="image-quality-label">Quality</InputLabel>
                             <Select
+                                labelId="image-quality-label"
                                 value={currentSettings().quality || 'standard'}
                                 label="Quality"
                                 onChange={(e) => handleChange('quality', e.target.value)}
@@ -403,8 +409,9 @@ export default function ProviderSettingsEditor(props) {
                             </Select>
                         </FormControl>
                         <FormControl size="small" fullWidth>
-                            <InputLabel>Size</InputLabel>
+                            <InputLabel id="image-size-label">Size</InputLabel>
                             <Select
+                                labelId="image-size-label"
                                 value={currentSettings().size || '1024x1024'}
                                 label="Size"
                                 onChange={(e) => handleChange('size', e.target.value)}
@@ -418,8 +425,9 @@ export default function ProviderSettingsEditor(props) {
 
                     <Show when={props.mediaType === 'text'}>
                         <FormControl size="small" fullWidth>
-                            <InputLabel>Model</InputLabel>
+                            <InputLabel id="text-model-label">Model</InputLabel>
                             <Select
+                                labelId="text-model-label"
                                 value={currentSettings().model_id || 'gpt-4o'}
                                 label="Model"
                                 onChange={(e) => handleChange('model_id', e.target.value)}

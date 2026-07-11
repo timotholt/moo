@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { basename, join } from 'path';
+import { basename, join, extname } from 'path';
 import { getProjectPaths } from '../utils/paths.js';
 import type { Media, ReleaseRecord, Take } from '../types/index.js';
 import { appendJsonl, readJsonl } from '../utils/jsonl.js';
@@ -62,8 +62,29 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
       if (!take || take.status !== 'approved') throw new Error(`Cue ${cue.name}: selected take ${takeId} is not an approved cue take`);
       const source = join(projectRoot, take.path);
       if (!(await fs.pathExists(source))) throw new Error(`Cue ${cue.name}: selected source file is missing: ${take.path}`);
-      const filename = validateExportFilename(cue.export_filename || basename(take.path));
-      if (usedFilenames.has(filename)) throw new Error(`Duplicate export filename: ${filename}`);
+      let filename = validateExportFilename(cue.export_filename || basename(take.path));
+      if (usedFilenames.has(filename)) {
+        const ext = extname(filename);
+        const base = basename(filename, ext);
+        const takeNumStr = take.take_number ? String(take.take_number).padStart(3, '0') : '';
+        
+        let resolved = false;
+        if (takeNumStr) {
+          const attempt = `${base}_${takeNumStr}${ext}`;
+          if (!usedFilenames.has(attempt)) {
+            filename = attempt;
+            resolved = true;
+          }
+        }
+        
+        if (!resolved) {
+          let counter = 1;
+          while (usedFilenames.has(`${base}_${counter}${ext}`)) {
+            counter++;
+          }
+          filename = `${base}_${counter}${ext}`;
+        }
+      }
       usedFilenames.add(filename);
       candidates.push({ cue, take, filename, source });
     }
