@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IdSchema, TimestampSchema, TakeStatusSchema, ProviderSchema, OwnerTypeSchema, MediaTypeSchema, DefaultBlockSchema } from './common.schema.js';
+import { IdSchema, TimestampSchema, TakeStatusSchema, ProviderSchema, OwnerTypeSchema, DefaultBlockSchema } from './common.schema.js';
 
 // ============================================================================
 // Generation Params Schema
@@ -16,7 +16,7 @@ export const GenerationParamsSchema = z.object({
     negative_prompt: z.string().optional(),
 
     // Provenance: Where settings came from
-    resolved_from: z.enum(['content', 'bin', 'owner', 'global', 'hardcoded']),
+    resolved_from: z.enum(['media', 'bin', 'owner', 'global', 'hardcoded']),
 
     // Full settings snapshot (for reproducibility)
     full_settings: DefaultBlockSchema,

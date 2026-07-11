@@ -17,6 +17,6 @@ describe('generation preflight', () => {
       mediaType: 'dialogue' as const, prompt: 'Hold the line.', approvalTarget: 3, minCandidates: 2, takes: [],
     };
     expect(estimateGenerationSpend(base)).toMatchObject({ takes_to_generate: 3, provider_requests: 3, estimated_characters: 42 });
-    expect(estimateGenerationSpend({ ...base, completionOverride: true, takes: [{ status: 'approved' }] as any })).toMatchObject({ takes_to_generate: 0, estimated_characters: 0 });
+    expect(estimateGenerationSpend({ ...base, completionOverride: true, takes: [{ status: 'approved' } as Take] })).toMatchObject({ takes_to_generate: 0, estimated_characters: 0 });
   });
 });

@@ -2,7 +2,7 @@ import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Defaults } from '../../types/index.js';
-import { DefaultsSchema } from '../../shared/schemas/index.js';
+import { DefaultBlockSchema, MediaTypeSchema } from '../../shared/schemas/index.js';
 import { validate } from '../../utils/validation.js';
 
 type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
@@ -73,18 +73,27 @@ export function registerDefaultsRoutes(fastify: FastifyInstance, getProjectConte
     }
     const { paths } = ctx;
     const defaultsPath = paths.moo.defaults;
-    const { contentType } = request.params;
+    const mediaType = MediaTypeSchema.safeParse(request.params.contentType);
+    if (!mediaType.success) {
+      reply.code(400);
+      return { error: 'Unsupported media type' };
+    }
+    const contentType = mediaType.data;
     const settings = request.body as Record<string, unknown>;
 
     try {
-      const defaults = await fs.readJson(defaultsPath) as any;
+      const defaults = await fs.readJson(defaultsPath) as Defaults;
 
-      if (!defaults.content_types) defaults.content_types = {};
-
-      defaults.content_types[contentType] = {
+      const mergedBlock = {
         ...defaults.content_types[contentType],
         ...settings
       };
+      const parsedBlock = DefaultBlockSchema.safeParse(mergedBlock);
+      if (!parsedBlock.success) {
+        reply.code(400);
+        return { error: 'Invalid media type defaults', details: parsedBlock.error.format() };
+      }
+      defaults.content_types[contentType] = parsedBlock.data;
 
       const validation = validate('defaults', defaults);
       if (!validation.valid) {
@@ -94,7 +103,7 @@ export function registerDefaultsRoutes(fastify: FastifyInstance, getProjectConte
 
       await fs.writeJson(defaultsPath, defaults, { spaces: 2 });
       return { defaults };
-    } catch (err) {
+    } catch {
       reply.code(500);
       return { error: 'Failed to update content type defaults' };
     }

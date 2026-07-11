@@ -1,11 +1,7 @@
-import { join } from 'path';
-import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import type { Actor, Media, Bin, Scene, Take } from '../../types/index.js';
 import {
-  buildActorPath,
-  buildScenePath,
   buildBinPath,
   buildMediaPath,
   type PathContext

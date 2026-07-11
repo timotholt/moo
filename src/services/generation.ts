@@ -7,11 +7,9 @@ import { getAudioProvider } from './provider-factory.js';
 import { probeAudio } from './audio/ffprobe.js';
 import { hashFile } from './audio/hash.js';
 import { writeMetadata, buildMetadataFromTake } from './audio/metadata.js';
-import type { Actor, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
+import type { Actor, Defaults, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
 import { getExtensionForType } from '../utils/pathConstruction.js';
 import { calculateCueLifecycle } from './cue-lifecycle.js';
-
-const DEBUG_BATCH_GENERATION = false;
 
 export interface BatchGenerationOptions {
     actorId?: string;
@@ -162,7 +160,7 @@ async function executeBatchGeneration(
 
         // Load global defaults if needed for resolution
         const defaultsPath = join(paths.root, 'defaults.json');
-        let globalDefaults: any = null;
+        let globalDefaults: Defaults | null = null;
         if (await fs.pathExists(defaultsPath)) {
             globalDefaults = await fs.readJson(defaultsPath);
         }
@@ -259,15 +257,15 @@ async function executeBatchGeneration(
                     size_bytes: buffer.length,
                     duration_sec: durationSec || 0,
                     hash_sha256: hash,
-                    sample_rate: (primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 41000) as any,
-                    channels: (primaryStream?.channels || 1) as any,
+                    sample_rate: primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 41000,
+                    channels: primaryStream?.channels || 1,
                     bit_depth: 16,
                     lufs_integrated: 0,
                     peak_dbfs: 0,
                     generation_params: {
-                        provider: settings.provider as any,
-                        resolved_from: resolved.resolvedFrom as any,
-                        full_settings: settings as any,
+                        provider: settings.provider,
+                        resolved_from: resolved.resolvedFrom,
+                        full_settings: settings,
                         prompt,
                         owner_type: media.owner_type,
                         owner_id: media.owner_id ?? null,

@@ -1,4 +1,3 @@
-import { join } from 'path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Bin, Take } from '../../types/index.js';
 import { BinSchema } from '../../shared/schemas/index.js';
@@ -63,7 +62,7 @@ export function registerBinRoutes(fastify: FastifyInstance, getProjectContext: (
 
         const snapshotMessage = snapshotMessageForBin(
             'create',
-            body.owner_type as any,
+            body.owner_type,
             body.owner_id ?? null,
             binName,
             catalog
@@ -73,9 +72,9 @@ export function registerBinRoutes(fastify: FastifyInstance, getProjectContext: (
         const now = new Date().toISOString();
         const bin: Bin = {
             id: generateId(),
-            owner_type: body.owner_type as any,
+            owner_type: body.owner_type,
             owner_id: body.owner_id ?? null,
-            media_type: body.media_type as any,
+            media_type: body.media_type,
             name: body.name || body.media_type,
             scene_id: body.scene_id || undefined,
             default_blocks: body.default_blocks || { [body.media_type]: { provider: 'inherit' } },
@@ -148,7 +147,7 @@ export function registerBinRoutes(fastify: FastifyInstance, getProjectContext: (
         // Save snapshot
         const currentName = currentBin.name || currentBin.media_type;
         const snapshotMessage = snapshotMessageForBinUpdate(
-            currentBin.owner_type as any,
+            currentBin.owner_type,
             currentBin.owner_id ?? null,
             currentName,
             catalog,
@@ -187,7 +186,7 @@ export function registerBinRoutes(fastify: FastifyInstance, getProjectContext: (
         }
 
         const binName = bin.name || bin.media_type;
-        const snapshotMessage = snapshotMessageForBin('delete', bin.owner_type as any, bin.owner_id ?? null, binName, catalog);
+        const snapshotMessage = snapshotMessageForBin('delete', bin.owner_type, bin.owner_id ?? null, binName, catalog);
         await saveSnapshot(paths, snapshotMessage, catalog);
 
         const remainingBins = catalog.bins.filter(b => b.id !== id);

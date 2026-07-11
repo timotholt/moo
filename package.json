@@ -19,7 +19,7 @@
     "lint": "eslint src tests",
     "format": "prettier --write .",
     "verify:runtime": "pnpm run build && pnpm run test",
-    "verify": "pnpm run verify:runtime",
+    "verify": "pnpm run lint && pnpm run verify:runtime",
     "dev:api": "tsx src/server.ts",
     "dev:ui": "vite --config vite.solid.config.mjs",
     "dev": "pnpm run dev:api",

@@ -7,8 +7,6 @@
 
 import { join } from 'path';
 import type { MediaType, OwnerType } from '../shared/schemas/index.js';
-import type { Actor } from '../shared/schemas/actor.schema.js';
-import type { Scene } from '../shared/schemas/scene.schema.js';
 import type { Bin } from '../shared/schemas/bin.schema.js';
 import type { Media } from '../shared/schemas/media.schema.js';
 

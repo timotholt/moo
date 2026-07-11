@@ -37,6 +37,7 @@ MOO currently uses filesystem data, not SQLite or another database.
 - Prompt-improvement provider settings (including Groq keys) are stored in the same local server config as ElevenLabs and displayed in Settings; they are not browser-local.
 - Local setup is pinned by `.nvmrc` and `packageManager`; use `pnpm install --frozen-lockfile` and `pnpm run audio:preflight`.
 - The API keeps the selected project only in server process memory; it is not persisted across restarts.
+- Removing a take, cue, bin, actor, or scene deletes catalog records only; generated source audio is retained on disk. Take removal creates a snapshot, so its catalog record can be restored. Irreversible file cleanup is deliberately a separate future action.
 - The intended catalog source is JSONL. The flat-file spec also describes embedded audio metadata as a recovery/portability layer, but this should be verified against the active code before relying on it.
 
 ## Working assumptions

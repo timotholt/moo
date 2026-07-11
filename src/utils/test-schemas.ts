@@ -125,7 +125,7 @@ try {
     });
 
     console.log('✅ All schemas validated successfully!');
-} catch (error: any) {
-    console.error('❌ Schema validation failed:', error.message || error);
+} catch (error: unknown) {
+    console.error('❌ Schema validation failed:', error instanceof Error ? error.message : String(error));
     process.exit(1);
 }

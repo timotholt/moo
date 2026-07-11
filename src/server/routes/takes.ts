@@ -1,7 +1,7 @@
 import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { Take, Media } from '../../types/index.js';
+import type { Take } from '../../types/index.js';
 import { TakeSchema } from '../../shared/schemas/index.js';
 import { readJsonl, writeJsonlAll } from '../../utils/jsonl.js';
 import { validateReferences } from '../../utils/validation.js';
@@ -83,7 +83,7 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
 
     if (mediaItem) {
       const displayPath = buildMediaPath(mediaItem.owner_type, mediaItem.owner_id || null, mediaItem.bin_id, mediaItem.name, catalog);
-      const diff = describeChanges(currentTake as any, updatedTake as any);
+      const diff = describeChanges(currentTake as unknown as Record<string, unknown>, updatedTake as unknown as Record<string, unknown>);
       const changeDesc = diff.changes.length > 0 ? diff.changes[0] : 'updated';
       snapshotMessage = `${displayPath} → Take ${currentTake.take_number}: ${changeDesc}`;
     } else {
@@ -151,20 +151,18 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     }
 
     const deletedTake = takes[takeIndex];
+    const catalog = await readCatalog(paths);
+    await saveSnapshot(
+      paths,
+      `Remove take ${deletedTake.take_number} from catalog (audio retained: ${deletedTake.path})`,
+      catalog,
+    );
     takes.splice(takeIndex, 1);
     await writeJsonlAll(paths.catalog.takes, takes, TakeSchema);
 
-    // Delete physical file
-    try {
-      const fullPath = join(ctx.projectRoot, deletedTake.path);
-      if (await fs.pathExists(fullPath)) {
-        await fs.remove(fullPath);
-      }
-    } catch (err) {
-      console.error('Failed to delete physical take file:', err);
-    }
-
-    reply.code(204);
-    return;
+    // Catalog deletion is reversible through snapshots. Source audio is kept
+    // deliberately: deleting a generated file is irreversible and must be a
+    // separate, explicit cleanup action.
+    return { take: deletedTake, audio_retained: true };
   });
 }

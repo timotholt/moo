@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import fastifyStatic from '@fastify/static';
 import { join } from 'path';
 import fs from 'fs';
 import { getProjectPaths } from './utils/paths.js';
@@ -18,7 +17,7 @@ import { registerSceneRoutes } from './server/routes/scenes.js';
 import { registerPublishRoutes } from './server/routes/publish.js';
 import { registerReviewRoutes } from './server/routes/review.js';
 import { ProjectWriteLocks } from './services/project-write-lock.js';
-import projectRoutes, { setCurrentProject, getCurrentProjectPath } from './server/routes/projects.js';
+import projectRoutes, { getCurrentProjectPath } from './server/routes/projects.js';
 
 const fastify = Fastify({
   logger: false,

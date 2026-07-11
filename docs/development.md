@@ -6,7 +6,7 @@ MOO is tested with Node `20.20.2` and pnpm `11.7.0`.
 nvm use
 corepack enable
 pnpm install --frozen-lockfile
-pnpm run verify:runtime
+pnpm run verify
 pnpm run dev:app
 ```
 
@@ -20,4 +20,4 @@ pnpm run audio:preflight
 
 `ffprobe` and `ffmpeg` are supplied by the FFmpeg package. MOO will surface a clear preflight warning or blocker if either is unavailable.
 
-`pnpm run lint` is tracked cleanup work and is not yet part of the runtime gate; CI runs the same frozen-install, build, test, and audio-tool checks described above.
+`pnpm run verify` enforces linting, a TypeScript build, and the Vitest suite. CI runs the same frozen-install verification plus the audio-tool check.

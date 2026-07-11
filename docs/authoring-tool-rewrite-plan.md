@@ -42,7 +42,7 @@
 |---|---|---|
 | Failing generation tests | Resolved | Canonical lifecycle, cancellation, preflight, publishing, snapshots, and storage behavior have focused regression coverage |
 | ffmpeg absent/implicit | Resolved locally | Per-cue preflight and `npm run audio:preflight` make required tooling explicit; CI setup can run the same command once CI is introduced |
-| Snapshot scope excludes takes/files | Partial | Snapshots now include take catalog state; physical media file deletion remains irreversible and must be surfaced separately |
+| Snapshot scope excludes takes/files | Resolved | Snapshots include take catalog state. Catalog deletes retain source audio files and make that behavior explicit in the authoring UI; irreversible file cleanup is not coupled to catalog deletion. |
 | Flat-file concurrent writes unguarded | Resolved locally | Same-directory atomic JSONL replacement plus per-project server write serialization protects local catalog mutations |
 
 ## Rewrite sequence

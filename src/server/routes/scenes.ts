@@ -77,7 +77,7 @@ export function registerSceneRoutes(fastify: FastifyInstance, getProjectContext:
 
         const now = new Date().toISOString();
         const autoAddBlocks = defaults?.templates?.scene?.auto_add_blocks || [];
-        const defaultBlocks: any = {};
+        const defaultBlocks: Record<string, { provider: 'inherit' }> = {};
         for (const type of autoAddBlocks) {
             defaultBlocks[type as keyof Scene['default_blocks'] & string] = { provider: 'inherit' };
         }
@@ -86,7 +86,7 @@ export function registerSceneRoutes(fastify: FastifyInstance, getProjectContext:
             id: generateId(),
             name: body.name,
             description: body.description || '',
-            default_blocks: body.default_blocks || defaultBlocks,
+        default_blocks: body.default_blocks || defaultBlocks as Scene['default_blocks'],
             actor_ids: body.actor_ids || [],
             scene_complete: false,
             created_at: now,

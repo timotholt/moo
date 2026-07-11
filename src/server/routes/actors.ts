@@ -79,7 +79,7 @@ export function registerActorRoutes(fastify: FastifyInstance, getProjectContext:
         finalActors.push(existing);
       } else {
         const autoAddBlocks = defaults?.templates?.actor?.auto_add_blocks || ['dialogue'];
-        const defaultBlocks: any = {};
+        const defaultBlocks: Record<string, { provider: 'inherit' }> = {};
         for (const type of autoAddBlocks) {
           defaultBlocks[type] = { provider: 'inherit' };
         }
@@ -88,7 +88,7 @@ export function registerActorRoutes(fastify: FastifyInstance, getProjectContext:
           id: generateId(),
           display_name: name,
           base_filename: name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''),
-          default_blocks: (body?.default_blocks as Actor['default_blocks']) ?? (defaultBlocks as Actor['default_blocks']),
+          default_blocks: (body?.default_blocks as Actor['default_blocks']) ?? defaultBlocks as Actor['default_blocks'],
           actor_complete: false,
           created_at: now,
           updated_at: now,

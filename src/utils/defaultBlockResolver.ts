@@ -69,7 +69,7 @@ export type ResolvedBlock = {
 /**
  * Deep merge templates object
  */
-function mergeTemplates(base: any, overrides: any) {
+function mergeTemplates(base: Record<string, unknown> | undefined, overrides: Record<string, unknown> | undefined) {
     if (!overrides) return base;
     return {
         ...(base || {}),
@@ -129,6 +129,7 @@ export function resolveDefaultBlock(
         } else {
             // Inherit provider from global, but merge other fields
             const { provider, templates, ...rest } = ownerBlock;
+            void provider;
             settings = {
                 ...settings,
                 ...rest,
@@ -151,6 +152,7 @@ export function resolveDefaultBlock(
             sourceName = bin.name;
         } else {
             const { provider, templates, ...rest } = binBlock;
+            void provider;
             settings = {
                 ...settings,
                 ...rest,
@@ -173,6 +175,7 @@ export function resolveDefaultBlock(
             sourceName = media.name;
         } else {
             const { provider, templates, ...rest } = mediaBlock;
+            void provider;
             settings = {
                 ...settings,
                 ...rest,

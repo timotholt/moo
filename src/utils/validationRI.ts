@@ -1,6 +1,3 @@
-import { z } from 'zod';
-import * as Schemas from '../shared/schemas/index.js';
-import type { ValidationResult } from './validation.js';
 
 // Re-export specific validation result type if needed, or import from main validation file
 // For now, we'll keep the interface here for self-containment/clean imports
@@ -8,6 +5,14 @@ export interface ReferenceValidationResult {
     valid: boolean;
     errors?: string[];
 }
+
+type IdRecord = { id: string };
+type ReferenceCatalog = {
+    actors: IdRecord[];
+    scenes: IdRecord[];
+    bins: IdRecord[];
+    media: IdRecord[];
+};
 
 /**
  * Validates Referential Integrity (RI)
@@ -23,47 +28,54 @@ export interface ReferenceValidationResult {
  * @param data The object to validate (e.g. body of a POST request)
  * @param catalog The full loaded catalog (actors, scenes, bins, etc)
  */
-export function validateReferences(data: any, catalog: any): ReferenceValidationResult {
+export function validateReferences(data: Record<string, unknown> | null | undefined, catalog: ReferenceCatalog): ReferenceValidationResult {
     const errors: string[] = [];
 
-    if (!data || typeof data !== 'object') {
+    if (!data) {
         return { valid: true }; // Nothing to check
     }
+    const stringValue = (key: string) => typeof data[key] === 'string' ? data[key] : undefined;
+    const actorId = stringValue('actor_id');
+    const sceneId = stringValue('scene_id');
+    const binId = stringValue('bin_id');
+    const mediaId = stringValue('media_id');
+    const ownerId = stringValue('owner_id');
+    const ownerType = stringValue('owner_type');
 
     // 1. Check explicit ID fields
-    if (data.actor_id && !catalog.actors.some((a: any) => a.id === data.actor_id)) {
-        errors.push(`Invalid actor_id: ${data.actor_id}`);
+    if (actorId && !catalog.actors.some((actor) => actor.id === actorId)) {
+        errors.push(`Invalid actor_id: ${actorId}`);
     }
 
-    if (data.scene_id && !catalog.scenes.some((s: any) => s.id === data.scene_id)) {
-        errors.push(`Invalid scene_id: ${data.scene_id}`);
+    if (sceneId && !catalog.scenes.some((scene) => scene.id === sceneId)) {
+        errors.push(`Invalid scene_id: ${sceneId}`);
     }
 
-    if (data.actor_ids && Array.isArray(data.actor_ids)) {
-        for (const id of data.actor_ids) {
-            if (!catalog.actors.some((a: any) => a.id === id)) {
+    if (Array.isArray(data.actor_ids)) {
+        for (const id of data.actor_ids.filter((value): value is string => typeof value === 'string')) {
+            if (!catalog.actors.some((actor) => actor.id === id)) {
                 errors.push(`Invalid actor_id in actor_ids: ${id}`);
             }
         }
     }
 
-    if (data.bin_id && !catalog.bins.some((b: any) => b.id === data.bin_id)) {
-        errors.push(`Invalid bin_id: ${data.bin_id}`);
+    if (binId && !catalog.bins.some((bin) => bin.id === binId)) {
+        errors.push(`Invalid bin_id: ${binId}`);
     }
 
-    if (data.media_id && !catalog.media.some((m: any) => m.id === data.media_id)) {
-        errors.push(`Invalid media_id: ${data.media_id}`);
+    if (mediaId && !catalog.media.some((media) => media.id === mediaId)) {
+        errors.push(`Invalid media_id: ${mediaId}`);
     }
 
     // 2. Check Polymorphic Owner Fields
-    if (data.owner_id && data.owner_type) {
-        if (data.owner_type === 'actor') {
-            if (!catalog.actors.some((a: any) => a.id === data.owner_id)) {
-                errors.push(`Invalid owner_id (Actor): ${data.owner_id}`);
+    if (ownerId && ownerType) {
+        if (ownerType === 'actor') {
+            if (!catalog.actors.some((actor) => actor.id === ownerId)) {
+                errors.push(`Invalid owner_id (Actor): ${ownerId}`);
             }
-        } else if (data.owner_type === 'scene') {
-            if (!catalog.scenes.some((s: any) => s.id === data.owner_id)) {
-                errors.push(`Invalid owner_id (Scene): ${data.owner_id}`);
+        } else if (ownerType === 'scene') {
+            if (!catalog.scenes.some((scene) => scene.id === ownerId)) {
+                errors.push(`Invalid owner_id (Scene): ${ownerId}`);
             }
         }
     }

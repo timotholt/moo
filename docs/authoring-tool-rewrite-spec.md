@@ -86,4 +86,4 @@ MOO is being rebuilt without existing users, legacy projects, or audio libraries
 - Project initialization, migration, generation, lifecycle calculation, export, and metadata recovery have automated tests.
 - Tests use temporary directories outside the repository.
 - `npm run audio:preflight` verifies ffprobe/ffmpeg before a real audio-generation or CI run.
-- `pnpm run verify:runtime` is the supported runtime check; CI installs FFmpeg and runs the same frozen-install, build, test, and audio-tool verification.
+- `pnpm run verify` is the supported runtime check; it runs strict linting, the build, and tests. CI installs FFmpeg and additionally verifies the audio tooling.

@@ -1,8 +1,8 @@
 import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { Actor, Media, Bin, Take, Defaults, Scene } from '../../types/index.js';
-import { MediaSchema, TakeSchema, ActorSchema, BinSchema, SceneSchema, DefaultsSchema } from '../../shared/schemas/index.js';
+import type { Actor, Media, Take, Defaults, Scene } from '../../types/index.js';
+import { MediaSchema, TakeSchema } from '../../shared/schemas/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { validate, validateReferences } from '../../utils/validation.js';
@@ -123,14 +123,14 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         await saveSnapshot(
             paths,
-            snapshotMessageForMedia('create', body.owner_type as any, body.owner_id ?? null, body.bin_id, displayNames, catalog),
+            snapshotMessageForMedia('create', body.owner_type, body.owner_id ?? null, body.bin_id, displayNames, catalog),
             catalog
         );
 
         // Check for existing media and filter out duplicates
         const existingNames = new Set(
             catalog.media
-                .filter(m => m.owner_id === body.owner_id && m.owner_type === body.owner_type as any && m.bin_id === body.bin_id)
+                .filter(m => m.owner_id === body.owner_id && m.owner_type === body.owner_type && m.bin_id === body.bin_id)
                 .map(m => m.name.toLowerCase())
         );
 
@@ -147,9 +147,9 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
         for (const name of names) {
             const media: Media = {
                 id: generateId(),
-                owner_type: body.owner_type as any,
+                owner_type: body.owner_type,
                 owner_id: body.owner_id ?? null,
-                media_type: body.media_type as any,
+                media_type: body.media_type,
                 bin_id: body.bin_id,
                 name: name,
                 prompt: body.prompt || (name.charAt(0).toUpperCase() + name.slice(1)),
@@ -203,7 +203,8 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         const currentMedia = catalog.media[mediaIndex];
 
-        const { selected_take_ids: _selection, ...changes } = body;
+        const changes = { ...body };
+        delete changes.selected_take_ids;
         const updatedMedia: Media = {
             ...currentMedia,
             ...changes,
@@ -213,7 +214,7 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         // Save snapshot
         const snapshotMessage = snapshotMessageForMediaUpdate(
-            currentMedia.owner_type as any,
+            currentMedia.owner_type,
             currentMedia.owner_id ?? null,
             currentMedia.bin_id,
             currentMedia.name,
@@ -293,7 +294,7 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         await saveSnapshot(
             paths,
-            snapshotMessageForMedia('delete', mediaToDelete.owner_type as any, mediaToDelete.owner_id ?? null, mediaToDelete.bin_id, mediaToDelete.name, catalog),
+            snapshotMessageForMedia('delete', mediaToDelete.owner_type, mediaToDelete.owner_id ?? null, mediaToDelete.bin_id, mediaToDelete.name, catalog),
             catalog
         );
 
@@ -402,7 +403,7 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
                 }
 
                 // Construct path
-                const actorBaseFilename = (owner && 'base_filename' in owner) ? (owner as any).base_filename : undefined;
+                const actorBaseFilename = owner && 'base_filename' in owner ? owner.base_filename : undefined;
                 const relativePath = constructTakePath(media, bin, takeNumber, actorBaseFilename);
                 const fullFilePath = join(paths.root, relativePath);
                 const folderPath = join(projectRoot, join(paths.root, relativePath), '..');
@@ -428,23 +429,23 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
                     filename: join(relativePath).split(/[/\\]/).pop() || 'file.mp3',
                     path: relativePath,
                     status: 'new',
-                    format: getExtensionForType(media.media_type) as any,
+                    format: getExtensionForType(media.media_type),
                     size_bytes: buffer.length,
                     duration_sec: probeResult.format.duration || 0,
                     hash_sha256: hash,
-                    sample_rate: (primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 41000) as any,
-                    channels: (primaryStream?.channels || 1) as any,
+                    sample_rate: primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 41000,
+                    channels: primaryStream?.channels || 1,
                     bit_depth: 16, // Default
                     lufs_integrated: 0,
                     peak_dbfs: 0,
                     generation_params: {
-                        provider: settings.provider as any,
-                        resolved_from: resolved.resolvedFrom as any,
+                        provider: settings.provider,
+                        resolved_from: resolved.resolvedFrom,
                         full_settings: settings,
                         prompt: prompt,
                         owner_type: media.owner_type,
                         owner_id: media.owner_id ?? null,
-                        owner_name: owner ? (('display_name' in owner) ? (owner as any).display_name : (owner as any).name) : 'Global',
+                        owner_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
                         bin_name: bin.name,
                         generated_at: now
                     },
@@ -461,8 +462,8 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
                 // Write metadata
                 try {
-                    const metadata = buildMetadataFromTake(take as any, media as any, {
-                        actor_name: owner ? (('display_name' in owner) ? (owner as any).display_name : (owner as any).name) : 'Global',
+                    const metadata = buildMetadataFromTake(take, media, {
+                        actor_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
                         bin_name: bin.name,
                     });
                     await writeMetadata(fullFilePath, fullFilePath, metadata);

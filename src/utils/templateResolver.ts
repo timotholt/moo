@@ -17,6 +17,8 @@ export type TemplateContext = {
     actor_base_filename?: string;
 };
 
+import type { Actor, Bin, Media, Scene } from '../types/index.js';
+
 /**
  * Resolve a template string using the provided context
  */
@@ -40,9 +42,9 @@ export function resolveTemplate(template: string, context: TemplateContext): str
  */
 export function buildTemplateContext(
     data: {
-        media: any;
-        bin: any;
-        owner: any;
+        media: Media;
+        bin: Bin;
+        owner: Actor | Scene | null;
         takeNumber?: number;
     }
 ): TemplateContext {

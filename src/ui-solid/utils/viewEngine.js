@@ -414,7 +414,7 @@ export function applyFilters(asset, filter) {
           try {
             const re = new RegExp(String(target), 'i');
             return re.test(String(val));
-          } catch (e) {
+          } catch {
             return true; // Ignore invalid regex
           }
         }

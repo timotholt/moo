@@ -8,13 +8,28 @@ import {
   DefaultsSchema
 } from '../../shared/schemas/index.js';
 
-export async function fetchJson(path: string): Promise<any> {
+type ApiObject = Record<string, unknown>;
+
+function asApiObject(value: unknown): ApiObject {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected an API object response');
+  return value as ApiObject;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function optionalStringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
+}
+
+export async function fetchJson(path: string): Promise<ApiObject> {
   const res = await fetch(path);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Request failed ${res.status}: ${text}`);
   }
-  return res.json();
+  return asApiObject(await res.json());
 }
 
 /**
@@ -27,30 +42,30 @@ export async function getActors() {
   };
 }
 
-export async function createActor(payload: any) {
+export async function createActor(payload: unknown) {
   const res = await fetch('/api/actors', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload ?? {}),
   });
   if (!res.ok) throw new Error(`Failed to create actor: ${await res.text()}`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return {
     actor: ActorSchema.parse(data.actor),
     actors: data.actors ? z.array(ActorSchema).parse(data.actors) : undefined,
-    duplicates_skipped: data.duplicates_skipped as string[] | undefined,
-    message: data.message as string | undefined
+    duplicates_skipped: optionalStringArray(data.duplicates_skipped),
+    message: optionalString(data.message)
   };
 }
 
-export async function updateActor(id: string, payload: any) {
+export async function updateActor(id: string, payload: unknown) {
   const res = await fetch(`/api/actors/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update actor: ${await res.text()}`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { actor: ActorSchema.parse(data.actor) };
 }
 
@@ -69,25 +84,25 @@ export async function getScenes() {
   };
 }
 
-export async function createScene(payload: any) {
+export async function createScene(payload: unknown) {
   const res = await fetch('/api/scenes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to create scene`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { scene: SceneSchema.parse(data.scene) };
 }
 
-export async function updateScene(id: string, payload: any) {
+export async function updateScene(id: string, payload: unknown) {
   const res = await fetch(`/api/scenes/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update scene`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { scene: SceneSchema.parse(data.scene) };
 }
 
@@ -106,25 +121,25 @@ export async function getBins() {
   };
 }
 
-export async function createBin(payload: any) {
+export async function createBin(payload: unknown) {
   const res = await fetch('/api/bins', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to create bin`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { bin: BinSchema.parse(data.bin) };
 }
 
-export async function updateBin(id: string, payload: any) {
+export async function updateBin(id: string, payload: unknown) {
   const res = await fetch(`/api/bins/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update bin`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { bin: BinSchema.parse(data.bin) };
 }
 
@@ -149,31 +164,31 @@ export async function getMedia(params: { ownerId?: string, ownerType?: string, t
   };
 }
 
-export async function createMedia(payload: any) {
+export async function createMedia(payload: unknown) {
   const res = await fetch('/api/media', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to create media`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return {
     media: Array.isArray(data.media)
       ? z.array(MediaSchema).parse(data.media)
       : MediaSchema.parse(data.media),
-    duplicates_skipped: data.duplicates_skipped as string[] | undefined,
-    message: data.message as string | undefined
+    duplicates_skipped: optionalStringArray(data.duplicates_skipped),
+    message: optionalString(data.message)
   };
 }
 
-export async function updateMedia(id: string, payload: any) {
+export async function updateMedia(id: string, payload: unknown) {
   const res = await fetch(`/api/media/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update media`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { media: MediaSchema.parse(data.media) };
 }
 
@@ -184,7 +199,7 @@ export async function selectMediaTakes(id: string, takeIds: string[]) {
     body: JSON.stringify({ take_ids: takeIds }),
   });
   if (!res.ok) throw new Error(`Failed to select takes: ${await res.text()}`);
-  const data = await res.json() as any;
+  const data = asApiObject(await res.json());
   return { media: MediaSchema.parse(data.media) };
 }
 
@@ -242,20 +257,22 @@ export async function getTakes(mediaId?: string) {
   };
 }
 
-export async function updateTake(id: string, payload: any) {
+export async function updateTake(id: string, payload: unknown) {
   const res = await fetch(`/api/takes/${encodeURIComponent(id)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update take`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { take: TakeSchema.parse(data.take) };
 }
 
 export async function deleteTake(id: string) {
   const res = await fetch(`/api/takes/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete take`);
+  if (!res.ok) throw new Error(`Failed to delete take`);
+  const data = asApiObject(await res.json());
+  return { audioRetained: data.audio_retained === true };
 }
 
 export async function generateTakes(mediaId: string, count = 1) {
@@ -265,7 +282,7 @@ export async function generateTakes(mediaId: string, count = 1) {
     body: JSON.stringify({ count }),
   });
   if (!res.ok) throw new Error(`Failed to generate takes`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return {
     takes: z.array(TakeSchema).parse(data.takes)
   };
@@ -281,25 +298,25 @@ export async function getGlobalDefaults() {
   };
 }
 
-export async function updateGlobalDefaults(payload: any) {
+export async function updateGlobalDefaults(payload: unknown) {
   const res = await fetch('/api/defaults', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`Failed to update defaults`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { defaults: DefaultsSchema.parse(data.defaults) };
 }
 
-export async function updateMediaTypeDefaults(mediaType: string, settings: any) {
+export async function updateMediaTypeDefaults(mediaType: string, settings: unknown) {
   const res = await fetch(`/api/defaults/${encodeURIComponent(mediaType)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });
   if (!res.ok) throw new Error(`Failed to update media type defaults`);
-  const data = (await res.json()) as any;
+  const data = asApiObject(await res.json());
   return { defaults: DefaultsSchema.parse(data.defaults) };
 }
 
@@ -401,8 +418,8 @@ export async function backfillTakes(options: { ownerId?: string, ownerType?: str
 
   const res = await fetch(`/api/batch/backfill-takes?${params}`, { method: 'POST' });
   if (!res.ok) {
-    const data = (await res.json()) as any;
-    throw new Error(data.error || `Failed to backfill takes`);
+    const data = asApiObject(await res.json());
+    throw new Error(optionalString(data.error) || 'Failed to backfill takes');
   }
   return res.json();
 }

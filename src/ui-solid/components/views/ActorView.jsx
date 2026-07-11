@@ -181,8 +181,7 @@ export default function ActorView(props) {
                 <DialogContent>
                     <DialogContentText>
                         Are you sure you want to delete <strong>{props.actor.display_name}</strong>?
-                        This will delete all bins, media, and takes associated with this actor.
-                        This action cannot be undone.
+                        This will remove the actor and associated catalog records. Generated audio files are retained on disk, and the catalog can be restored from a snapshot.
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>

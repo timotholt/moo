@@ -21,7 +21,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes ffmpeg
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Verify runtime
-        run: pnpm run verify:runtime
+      - name: Verify
+        run: pnpm run verify
       - name: Verify audio tooling
         run: pnpm run audio:preflight

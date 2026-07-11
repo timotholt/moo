@@ -254,9 +254,11 @@ export default function MediaView(props) {
         try {
             if (status.onStatusChange) status.onStatusChange('Processing');
             const take = takes().find(t => t.id === takeId);
-            await deleteTake(takeId);
+            const result = await deleteTake(takeId);
             setOptimisticTakes(prev => prev.filter(t => t.id !== takeId));
-            baseLog.logInfo(`Take deleted: ${take?.filename || takeId}`);
+            baseLog.logInfo(result.audioRetained
+                ? `Take removed from catalog; audio retained: ${take?.filename || takeId}`
+                : `Take deleted: ${take?.filename || takeId}`);
         } catch (err) {
             setLocalError(err.message);
             baseLog.logError(`Failed to delete take: ${err.message}`);
@@ -550,6 +552,7 @@ export default function MediaView(props) {
                                         size="small"
                                         onClick={() => handleDeleteTake(take.id)}
                                         disabled={isDisabled()}
+                                        title="Remove take from catalog; keep its audio file"
                                         sx={{
                                             p: 0.25,
                                             ml: '0.5rem',
@@ -731,7 +734,7 @@ export default function MediaView(props) {
             <Dialog open={confirmDeleteMediaOpen()} onClose={() => setConfirmDeleteMediaOpen(false)}>
                 <DialogTitle>Delete Media?</DialogTitle>
                 <DialogContent>
-                    Are you sure you want to delete this media item and all associated takes?
+                    Remove this cue and its takes from the catalog? Generated audio files will be retained on disk, and the catalog can be restored from a snapshot.
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setConfirmDeleteMediaOpen(false)}>Cancel</Button>

@@ -159,7 +159,7 @@ export default function BinView(props) {
                 <DialogContent>
                     <DialogContentText>
                         Are you sure you want to delete this bin?
-                        This will delete all media and takes within this bin.
+                        This will remove this bin and its media/takes from the catalog. Generated audio files are retained on disk.
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
