@@ -17,11 +17,14 @@ import llmRoutes from './server/routes/llm.js';
 import { registerSceneRoutes } from './server/routes/scenes.js';
 import { registerPublishRoutes } from './server/routes/publish.js';
 import { registerReviewRoutes } from './server/routes/review.js';
+import { ProjectWriteLocks } from './services/project-write-lock.js';
 import projectRoutes, { setCurrentProject, getCurrentProjectPath } from './server/routes/projects.js';
 
 const fastify = Fastify({
   logger: false,
 });
+const projectWriteLocks = new ProjectWriteLocks();
+const requestUnlocks = new WeakMap<object, () => void>();
 
 // Projects directory
 const PROJECTS_DIR = join(process.cwd(), 'projects');
@@ -36,6 +39,24 @@ function getProjectContextNullable() {
 
 // Export for use by route modules that need access to the current project
 export { getProjectContextNullable as getProjectContext, PROJECTS_DIR };
+
+// MOO is local-first and uses flat catalog files. Serialize mutations per
+// selected project so read-modify-write handlers cannot clobber each other.
+fastify.addHook('onRequest', async (request) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
+  const context = getProjectContextNullable();
+  if (!context) return;
+  requestUnlocks.set(request, await projectWriteLocks.acquire(context.projectRoot));
+});
+
+const releaseRequestLock = (request: object) => {
+  const unlock = requestUnlocks.get(request);
+  if (!unlock) return;
+  requestUnlocks.delete(request);
+  unlock();
+};
+fastify.addHook('onResponse', async (request) => { releaseRequestLock(request); });
+fastify.addHook('onError', async (request) => { releaseRequestLock(request); });
 
 fastify.get('/api/health', async () => {
   return { status: 'ok' };

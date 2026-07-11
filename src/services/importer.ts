@@ -34,7 +34,6 @@ export async function importActorsService(projectRoot: string, inputStream: Read
             id: generateId(),
             display_name: record.display_name,
             base_filename,
-            all_approved: false,
             provider_settings: {
                 dialogue: {
                     provider: 'manual',

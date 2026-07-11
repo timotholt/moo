@@ -7,7 +7,7 @@ export function registerBatchRoutes(fastify: FastifyInstance, getProjectContext:
   /**
    * POST /api/batch/backfill-takes
    * 
-   * For each media item that is not yet complete (all_approved = false):
+   * For each media item whose derived lifecycle is not complete:
    * - Count undecided takes (status = 'new')
    * - If undecided < min_candidates, generate (min_candidates - undecided) new takes
    * 

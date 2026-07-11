@@ -14,6 +14,7 @@ import ViewConfigView from './ViewConfigView.jsx';
 import GroupView from './views/GroupView.jsx';
 import ReviewQueue from './ReviewQueue.jsx';
 import GenerationJobsView from './GenerationJobsView.jsx';
+import ReleasesView from './ReleasesView.jsx';
 import { PRESET_VIEWS } from '../utils/viewEngine.js';
 import { useActorOperations } from '../hooks/useActorOperations.jsx';
 import { useSceneOperations } from '../hooks/useSceneOperations.jsx';
@@ -166,6 +167,10 @@ export default function DetailPane(props) {
 
                 <Match when={activeType() === 'jobs'}>
                     <GenerationJobsView refreshToken={props.refreshToken} onRefresh={props.onRefresh} />
+                </Match>
+
+                <Match when={activeType() === 'releases'}>
+                    <ReleasesView refreshToken={props.refreshToken} />
                 </Match>
 
                 <Match when={activeType() === 'provider-default'}>

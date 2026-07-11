@@ -9,7 +9,6 @@ const media: Media = {
   bin_id: 'bin-1',
   media_type: 'sfx',
   name: 'rifle fire',
-  all_approved: false,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',
 };

@@ -10,7 +10,6 @@ import { join } from 'path';
  * │   ├── actors.jsonl
  * │   ├── scenes.jsonl
  * │   ├── sections.jsonl
- * │   ├── content.jsonl
  * │   ├── takes.jsonl
  * │   └── snapshots.jsonl
  * │
@@ -31,9 +30,9 @@ export function getProjectPaths(projectRoot: string) {
             scenes: join(mooDir, 'scenes.jsonl'),
             bins: join(mooDir, 'bins.jsonl'),
             media: join(mooDir, 'media.jsonl'),
-            content: join(mooDir, 'content.jsonl'),
             takes: join(mooDir, 'takes.jsonl'),
             generationJobs: join(mooDir, 'generation-jobs.jsonl'),
+            releases: join(mooDir, 'releases.jsonl'),
             snapshots: join(mooDir, 'snapshots.jsonl'),
             redoSnapshots: join(mooDir, 'redo-snapshots.jsonl'),
             // Derived indexes

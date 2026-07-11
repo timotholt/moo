@@ -3,7 +3,6 @@ import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Take, Media } from '../../types/index.js';
 import { TakeSchema } from '../../shared/schemas/index.js';
-import { MediaSchema } from '../../shared/schemas/index.js';
 import { readJsonl, writeJsonlAll } from '../../utils/jsonl.js';
 import { validateReferences } from '../../utils/validation.js';
 import { readCatalog, saveSnapshot } from './snapshots.js';
@@ -103,8 +102,6 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     takes[takeIndex] = updatedTake;
     await writeJsonlAll(paths.catalog.takes, takes, TakeSchema);
 
-    // Keep the legacy completion flag a derived compatibility projection until
-    // consumers move fully to the lifecycle read model.
     let lifecycle = null;
     if (mediaItem) {
       const bin = catalog.bins.find((item) => item.id === mediaItem.bin_id);
@@ -117,13 +114,6 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
         const defaults = await fs.pathExists(paths.moo.defaults) ? await fs.readJson(paths.moo.defaults) : null;
         const settings = resolveDefaultBlock(mediaItem.media_type, mediaItem, bin, owner, defaults).settings;
         lifecycle = calculateCueLifecycle(mediaItem, takes, settings.approval_count_default ?? 1);
-        const mediaIndex = catalog.media.findIndex((item) => item.id === mediaItem.id);
-        catalog.media[mediaIndex] = {
-          ...mediaItem,
-          all_approved: lifecycle.is_complete,
-          updated_at: new Date().toISOString(),
-        };
-        await writeJsonlAll(paths.catalog.media, catalog.media, MediaSchema);
       }
     }
 

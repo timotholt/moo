@@ -16,35 +16,7 @@ import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import Collapse from './Collapse.jsx';
 import TextInput from './TextInput.jsx';
 
-// Local storage keys for LLM settings
-const LLM_STORAGE_KEY = 'moo-llm-settings';
-
-// Load LLM settings from localStorage
-function loadLLMSettings() {
-    try {
-        const stored = localStorage.getItem(LLM_STORAGE_KEY);
-        if (stored) {
-            return JSON.parse(stored);
-        }
-    } catch (e) {
-        console.error('Failed to load LLM settings:', e);
-    }
-    return {
-        provider: 'groq',
-        apiKey: '',
-        model: 'llama-3.1-8b-instant',
-        systemPrompts: { generate: '', improve: '' }
-    };
-}
-
-// Save LLM settings to localStorage
-function saveLLMSettings(settings) {
-    try {
-        localStorage.setItem(LLM_STORAGE_KEY, JSON.stringify(settings));
-    } catch (e) {
-        console.error('Failed to save LLM settings:', e);
-    }
-}
+const DEFAULT_LLM_SETTINGS = { provider: 'groq', apiKey: '', model: 'llama-3.1-8b-instant', systemPrompts: { generate: '', improve: '' } };
 
 export default function SettingsDialog(props) {
     const [activeTab, setActiveTab] = createSignal('provider');
@@ -58,7 +30,7 @@ export default function SettingsDialog(props) {
 
     // LLM settings state
     const [providers, setProviders] = createSignal([]);
-    const [llmSettings, setLLMSettings] = createSignal(loadLLMSettings());
+    const [llmSettings, setLLMSettings] = createSignal(DEFAULT_LLM_SETTINGS);
     const [showApiKey, setShowApiKey] = createSignal(false);
     const [testStatus, setTestStatus] = createSignal(null); // null | 'testing' | 'success' | 'error'
     const [testError, setTestError] = createSignal('');
@@ -84,6 +56,18 @@ export default function SettingsDialog(props) {
             })
             .catch(err => console.error('Failed to load default prompts:', err));
 
+        fetch('/api/llm/settings')
+            .then(res => res.json())
+            .then(data => {
+                if (data.settings) setLLMSettings({
+                    provider: data.settings.provider || 'groq',
+                    apiKey: data.settings.api_key || '',
+                    model: data.settings.model || 'llama-3.1-8b-instant',
+                    systemPrompts: data.settings.system_prompts || { generate: '', improve: '' },
+                });
+            })
+            .catch(err => console.error('Failed to load AI settings:', err));
+
         // Check for existing ElevenLabs key on server
         fetch('/api/provider/api-key')
             .then(res => res.json())
@@ -96,10 +80,12 @@ export default function SettingsDialog(props) {
             .catch(err => console.error('Failed to check API key:', err));
     });
 
-    // Save LLM settings when they change
-    createEffect(() => {
-        saveLLMSettings(llmSettings());
-    });
+    const persistLLMSettings = async (settings) => {
+        await fetch('/api/llm/settings', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: settings.provider, api_key: settings.apiKey, model: settings.model, system_prompts: settings.systemPrompts }),
+        });
+    };
 
     // ElevenLabs handlers
     const handleElevenLabsKeyChange = (value) => {
@@ -138,15 +124,16 @@ export default function SettingsDialog(props) {
     };
 
     const handleLLMSettingChange = (key, value) => {
-        setLLMSettings(prev => ({ ...prev, [key]: value }));
+        const next = { ...llmSettings(), [key]: value };
+        setLLMSettings(next);
+        void persistLLMSettings(next);
         setTestStatus(null);
     };
 
     const handleSystemPromptChange = (type, value) => {
-        setLLMSettings(prev => ({
-            ...prev,
-            systemPrompts: { ...prev.systemPrompts, [type]: value }
-        }));
+        const next = { ...llmSettings(), systemPrompts: { ...llmSettings().systemPrompts, [type]: value } };
+        setLLMSettings(next);
+        void persistLLMSettings(next);
     };
 
     const handleResetSystemPrompt = (type) => {
@@ -162,8 +149,7 @@ export default function SettingsDialog(props) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    provider: llmSettings().provider,
-                    apiKey: llmSettings().apiKey
+                    provider: llmSettings().provider
                 })
             });
 

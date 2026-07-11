@@ -33,6 +33,9 @@ MOO currently uses filesystem data, not SQLite or another database.
 - The CLI `moo init <path>` and API project creation both use the canonical V2 project initializer.
 - Take review decisions persist `status_changed_at` and `reviewed_at`; expanded take details provide a persistent local-first `review_note`.
 - System → review queue is server-derived from cue lifecycle and excludes cues that meet their target or were finished early.
+- MOO is clean-start only: live media has no legacy `all_approved` flag. Completion is derived from takes plus `completion_override` (Finish Early).
+- Prompt-improvement provider settings (including Groq keys) are stored in the same local server config as ElevenLabs and displayed in Settings; they are not browser-local.
+- Local setup is pinned by `.nvmrc` and `packageManager`; use `pnpm install --frozen-lockfile` and `pnpm run audio:preflight`.
 - The API keeps the selected project only in server process memory; it is not persisted across restarts.
 - The intended catalog source is JSONL. The flat-file spec also describes embedded audio metadata as a recovery/portability layer, but this should be verified against the active code before relying on it.
 

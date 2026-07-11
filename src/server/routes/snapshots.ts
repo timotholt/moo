@@ -2,7 +2,7 @@ import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
-import type { Actor, Media, Bin, Scene } from '../../types/index.js';
+import type { Actor, Media, Bin, Scene, Take } from '../../types/index.js';
 import {
   buildActorPath,
   buildScenePath,
@@ -15,7 +15,8 @@ import {
   ActorSchema,
   BinSchema,
   MediaSchema,
-  SceneSchema
+  SceneSchema,
+  TakeSchema,
 } from '../../shared/schemas/index.js';
 import type { OwnerType } from '../../shared/schemas/common.schema.js';
 import { generateId } from '../../utils/ids.js';
@@ -28,6 +29,7 @@ interface Snapshot {
   bins: Bin[];
   media: Media[];
   scenes: Scene[];
+  takes: Take[];
 }
 
 /** Cached catalog data to avoid redundant reads */
@@ -36,6 +38,7 @@ export interface CatalogCache {
   bins: Bin[];
   media: Media[];
   scenes: Scene[];
+  takes: Take[];
 }
 
 type ProjectPaths = ReturnType<typeof import('../../utils/paths.js').getProjectPaths>;
@@ -47,13 +50,14 @@ const MAX_SNAPSHOTS = 50;
  * Read all catalog files and return cached data
  */
 export async function readCatalog(paths: ProjectPaths): Promise<CatalogCache> {
-  const [actors, bins, media, scenes] = await Promise.all([
+  const [actors, bins, media, scenes, takes] = await Promise.all([
     readJsonl<Actor>(paths.catalog.actors, ActorSchema).catch(() => [] as Actor[]),
     readJsonl<Bin>(paths.catalog.bins, BinSchema).catch(() => [] as Bin[]),
     readJsonl<Media>(paths.catalog.media, MediaSchema).catch(() => [] as Media[]),
     readJsonl<Scene>(paths.catalog.scenes, SceneSchema).catch(() => [] as Scene[]),
+    readJsonl<Take>(paths.catalog.takes, TakeSchema).catch(() => [] as Take[]),
   ]);
-  return { actors, bins, media, scenes };
+  return { actors, bins, media, scenes, takes };
 }
 
 /**
@@ -187,7 +191,7 @@ export async function saveSnapshot(
   const redoPath = paths.catalog.redoSnapshots;
 
   try {
-    await fs.writeFile(redoPath, '', 'utf8');
+    await writeJsonlAll(redoPath, []);
 
     const snapshot: Snapshot = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -197,6 +201,7 @@ export async function saveSnapshot(
       bins: catalog.bins,
       media: catalog.media,
       scenes: catalog.scenes,
+      takes: catalog.takes,
     };
 
     await ensureJsonlFile(snapshotPath);
@@ -207,7 +212,7 @@ export async function saveSnapshot(
       snapshots = snapshots.slice(-MAX_SNAPSHOTS);
     }
 
-    await fs.writeFile(snapshotPath, snapshots.map(s => JSON.stringify(s)).join('\n') + '\n', 'utf8');
+    await writeJsonlAll(snapshotPath, snapshots);
   } catch (err) {
     console.error('[Snapshot] Failed to save snapshot:', err);
   }
@@ -270,6 +275,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
     await writeJsonlAll(paths.catalog.bins, snapshot.bins, BinSchema);
     await writeJsonlAll(paths.catalog.media, snapshot.media, MediaSchema);
     await writeJsonlAll(paths.catalog.scenes, snapshot.scenes, SceneSchema);
+    await writeJsonlAll(paths.catalog.takes, snapshot.takes, TakeSchema);
     await writeJsonlAll(paths.catalog.snapshots, snapshots);
 
     const { message: snapshotMsg, ...snapshotData } = snapshot;
@@ -317,6 +323,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
     await writeJsonlAll(paths.catalog.bins, redoSnapshot.bins, BinSchema);
     await writeJsonlAll(paths.catalog.media, redoSnapshot.media, MediaSchema);
     await writeJsonlAll(paths.catalog.scenes, redoSnapshot.scenes, SceneSchema);
+    await writeJsonlAll(paths.catalog.takes, redoSnapshot.takes, TakeSchema);
     await writeJsonlAll(paths.catalog.redoSnapshots, redoSnapshots);
 
     const { message: redoMsg, ...redoData } = redoSnapshot;

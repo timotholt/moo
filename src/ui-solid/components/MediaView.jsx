@@ -1,6 +1,6 @@
 import { createSignal, createEffect, createMemo, Show, For, onCleanup } from 'solid-js';
 import {
-    Box, Typography, IconButton, Dialog, DialogTitle, DialogContent,
+    Box, Typography, IconButton, Dialog, DialogTitle, DialogContent, Alert,
     DialogActions, Button, List, ListItem, ListItemIcon, ListItemText,
     CircularProgress, Paper
 } from '@suid/material';
@@ -18,16 +18,13 @@ import RefreshIcon from '@suid/icons-material/Refresh';
 import AutoAwesomeIcon from '@suid/icons-material/AutoAwesome';
 import AutoFixHighIcon from '@suid/icons-material/AutoFixHigh';
 import RestartAltIcon from '@suid/icons-material/RestartAlt';
-import { deleteMedia, updateMedia, updateTake, generateTakes, deleteTake, selectMediaTakes } from '../api/client.js';
+import { deleteMedia, updateMedia, updateTake, generateTakes, deleteTake, selectMediaTakes, getGenerationPreflight } from '../api/client.js';
 import DetailHeader from './DetailHeader.jsx';
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { buildMediaPath } from '../utils/pathBuilder.js';
 import { useLog, usePlayback, useStatus, useCredits } from '../contexts/AppContext.jsx';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
 import { getInheritedSettings } from '../utils/inheritance.js';
-
-// Local storage key for LLM settings
-const LLM_STORAGE_KEY = 'moo-llm-settings';
 
 // Helper to format date
 function formatStatusDate(isoString) {
@@ -82,6 +79,8 @@ export default function MediaView(props) {
     });
 
     const [generatingTakes, setGeneratingTakes] = createSignal(false);
+    const [preflight, setPreflight] = createSignal(null);
+    const [checkingPreflight, setCheckingPreflight] = createSignal(false);
     const [expandedTakeId, setExpandedTakeId] = createSignal(null);
     const [editingName, setEditingName] = createSignal(false);
 
@@ -240,6 +239,17 @@ export default function MediaView(props) {
         }
     };
 
+    const checkGenerationReadiness = async () => {
+        try {
+            setCheckingPreflight(true);
+            setPreflight(await getGenerationPreflight(props.item.id));
+        } catch (err) {
+            setPreflight({ ready: false, checks: [{ id: 'request', status: 'blocked', message: err.message || String(err) }] });
+        } finally {
+            setCheckingPreflight(false);
+        }
+    };
+
     const handleDeleteTake = async (takeId) => {
         try {
             if (status.onStatusChange) status.onStatusChange('Processing');
@@ -255,19 +265,7 @@ export default function MediaView(props) {
         }
     };
 
-    const getLLMSettings = () => {
-        try {
-            const stored = localStorage.getItem(LLM_STORAGE_KEY);
-            return stored ? JSON.parse(stored) : null;
-        } catch { return null; }
-    };
-
     const handleAIGenerate = async () => {
-        const settings = getLLMSettings();
-        if (!settings?.apiKey) {
-            setAiError('Configure AI in Settings first');
-            return;
-        }
         setAiLoading(true);
         setAiError('');
         try {
@@ -275,10 +273,6 @@ export default function MediaView(props) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    provider: settings.provider,
-                    apiKey: settings.apiKey,
-                    model: settings.model,
-                    systemPrompt: settings.systemPrompts?.generate || '',
                     mediaName: props.item.name || 'untitled',
                     ownerName: props.owner ? (props.owner.display_name || props.owner.name) : 'Global',
                     mediaType: props.item.media_type
@@ -296,8 +290,6 @@ export default function MediaView(props) {
     };
 
     const handleAIImprove = async () => {
-        const settings = getLLMSettings();
-        if (!settings?.apiKey) return setAiError('Configure AI first');
         if (!prompt().trim()) return setAiError('Enter prompt first');
         setAiLoading(true);
         setAiError('');
@@ -306,10 +298,6 @@ export default function MediaView(props) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    provider: settings.provider,
-                    apiKey: settings.apiKey,
-                    model: settings.model,
-                    systemPrompt: settings.systemPrompts?.improve || '',
                     currentPrompt: prompt(),
                     mediaName: props.item.name || 'untitled',
                     mediaType: props.item.media_type
@@ -720,6 +708,22 @@ export default function MediaView(props) {
                             </>
                         );
                     })()}
+                </Box>
+                <Box sx={{ mt: 1 }}>
+                    <Button size="small" variant="text" onClick={checkGenerationReadiness} disabled={checkingPreflight()}>
+                        {checkingPreflight() ? 'Checking readiness…' : 'Check generation readiness'}
+                    </Button>
+                    <Show when={preflight()}>{(result) => <Alert severity={result().ready ? 'success' : 'warning'} sx={{ mt: 0.5, py: 0 }}>
+                        <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
+                            Next spend: {result().estimate.provider_requests} request{result().estimate.provider_requests === 1 ? '' : 's'}
+                            {result().estimate.estimated_characters !== null ? ` · about ${result().estimate.estimated_characters} characters` : ''}
+                        </Typography>
+                        <Show when={result().estimate.quota_remaining_characters !== null}>
+                            <Typography variant="caption" sx={{ display: 'block' }}>Remaining quota: {result().estimate.quota_remaining_characters} characters</Typography>
+                        </Show>
+                        <Typography variant="caption" sx={{ display: 'block', mb: 0.25 }}>{result().estimate.note}</Typography>
+                        <For each={result().checks}>{(check) => <div>{check.status === 'ready' ? '✓' : check.status === 'warning' ? '!' : '×'} {check.message}</div>}</For>
+                    </Alert>}</Show>
                 </Box>
             </Box>
 

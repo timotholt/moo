@@ -72,3 +72,10 @@ export interface GenerationJob {
         dry_run: boolean;
     };
 }
+
+export interface ReleaseRecord {
+    release_id: string;
+    created_at: string;
+    manifest_path: string;
+    exported_count: number;
+}

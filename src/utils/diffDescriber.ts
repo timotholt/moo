@@ -21,7 +21,6 @@ const FIELD_LABELS: Record<string, string> = {
   name: 'name',
   filename: 'filename',
   prompt: 'prompt',
-  all_approved: 'completion status',
   actor_complete: 'actor completion',
   section_complete: 'section completion',
   scene_complete: 'scene completion',
@@ -132,10 +131,7 @@ export function describeChanges(
 
       // Special handling for completion flags
       // Note: These return just the action - the caller adds the path prefix
-      if (key === 'all_approved') {
-        changes.push(newVal ? 'marked as complete' : 'marked as incomplete');
-      }
-      else if (key === 'actor_complete') {
+      if (key === 'actor_complete') {
         changes.push(newVal ? 'marked as complete' : 'marked as incomplete');
       }
       else if (key === 'section_complete') {

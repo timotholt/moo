@@ -19,9 +19,8 @@ export interface CueLifecycle {
 /**
  * Derive a cue's authoring state from its takes and approval policy.
  *
- * This is intentionally read-only: it is the replacement truth model for the
- * legacy, manually-edited `all_approved` flag. Publishing is added when the
- * release model and explicit selected take fields are introduced.
+ * This is intentionally read-only: it is the authoritative completion model
+ * for generation, review, and publishing.
  */
 export function calculateCueLifecycle(
   media: Media,

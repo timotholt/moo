@@ -82,7 +82,6 @@ describe('M2.5 Batch Generation', () => {
       media_type: 'dialogue',
       name: 'line1',
       prompt: 'First line',
-      all_approved: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -95,7 +94,6 @@ describe('M2.5 Batch Generation', () => {
       media_type: 'dialogue',
       name: 'line2',
       prompt: 'Second line',
-      all_approved: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -153,7 +151,6 @@ describe('M2.5 Batch Generation', () => {
       media_type: 'dialogue',
       name: 'real_line',
       prompt: 'Hello from test',
-      all_approved: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -197,7 +194,7 @@ describe('M2.5 Batch Generation', () => {
     const now = new Date().toISOString();
     const actor = { id: 'actor-stop', display_name: 'Stop', base_filename: 'stop', default_blocks: { dialogue: { provider: 'elevenlabs', approval_count_default: 1, min_candidates: 3 } }, actor_complete: false, created_at: now, updated_at: now };
     const bin = { id: 'bin-stop', owner_type: 'actor', owner_id: actor.id, media_type: 'dialogue', name: 'Stop', default_blocks: { dialogue: { provider: 'inherit' } }, bin_complete: false, created_at: now, updated_at: now };
-    const media = { id: 'media-stop', owner_type: 'actor', owner_id: actor.id, bin_id: bin.id, media_type: 'dialogue', name: 'done', all_approved: true, created_at: now, updated_at: now };
+    const media = { id: 'media-stop', owner_type: 'actor', owner_id: actor.id, bin_id: bin.id, media_type: 'dialogue', name: 'done', created_at: now, updated_at: now };
     const approvedTake = { id: 'take-stop', media_id: media.id, take_number: 1, filename: 'done.mp3', path: 'actors/stop/dialogue/stop/done_001.mp3', format: 'mp3', size_bytes: 1, status: 'approved', created_at: now, updated_at: now };
     await fs.appendFile(paths.catalog.actors, JSON.stringify(actor) + '\n');
     await fs.appendFile(paths.catalog.bins, JSON.stringify(bin) + '\n');
@@ -214,7 +211,7 @@ describe('M2.5 Batch Generation', () => {
     const now = new Date().toISOString();
     const actor = { id: 'actor-concurrent', display_name: 'Concurrent', base_filename: 'concurrent', default_blocks: { dialogue: { provider: 'elevenlabs', approval_count_default: 1 } }, actor_complete: false, created_at: now, updated_at: now };
     const bin = { id: 'bin-concurrent', owner_type: 'actor', owner_id: actor.id, media_type: 'dialogue', name: 'Concurrent', default_blocks: { dialogue: { provider: 'inherit' } }, bin_complete: false, created_at: now, updated_at: now };
-    const media = { id: 'media-concurrent', owner_type: 'actor', owner_id: actor.id, bin_id: bin.id, media_type: 'dialogue', name: 'line', all_approved: false, created_at: now, updated_at: now };
+    const media = { id: 'media-concurrent', owner_type: 'actor', owner_id: actor.id, bin_id: bin.id, media_type: 'dialogue', name: 'line', created_at: now, updated_at: now };
     await fs.appendFile(paths.catalog.actors, JSON.stringify(actor) + '\n');
     await fs.appendFile(paths.catalog.bins, JSON.stringify(bin) + '\n');
     await fs.appendFile(paths.catalog.media, JSON.stringify(media) + '\n');

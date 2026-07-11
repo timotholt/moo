@@ -153,7 +153,6 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
                 bin_id: body.bin_id,
                 name: name,
                 prompt: body.prompt || (name.charAt(0).toUpperCase() + name.slice(1)),
-                all_approved: false,
                 created_at: now,
                 updated_at: now,
             };
@@ -204,9 +203,7 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         const currentMedia = catalog.media[mediaIndex];
 
-        // Completion is derived from take approval counts. Keep accepting older
-        // clients that send all_approved, but never let that value become truth.
-        const { all_approved: _legacyCompletion, selected_take_ids: _selection, ...changes } = body;
+        const { selected_take_ids: _selection, ...changes } = body;
         const updatedMedia: Media = {
             ...currentMedia,
             ...changes,
@@ -232,20 +229,6 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
             return { error: 'Invalid media data', details: validation.errors };
         }
 
-        if (Object.hasOwn(changes, 'completion_override')) {
-            const bin = catalog.bins.find((item) => item.id === currentMedia.bin_id);
-            const owner = currentMedia.owner_type === 'actor'
-                ? catalog.actors.find((item) => item.id === currentMedia.owner_id) ?? null
-                : currentMedia.owner_type === 'scene'
-                    ? catalog.scenes.find((item) => item.id === currentMedia.owner_id) ?? null
-                    : null;
-            const defaults = await fs.pathExists(paths.moo.defaults) ? await fs.readJson(paths.moo.defaults) : null;
-            const takes = await readJsonl<Take>(paths.catalog.takes, TakeSchema);
-            if (bin) {
-                const settings = resolveDefaultBlock(updatedMedia.media_type, updatedMedia, bin, owner, defaults).settings;
-                updatedMedia.all_approved = calculateCueLifecycle(updatedMedia, takes, settings.approval_count_default ?? 1).is_complete;
-            }
-        }
         catalog.media[mediaIndex] = updatedMedia;
         await writeJsonlAll(paths.catalog.media, catalog.media, MediaSchema);
 
@@ -375,6 +358,11 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
             const provider = await getAudioProvider(projectRoot);
             const takes = await readJsonl<Take>(paths.catalog.takes, TakeSchema);
             const takesForMedia = takes.filter(t => t.media_id === media.id);
+            const lifecycle = calculateCueLifecycle(media, takes, settings.approval_count_default ?? 1);
+            if (lifecycle.is_complete) {
+                reply.code(409);
+                return { error: 'Cue is complete. Remove Finish Early or unapprove a take before generating more.' };
+            }
             let nextTakeNumber = takesForMedia.reduce((max, t) => Math.max(max, t.take_number), 0) + 1;
 
             const generatedTakes: Take[] = [];

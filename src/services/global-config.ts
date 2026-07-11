@@ -6,6 +6,12 @@ const GLOBAL_CONFIG_PATH = join(process.cwd(), '.moo-config.json');
 
 interface GlobalConfig {
   elevenlabs_api_key?: string;
+  llm?: {
+    provider: string;
+    api_key: string;
+    model?: string;
+    system_prompts?: { generate?: string; improve?: string };
+  };
 }
 
 let cachedConfig: GlobalConfig | null = null;
@@ -41,6 +47,14 @@ export async function getElevenLabsApiKey(): Promise<string | undefined> {
 
 export async function setElevenLabsApiKey(apiKey: string): Promise<void> {
   await saveGlobalConfig({ elevenlabs_api_key: apiKey });
+}
+
+export async function getLLMSettings(): Promise<NonNullable<GlobalConfig['llm']> | undefined> {
+  return (await loadGlobalConfig()).llm;
+}
+
+export async function setLLMSettings(settings: NonNullable<GlobalConfig['llm']>): Promise<void> {
+  await saveGlobalConfig({ llm: settings });
 }
 
 // Clear cache (useful for testing)

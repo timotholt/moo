@@ -1,0 +1,27 @@
+name: Verify MOO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.20.2
+          cache: pnpm
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install --yes ffmpeg
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify runtime
+        run: pnpm run verify:runtime
+      - name: Verify audio tooling
+        run: pnpm run audio:preflight

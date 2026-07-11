@@ -56,7 +56,6 @@ export async function rebuildIndexesService(projectRoot: string): Promise<void> 
             owner_id: media.owner_id,
             take_ids: mediaTakes.map((t) => t.id),
             approved_take_ids: approvedTakes.map((t) => t.id),
-            all_approved: media.all_approved,
             last_updated: new Date().toISOString(),
         };
         await fs.writeJson(paths.catalog.indexes.byMedia(media.id), indexData, { spaces: 2 });

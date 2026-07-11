@@ -4,7 +4,7 @@ import type { Media, Take } from '../src/types/index.js';
 
 const cue = (id: string, name: string, extra: Partial<Media> = {}): Media => ({
   id, name, owner_type: 'global', owner_id: null, bin_id: 'bin-1', media_type: 'sfx',
-  all_approved: false, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', ...extra,
+  created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z', ...extra,
 });
 const take = (id: string, mediaId: string, status: Take['status']): Take => ({
   id, media_id: mediaId, take_number: 1, filename: `${id}.wav`, path: `global/${id}.wav`, format: 'wav', size_bytes: 1,

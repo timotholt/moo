@@ -34,7 +34,7 @@ project/
   defaults.json
 ```
 
-`media.jsonl` is the canonical cue catalog. Legacy `catalog/content.jsonl`, `sections.jsonl`, and `content_id` records are migration inputs only and must not receive new writes.
+`media.jsonl` is the canonical cue catalog. MOO starts clean and writes no legacy content catalog.
 
 ## Core entities
 
@@ -64,7 +64,7 @@ Lifecycle is derived from cue policy and take records. It is not edited as a fre
 | `published` | cue has selected approved take(s) in a published release |
 | `needs_attention` | missing source file, invalid data, or failed generation |
 
-The existing `all_approved` flag becomes a compatibility projection and will be removed after migration.
+Cue completion is derived from approved takes and the explicit Finish Early choice; no mutable completion flag is stored on media.
 
 ## Generation contract
 
@@ -85,5 +85,5 @@ MOO is being rebuilt without existing users, legacy projects, or audio libraries
 
 - Project initialization, migration, generation, lifecycle calculation, export, and metadata recovery have automated tests.
 - Tests use temporary directories outside the repository.
-- ffmpeg-dependent tests skip clearly when unavailable and run in CI with ffmpeg installed.
-- `npm run verify` is the supported local check; package-manager/runtime requirements are declared and reproducible.
+- `npm run audio:preflight` verifies ffprobe/ffmpeg before a real audio-generation or CI run.
+- `pnpm run verify:runtime` is the supported runtime check; CI installs FFmpeg and runs the same frozen-install, build, test, and audio-tool verification.

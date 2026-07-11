@@ -79,7 +79,6 @@ try {
         bin_id: 'bin_789',
         media_type: 'dialogue',
         prompt: 'Hello there!',
-        all_approved: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
     });

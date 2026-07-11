@@ -44,8 +44,6 @@ export const MediaSchema = z.object({
     // Default blocks (overrides for this specific item)
     default_blocks: DefaultBlocksSchema.optional(),
 
-    // Completion tracking
-    all_approved: z.boolean().default(false),
     // A human may stop generation early when the approved takes satisfy their
     // taste, even when the default approval target has not been reached.
     completion_override: z.boolean().optional(),
@@ -69,7 +67,6 @@ export const CreateMediaSchema = MediaSchema.omit({
 }).partial({
     prompt: true,
     filename: true,
-    all_approved: true,
     scene_id: true,
     default_blocks: true,
 });

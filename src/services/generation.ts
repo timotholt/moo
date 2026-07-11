@@ -9,6 +9,7 @@ import { hashFile } from './audio/hash.js';
 import { writeMetadata, buildMetadataFromTake } from './audio/metadata.js';
 import type { Actor, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
 import { getExtensionForType } from '../utils/pathConstruction.js';
+import { calculateCueLifecycle } from './cue-lifecycle.js';
 
 const DEBUG_BATCH_GENERATION = false;
 
@@ -116,10 +117,10 @@ async function executeBatchGeneration(
     try {
       provider = options.dryRun ? null : await getAudioProvider(projectRoot);
 
-    // Filter media: incomplete only, optional actor/mediaType filters
+    // Filter media by requested scope. Completion is evaluated from the
+    // canonical lifecycle below, after each cue's settings are resolved.
     const requestedType = options.contentType ?? options.mediaType;
     const filteredMedia = mediaItems.filter((m) => {
-        if (m.all_approved) return false;
         if (options.actorId && m.owner_id !== options.actorId) return false;
         if (options.binId && m.bin_id !== options.binId) return false;
         if (options.mediaId && m.id !== options.mediaId) return false;
@@ -175,13 +176,18 @@ async function executeBatchGeneration(
         const takesForMedia = existingTakes.filter((t) => t.media_id === media.id);
         const approvedCount = takesForMedia.filter((t) => t.status === 'approved').length;
         const undecidedCount = takesForMedia.filter((t) => t.status === 'new').length;
+        const lifecycle = calculateCueLifecycle(media, existingTakes, targetApprovals);
+
+        if (lifecycle.is_complete) {
+            continue;
+        }
 
         // Don't backfill if we already have enough approved takes
         // Approval is the budget stop condition. Once the cue has enough good
         // takes, do not spend more tokens merely to satisfy a larger candidate
         // pool setting. Until then, maintain the review pool and ensure enough
         // candidates exist to make the remaining approvals possible.
-        const needed = approvedCount >= targetApprovals
+        const needed = lifecycle.is_complete
             ? 0
             : Math.max(0, Math.max(minCandidates, targetApprovals - approvedCount) - undecidedCount);
 
@@ -298,7 +304,7 @@ async function executeBatchGeneration(
         if (cancelled) break;
     }
 
-    job.total_media = filteredMedia.length;
+    job.total_media = items.length;
     job.items = items;
     job.total_takes_created = items.reduce((sum, item) => sum + item.generated_takes, 0);
       job.status = cancelled ? 'cancelled' : items.some((item) => item.error) ? 'failed' : 'completed';

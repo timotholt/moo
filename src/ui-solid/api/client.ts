@@ -198,6 +198,10 @@ export async function publishRelease(releaseId?: string) {
   return res.json();
 }
 
+export function getReleases() {
+  return fetchJson('/api/releases');
+}
+
 export function getReviewQueue() {
   return fetchJson('/api/review-queue');
 }
@@ -216,6 +220,10 @@ export async function cancelGenerationJob(id: string) {
   const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
   if (!res.ok) throw new Error(`Failed to cancel generation job: ${await res.text()}`);
   return res.json();
+}
+
+export function getGenerationPreflight(mediaId: string) {
+  return fetchJson(`/api/generation/preflight?media_id=${encodeURIComponent(mediaId)}`);
 }
 
 export async function deleteMedia(id: string) {

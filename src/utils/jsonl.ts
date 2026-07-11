@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import { createReadStream } from 'fs';
 import { createInterface } from 'readline';
+import { basename, dirname, join } from 'path';
 
 import { z } from 'zod';
 
@@ -55,7 +56,7 @@ export async function ensureJsonlFile(filePath: string): Promise<void> {
 }
 
 export async function writeJsonlAll<T>(filePath: string, items: T[], schema?: z.ZodSchema<T>): Promise<void> {
-    await fs.ensureFile(filePath);
+    await fs.ensureDir(dirname(filePath));
     if (schema) {
         items.forEach(item => schema.parse(item));
     }
@@ -63,5 +64,18 @@ export async function writeJsonlAll<T>(filePath: string, items: T[], schema?: z.
     if (DEBUG_JSONL) {
         console.log('[jsonl] writeAll', filePath, 'items:', items.length);
     }
-    await fs.writeFile(filePath, content, 'utf8');
+    // A write to a sibling file followed by rename is atomic on the local
+    // filesystem. Readers therefore see either the old complete catalog or
+    // the new complete catalog, never a file being truncated mid-write.
+    const temporaryPath = join(
+        dirname(filePath),
+        `.${basename(filePath)}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`,
+    );
+    try {
+        await fs.writeFile(temporaryPath, content, 'utf8');
+        await fs.rename(temporaryPath, filePath);
+    } catch (error) {
+        await fs.remove(temporaryPath).catch(() => undefined);
+        throw error;
+    }
 }
