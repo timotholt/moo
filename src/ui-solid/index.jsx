@@ -1,6 +1,4 @@
 /* @refresh reload */
-import * as React from 'react';
-window.React = React;
 import { render } from 'solid-js/web';
 import App from './App';
 

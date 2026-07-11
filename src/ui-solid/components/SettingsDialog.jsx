@@ -18,8 +18,6 @@ import TextInput from './TextInput.jsx';
 
 // Local storage keys for LLM settings
 const LLM_STORAGE_KEY = 'moo-llm-settings';
-// Global storage for ElevenLabs API key (shared across projects)
-const ELEVENLABS_KEY_STORAGE = 'moo-elevenlabs-apikey';
 
 // Load LLM settings from localStorage
 function loadLLMSettings() {
@@ -53,9 +51,7 @@ export default function SettingsDialog(props) {
     const [advancedExpanded, setAdvancedExpanded] = createSignal(false);
 
     // ElevenLabs settings state
-    const [elevenLabsApiKey, setElevenLabsApiKey] = createSignal(
-        localStorage.getItem(ELEVENLABS_KEY_STORAGE) || ''
-    );
+    const [elevenLabsApiKey, setElevenLabsApiKey] = createSignal('');
     const [showElevenLabsKey, setShowElevenLabsKey] = createSignal(false);
     const [elevenLabsTestStatus, setElevenLabsTestStatus] = createSignal(null);
     const [elevenLabsTestError, setElevenLabsTestError] = createSignal('');
@@ -93,6 +89,7 @@ export default function SettingsDialog(props) {
             .then(res => res.json())
             .then(data => {
                 if (data.hasKey) {
+                    setElevenLabsApiKey(data.apiKey || '');
                     setElevenLabsTestStatus('success');
                 }
             })
@@ -107,11 +104,6 @@ export default function SettingsDialog(props) {
     // ElevenLabs handlers
     const handleElevenLabsKeyChange = (value) => {
         setElevenLabsApiKey(value);
-        try {
-            localStorage.setItem(ELEVENLABS_KEY_STORAGE, value);
-        } catch (e) {
-            console.error('Failed to save ElevenLabs key to localStorage:', e);
-        }
         setElevenLabsTestStatus(null);
     };
 

@@ -13,6 +13,7 @@ const DEBUG_BATCH_GENERATION = false;
 
 export interface BatchGenerationOptions {
     actorId?: string;
+    contentType?: 'dialogue' | 'music' | 'sfx';
     mediaType?: 'dialogue' | 'music' | 'sfx';
     dryRun?: boolean;
 }
@@ -54,10 +55,11 @@ export async function runBatchGeneration(
     const items: GenerationJobItemSummary[] = [];
 
     // Filter media: incomplete only, optional actor/mediaType filters
+    const requestedType = options.contentType ?? options.mediaType;
     const filteredMedia = mediaItems.filter((m) => {
         if (m.all_approved) return false;
         if (options.actorId && m.owner_id !== options.actorId) return false;
-        if (options.mediaType && m.media_type !== options.mediaType) return false;
+        if (requestedType && m.media_type !== requestedType) return false;
         return true;
     });
 

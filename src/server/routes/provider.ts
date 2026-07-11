@@ -129,13 +129,12 @@ export function registerProviderRoutes(fastify: FastifyInstance, getProjectConte
     }
   });
 
-  // Get saved ElevenLabs API key (masked)
+  // Get saved ElevenLabs API key. MOO is a local-only authoring tool and its
+  // Settings UI is intentionally allowed to display the configured key.
   fastify.get('/api/provider/api-key', async (_request: FastifyRequest, _reply: FastifyReply) => {
     const apiKey = await getElevenLabsApiKey();
     if (apiKey) {
-      // Return masked key for display
-      const masked = apiKey.slice(0, 4) + '...' + apiKey.slice(-4);
-      return { hasKey: true, masked };
+      return { hasKey: true, apiKey };
     }
     return { hasKey: false };
   });

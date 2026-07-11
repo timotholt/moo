@@ -31,7 +31,9 @@ export function getProjectPaths(projectRoot: string) {
             scenes: join(mooDir, 'scenes.jsonl'),
             bins: join(mooDir, 'bins.jsonl'),
             media: join(mooDir, 'media.jsonl'),
+            content: join(mooDir, 'content.jsonl'),
             takes: join(mooDir, 'takes.jsonl'),
+            generationJobs: join(mooDir, 'generation-jobs.jsonl'),
             snapshots: join(mooDir, 'snapshots.jsonl'),
             redoSnapshots: join(mooDir, 'redo-snapshots.jsonl'),
             // Derived indexes

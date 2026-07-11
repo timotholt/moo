@@ -99,7 +99,7 @@ fastify.register(projectRoutes);
 
 async function start() {
   try {
-    const port = 3000;
+    const port = 6000;
     const host = '127.0.0.1';
     await fastify.listen({ port, host });
     console.log(`MOO API server listening on http://${host}:${port}`);

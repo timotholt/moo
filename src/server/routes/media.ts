@@ -11,6 +11,7 @@ import { writeMetadata, buildMetadataFromTake } from '../../services/audio/metad
 import { resolveDefaultBlock } from '../../utils/defaultBlockResolver.js';
 import { buildTemplateContext, resolveTemplate } from '../../utils/templateResolver.js';
 import { constructTakePath, getExtensionForType } from '../../utils/pathConstruction.js';
+import { calculateCueLifecycle } from '../../services/cue-lifecycle.js';
 import {
     readCatalog,
     saveSnapshot,
@@ -45,6 +46,40 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
         });
 
         return { media: filtered };
+    });
+
+    fastify.get('/api/media/:id/lifecycle', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+        const ctx = getProjectContext();
+        if (!ctx) {
+            reply.code(400);
+            return { error: 'No project selected' };
+        }
+
+        const catalog = await readCatalog(ctx.paths);
+        const media = catalog.media.find((item) => item.id === request.params.id);
+        if (!media) {
+            reply.code(404);
+            return { error: 'Media not found' };
+        }
+
+        const bin = catalog.bins.find((item) => item.id === media.bin_id);
+        if (!bin) {
+            reply.code(409);
+            return { error: 'Media references a missing bin' };
+        }
+
+        const owner = media.owner_type === 'actor'
+            ? catalog.actors.find((item) => item.id === media.owner_id) ?? null
+            : media.owner_type === 'scene'
+                ? catalog.scenes.find((item) => item.id === media.owner_id) ?? null
+                : null;
+        const defaults = await fs.pathExists(ctx.paths.moo.defaults)
+            ? await fs.readJson(ctx.paths.moo.defaults)
+            : null;
+        const settings = resolveDefaultBlock(media.media_type, media, bin, owner, defaults).settings;
+        const takes = await readJsonl<Take>(ctx.paths.catalog.takes, TakeSchema);
+
+        return { lifecycle: calculateCueLifecycle(media, takes, settings.approval_count_default ?? 1) };
     });
 
     fastify.post('/api/media', async (request: FastifyRequest, reply: FastifyReply) => {

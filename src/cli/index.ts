@@ -153,7 +153,7 @@ generateCommand
                     {
                         id: job.id,
                         status: job.status,
-                        total_content: job.total_content,
+                        total_content: job.total_media,
                         total_takes_created: job.total_takes_created,
                     },
                     null,

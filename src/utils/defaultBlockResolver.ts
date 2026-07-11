@@ -53,6 +53,11 @@ const HARDCODED_DEFAULTS: Record<MediaType, DefaultBlock> = {
         min_candidates: 1,
         approval_count_default: 1,
     },
+    text: {
+        provider: 'manual',
+        min_candidates: 1,
+        approval_count_default: 1,
+    },
 };
 
 export type ResolvedBlock = {

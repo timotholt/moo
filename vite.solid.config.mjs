@@ -15,18 +15,18 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5174,
+    port: 6001,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3000',
+        target: 'http://127.0.0.1:6000',
         changeOrigin: true,
       },
       '/media': {
-        target: 'http://127.0.0.1:3000',
+        target: 'http://127.0.0.1:6000',
         changeOrigin: true,
       },
       '/jobs': {
-        target: 'http://127.0.0.1:3000',
+        target: 'http://127.0.0.1:6000',
         changeOrigin: true,
       }
     },
