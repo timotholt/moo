@@ -302,25 +302,37 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
   const groups = new Map();
   
   for (const item of items) {
-    const rawValue = item[level.field];
+    let rawValue = item[level.field];
+    let key = String(rawValue);
+    let labelOverride = null;
     
     // STRICT HIERARCHY:
     // If an item is missing the value for the REQUIRED tree level, 
     // it is excluded from this specific branch of the tree.
     // This prevents "Unknown" ghost folders.
     if (rawValue === null || rawValue === undefined || rawValue === '') {
-      continue;
+      if (level.field === 'scene_id') {
+        key = '__global_scene__';
+        labelOverride = 'Global';
+      } else if (level.field === 'actor_id') {
+        key = '__global_actor__';
+        labelOverride = 'Global';
+      } else {
+        continue;
+      }
     }
     
-    const key = String(rawValue);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
+    if (!groups.has(key)) groups.set(key, { labelOverride, children: [] });
+    groups.get(key).children.push(item);
   }
   
   const nodes = [];
-  for (const [key, children] of groups) {
+  for (const [key, groupData] of groups) {
+    const { labelOverride, children } = groupData;
     let label = key;
-    if (level.labelMap && level.labelMap[key]) {
+    if (labelOverride) {
+      label = labelOverride;
+    } else if (level.labelMap && level.labelMap[key]) {
       label = level.labelMap[key];
     } else if (level.displayField && children[0]) {
       label = children[0][level.displayField] || key;

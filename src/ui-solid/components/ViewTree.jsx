@@ -84,6 +84,10 @@ function getStatusClass(status) {
 
 function TreeNode(props) {
     const isExpanded = () => props.expanded[props.node.id] || false;
+    const [hasMounted, setHasMounted] = createSignal(isExpanded());
+    createEffect(() => {
+        if (isExpanded()) setHasMounted(true);
+    });
     const isSelected = () => props.selectedId === props.node.id;
     const hasChildren = () => props.node.children && props.node.children.length > 0;
     const isLeaf = () => props.node.type === 'leaf';
@@ -164,7 +168,7 @@ function TreeNode(props) {
                 </Show>
             </ListItemButton>
 
-            <Show when={hasChildren() && !isLeaf()}>
+            <Show when={hasChildren() && !isLeaf() && hasMounted()}>
                 <Collapse in={isExpanded()}>
                     <List component="div" disablePadding>
                         <For each={props.node.children}>

@@ -9,22 +9,9 @@ export function useVoices(props) {
     // Determine if voices are needed based on current selection
     const needsVoices = () => {
         const node = props.selectedNode;
-        if (node?.type === 'provider-default') {
-            return true;
-        }
-
-        if (node?.type?.endsWith('-bin')) {
-            const mediaType = node.type.replace('-bin', '');
-            const binData = props.bins.find(b => b.id === node.id);
-            if (binData) {
-                const actor = props.actors.find((a) => a.id === binData.owner_id);
-                const providerSettings = actor?.provider_settings?.[mediaType];
-                // Default to elevenlabs if not specified, or if explicitly set
-                return !providerSettings?.provider || providerSettings.provider === 'elevenlabs';
-            }
-        }
-
-        return false;
+        if (!node) return false;
+        const validTypes = ['actor', 'scene', 'bin', 'provider-default', 'defaults', 'media', 'view-group'];
+        return validTypes.includes(node.type);
     };
 
     const loadVoices = async () => {
@@ -55,7 +42,7 @@ export function useVoices(props) {
 
     // Auto-load voices when needed
     createEffect(() => {
-        if (needsVoices() && voices().length === 0 && !loadingVoices()) {
+        if (needsVoices() && voices().length === 0 && !loadingVoices() && !voiceError()) {
             loadVoices();
         }
     });

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "packageManager": "pnpm@11.7.0",
   "engines": {
-    "node": ">=20.20.2",
+    "node": ">=22.13.0 <25",
     "pnpm": ">=11.7.0 <12"
   },
   "description": "Media Output Organizer",
@@ -23,7 +23,7 @@
     "dev:api": "tsx src/server.ts",
     "dev:ui": "vite --config vite.solid.config.mjs",
     "dev": "pnpm run dev:api",
-    "dev:app": "pnpm exec concurrently \"pnpm run dev:api\" \"pnpm run dev:ui\""
+    "dev:app": "concurrently \"npm run dev:api\" \"npm run dev:ui\""
   },
   "keywords": [],
   "author": "",

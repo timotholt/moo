@@ -15,11 +15,13 @@ function GroupItemList(props) {
                 {(item) => (
                     <Paper sx={{ p: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                            {item.name || item.filename || 'Unknown Item'}
+                            {item.label || item.name || item.filename || 'Unknown Item'}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: item.status === 'approved' ? 'success.main' : 'text.secondary' }}>
-                            {item.status || 'new'}
-                        </Typography>
+                        <Show when={item.count !== undefined}>
+                            <Typography variant="caption" color="text.secondary">
+                                {item.count !== null ? `${item.count} items` : ''}
+                            </Typography>
+                        </Show>
                     </Paper>
                 )}
             </For>
@@ -40,7 +42,7 @@ function TypeGroupView(props) {
     const progress = () => totalCount() > 0 ? (approvedCount() / totalCount()) * 100 : 0;
 
     return (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, height: '100%', overflowY: 'auto' }}>
             <DetailHeader
                 title={`${props.groupNode.label} Group`}
                 subtitle={`${approvedCount()} / ${totalCount()} items approved`}
@@ -65,8 +67,8 @@ function TypeGroupView(props) {
                 </Box>
             </Paper>
 
-            <Typography variant="overline" sx={{ mt: 3, display: 'block', color: 'text.secondary' }}>Items in Group</Typography>
-            <GroupItemList items={props.items} />
+            <Typography variant="overline" sx={{ mt: 3, display: 'block', color: 'text.secondary' }}>Subgroups & Items</Typography>
+            <GroupItemList items={props.groupNode.children || props.items} />
         </Box>
     );
 }

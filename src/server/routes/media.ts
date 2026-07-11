@@ -406,7 +406,7 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
                 const actorBaseFilename = owner && 'base_filename' in owner ? owner.base_filename : undefined;
                 const relativePath = constructTakePath(media, bin, takeNumber, actorBaseFilename);
                 const fullFilePath = join(paths.root, relativePath);
-                const folderPath = join(projectRoot, join(paths.root, relativePath), '..');
+                const folderPath = join(paths.root, relativePath, '..');
 
                 // Save file
                 await fs.ensureDir(folderPath);

@@ -89,7 +89,11 @@ export default function ProviderSettingsEditor(props) {
     const isInheriting = () => props.settings?.provider === 'inherit';
 
     const effectiveInherited = () => {
-        return props.inheritedSettings || FALLBACK_DEFAULTS[props.mediaType] || {};
+        const inherited = props.inheritedSettings;
+        if (!inherited || Object.keys(inherited).length === 0) {
+            return FALLBACK_DEFAULTS[props.mediaType] || {};
+        }
+        return inherited;
     };
 
     const currentSettings = () => {

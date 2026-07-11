@@ -281,7 +281,17 @@ export async function generateTakes(mediaId: string, count = 1) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ count }),
   });
-  if (!res.ok) throw new Error(`Failed to generate takes`);
+  if (!res.ok) {
+    const errorText = await res.text();
+    let errorMsg = `Failed to generate takes`;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed.error) errorMsg += `: ${parsed.error}`;
+    } catch (e) {
+      errorMsg += `: ${errorText}`;
+    }
+    throw new Error(errorMsg);
+  }
   const data = asApiObject(await res.json());
   return {
     takes: z.array(TakeSchema).parse(data.takes)

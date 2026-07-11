@@ -35,9 +35,16 @@ export default function ProjectShell(props) {
 
     const [loading, setLoading] = createSignal(true);
     const [error, setError] = createSignal(null);
-    const [selectedNode, setSelectedNode] = createSignal(null);
+    const [selectedNode, setSelectedNode] = createSignal((() => {
+        const saved = storage.get(props.currentProject?.name || 'default', 'selected-node');
+        return saved || null;
+    })());
     const [expandNode, setExpandNode] = createSignal(null);
     const [dataVersion, setDataVersion] = createSignal(0);
+
+    createEffect(() => {
+        storage.set(props.currentProject?.name || 'default', 'selected-node', selectedNode());
+    });
 
     const [treePaneWidth, setTreePaneWidth] = createSignal(storage.get(props.currentProject.name, 'tree-pane-width', 300));
     const [isResizing, setIsResizing] = createSignal(false);
@@ -108,9 +115,11 @@ export default function ProjectShell(props) {
         window.removeEventListener('mouseup', handleMouseUp);
     });
 
+    const [isInitialLoad, setIsInitialLoad] = createSignal(true);
+
     const reloadData = async () => {
         try {
-            setLoading(true);
+            if (isInitialLoad()) setLoading(true);
             console.log('[Project] Reloading project data for:', props.currentProject?.name);
             const [actorsRes, mediaRes, binsRes, takesRes, scenesRes] = await Promise.all([
                 getActors(),
@@ -126,6 +135,7 @@ export default function ProjectShell(props) {
             setScenes(scenesRes.scenes || []);
             setDataVersion((version) => version + 1);
             setError(null);
+            setIsInitialLoad(false);
 
             const actorCount = actorsRes.actors?.length || 0;
             const binCount = binsRes.bins?.length || 0;

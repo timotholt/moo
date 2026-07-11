@@ -40,6 +40,11 @@ function nodeKey(type, id) {
  */
 function TreeItem(props) {
     const itemKey = () => `item-${props.item.id}`;
+    const [hasMounted, setHasMounted] = createSignal(props.expanded()[itemKey()] || false);
+    createEffect(() => {
+        if (props.expanded()[itemKey()]) setHasMounted(true);
+    });
+    
     const isView = () => props.item.category === 'view' || props.item.category === 'summary';
     const hasItems = () => props.item.items && props.item.items.length > 0;
     const isSelected = () => {
@@ -102,52 +107,56 @@ function TreeItem(props) {
                 </Box>
             </ListItemButton>
 
-            <Collapse in={props.expanded()[itemKey()]}>
-                <Show when={isView()}>
-                    <ViewTree
-                        viewId={props.item.id}
-                        viewName={getStickyName(props.item)}
-                        tree={buildViewTree(props.item.id, {
-                            actors: props.actors,
-                            bins: props.bins,
-                            media: props.media,
-                            takes: props.takes,
-                            scenes: props.scenes || []
-                        }, props.customViews)}
-                        selectedNode={props.selectedNode}
-                        onSelect={(node) => props.onSelect(node)}
-                        baseDepth={props.depth + 1}
-                        onAddActor={() => props.onSelect('root', 'root')}
-                        onAddScene={() => props.onSelect('root', 'root')}
-                    />
-                </Show>
-                <Show when={hasItems()}>
-                    <List disablePadding>
-                        <For each={props.item.items}>
-                            {(subItem) => (
-                                <TreeItem
-                                    item={subItem}
-                                    depth={props.depth + 1}
-                                    expanded={props.expanded}
-                                    onToggle={props.onToggle}
-                                    selectedId={props.selectedId}
-                                    selectedNode={props.selectedNode}
-                                    onSelect={props.onSelect}
-                                    onViewSelect={props.onViewSelect}
-                                    onTogglePin={props.onTogglePin}
-                                    isPinned={props.isPinned}
-                                    actors={props.actors}
-                                    bins={props.bins}
-                                    media={props.media}
-                                    takes={props.takes}
-                                    scenes={props.scenes}
-                                    customViews={props.customViews}
-                                />
-                            )}
-                        </For>
-                    </List>
-                </Show>
-            </Collapse>
+            <Show when={hasMounted()}>
+                <Collapse in={props.expanded()[itemKey()]}>
+                    <Show when={isView()}>
+                        <ViewTree
+                            viewId={props.item.id}
+                            viewName={getStickyName(props.item)}
+                            tree={buildViewTree(props.item.id, {
+                                actors: props.actors,
+                                bins: props.bins,
+                                media: props.media,
+                                takes: props.takes,
+                                scenes: props.scenes || []
+                            }, props.customViews)}
+                            selectedNode={props.selectedNode}
+                            onSelect={(node) => props.onSelect(node)}
+                            baseDepth={props.depth + 1}
+                            onAddActor={() => props.onSelect('root', 'root')}
+                            onAddScene={() => props.onSelect('root', 'root')}
+                            projectName={props.projectName}
+                        />
+                    </Show>
+                    <Show when={hasItems()}>
+                        <List disablePadding>
+                            <For each={props.item.items}>
+                                {(subItem) => (
+                                    <TreeItem
+                                        item={subItem}
+                                        depth={props.depth + 1}
+                                        expanded={props.expanded}
+                                        onToggle={props.onToggle}
+                                        selectedId={props.selectedId}
+                                        selectedNode={props.selectedNode}
+                                        onSelect={props.onSelect}
+                                        onViewSelect={props.onViewSelect}
+                                        onTogglePin={props.onTogglePin}
+                                        isPinned={props.isPinned}
+                                        actors={props.actors}
+                                        bins={props.bins}
+                                        media={props.media}
+                                        takes={props.takes}
+                                        scenes={props.scenes}
+                                        customViews={props.customViews}
+                                        projectName={props.projectName}
+                                    />
+                                )}
+                            </For>
+                        </List>
+                    </Show>
+                </Collapse>
+            </Show>
         </Box>
     );
 }
@@ -329,6 +338,7 @@ export default function TreePane(props) {
                                                 takes={props.takes}
                                                 scenes={props.scenes}
                                                 customViews={props.customViews}
+                                                projectName={props.projectName}
                                             />
                                         )}
                                     </For>

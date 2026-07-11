@@ -1,6 +1,6 @@
 # MOO development setup
 
-MOO is tested with Node `20.20.2` and pnpm `11.7.0`.
+MOO is tested with Node `24.14.0` and pnpm `11.7.0`.
 
 ```sh
 nvm use

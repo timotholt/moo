@@ -38,21 +38,23 @@ export default function DetailPane(props) {
         expandNode: props.onExpandNode
     });
 
-    const dataOps = useDataOperations({
-        actors: props.actors,
-        bins: props.bins,
-        scenes: props.scenes,
-        selectedNode: props.selectedNode,
-        expandNode: props.onExpandNode,
-        onMediaCreated: props.onRefresh,
-        onBinCreated: props.onRefresh,
-        onActorUpdated: props.onRefresh,
-        onBinUpdated: props.onRefresh,
-        onBinDeleted: props.onRefresh,
-        onSceneUpdated: props.onRefresh,
-        deleteActor: actorOps.deleteActor,
-        deleteScene: sceneOps.deleteScene
-    });
+    const dataOpsProps = {
+        get actors() { return props.actors; },
+        get bins() { return props.bins; },
+        get scenes() { return props.scenes; },
+        get selectedNode() { return props.selectedNode; },
+        get expandNode() { return props.onExpandNode; },
+        get onMediaCreated() { return props.onRefresh; },
+        get onBinCreated() { return props.onRefresh; },
+        get onActorUpdated() { return props.onRefresh; },
+        get onBinUpdated() { return props.onRefresh; },
+        get onBinDeleted() { return props.onRefresh; },
+        get onSceneUpdated() { return props.onRefresh; },
+        get deleteActor() { return actorOps.deleteActor; },
+        get deleteScene() { return sceneOps.deleteScene; }
+    };
+
+    const dataOps = useDataOperations(dataOpsProps);
 
     // Stable type identification to prevent remounts
     const activeType = createMemo(() => props.selectedNode?.type || 'welcome');
@@ -104,6 +106,16 @@ export default function DetailPane(props) {
                         if (bin.owner_type === 'actor') owner = props.actors.find(a => a.id === bin.owner_id);
                         else if (bin.owner_type === 'scene') owner = props.scenes.find(s => s.id === bin.owner_id);
                         return { bin, owner, typeOverride: 'bin' };
+                    }
+                }
+                if (node.field === 'media_id') {
+                    const item = props.media.find(m => m.id === node.fieldValue);
+                    if (item) {
+                        let owner = null;
+                        if (item.owner_type === 'actor') owner = props.actors.find(a => a.id === item.owner_id);
+                        else if (item.owner_type === 'scene') owner = props.scenes.find(s => s.id === item.owner_id);
+                        const bin = item.bin_id ? props.bins.find(b => b.id === item.bin_id) : null;
+                        return { item, owner, bin, typeOverride: 'media' };
                     }
                 }
                 return null;
@@ -221,7 +233,7 @@ export default function DetailPane(props) {
                     />
                 </Match>
 
-                <Match when={activeType() === 'media'}>
+                <Match when={activeType() === 'media' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'media')}>
                     <MediaView
                         item={resolvedData()?.item}
                         owner={resolvedData()?.owner}
