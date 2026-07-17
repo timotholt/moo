@@ -287,7 +287,7 @@ export async function generateTakes(mediaId: string, count = 1) {
     try {
       const parsed = JSON.parse(errorText);
       if (parsed.error) errorMsg += `: ${parsed.error}`;
-    } catch (e) {
+    } catch {
       errorMsg += `: ${errorText}`;
     }
     throw new Error(errorMsg);

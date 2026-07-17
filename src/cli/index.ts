@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { importActorsCommand } from './commands/import-actors.js';
+import { importDialogCommand } from './commands/import-dialog.js';
 import { probeAudio } from '../services/audio/ffprobe.js';
 import { normalizeAudio } from '../services/audio/normalize.js';
 import { transcodeAudio } from '../services/audio/transcode.js';
@@ -50,6 +51,7 @@ program
     });
 
 program.addCommand(importActorsCommand);
+program.addCommand(importDialogCommand);
 
 // Audio commands
 const audioCommand = new Command('audio').description('Audio processing commands');

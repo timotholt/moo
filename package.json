@@ -1,6 +1,6 @@
 {
   "name": "moo",
-  "version": "1.0.0",
+  "version": "0.11.0",
   "packageManager": "pnpm@11.7.0",
   "engines": {
     "node": ">=22.13.0 <25",
