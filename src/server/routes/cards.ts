@@ -9,6 +9,7 @@ import {
 import { appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { readCatalog, saveSnapshot } from './snapshots.js';
+import { renderProjectCard } from '../../services/card-renderer.js';
 
 type ProjectPaths = ReturnType<typeof import('../../utils/paths.js').getProjectPaths>;
 type ProjectContext = { projectRoot: string; paths: ProjectPaths };
@@ -239,6 +240,37 @@ export function registerCardRoutes(
 
       reply.code(204);
       return null;
+    },
+  );
+
+  fastify.post(
+    '/api/cards/:id/render',
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply,
+    ) => {
+      const ctx = getProjectContext();
+      if (!ctx) {
+        reply.code(400);
+        return { error: 'No project selected' };
+      }
+      try {
+        const result = await renderProjectCard(ctx.projectRoot, request.params.id);
+        return {
+          card_id: result.cardId,
+          file: result.relativePath,
+          metadata_file: result.metadataRelativePath,
+          mime_type: result.mimeType,
+          width: result.width,
+          height: result.height,
+          hash_sha256: result.hashSha256,
+          provenance: result.provenance,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        reply.code(message.includes('was not found') ? 404 : 422);
+        return { error: message };
+      }
     },
   );
 }
