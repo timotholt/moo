@@ -22,9 +22,12 @@ describe('initializeProject', () => {
 
     await expect(fs.pathExists(paths.moo.config)).resolves.toBe(true);
     await expect(fs.pathExists(paths.catalog.generationJobs)).resolves.toBe(true);
+    await expect(fs.pathExists(paths.catalog.cards)).resolves.toBe(true);
     await expect(fs.pathExists(paths.catalog.generationOperations)).resolves.toBe(true);
     await expect(fs.pathExists(paths.catalog.redoSnapshots)).resolves.toBe(true);
     await expect(fs.pathExists(paths.catalog.indexes.byMedia('cue-1'))).resolves.toBe(false);
+    await expect(fs.pathExists(paths.catalog.indexes.byCard('card-1'))).resolves.toBe(false);
+    await expect(fs.pathExists(paths.media.cards)).resolves.toBe(true);
     await expect(fs.pathExists(paths.media.exports)).resolves.toBe(true);
 
     const config = await fs.readJson(paths.moo.config);

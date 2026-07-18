@@ -7,3 +7,4 @@ export * from './bin.schema.js';
 export * from './media.schema.js';
 export * from './take.schema.js';
 export * from './defaults.schema.js';
+export * from './card.schema.js';
