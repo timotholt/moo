@@ -1,17 +1,13 @@
-import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import type { Actor, Media, Take, Defaults, Scene } from '../../types/index.js';
+import type { Media, Take } from '../../types/index.js';
 import { MediaSchema, TakeSchema } from '../../shared/schemas/index.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
 import { generateId } from '../../utils/ids.js';
 import { validate, validateReferences } from '../../utils/validation.js';
-import { getAudioProvider } from '../../services/provider-factory.js';
-import { writeMetadata, buildMetadataFromTake } from '../../services/audio/metadata.js';
 import { resolveDefaultBlock } from '../../utils/defaultBlockResolver.js';
-import { buildTemplateContext, resolveTemplate } from '../../utils/templateResolver.js';
-import { constructTakePath, getExtensionForType } from '../../utils/pathConstruction.js';
 import { calculateCueLifecycle } from '../../services/cue-lifecycle.js';
+import { runBatchGeneration } from '../../services/generation.js';
 import {
     readCatalog,
     saveSnapshot,
@@ -317,14 +313,18 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
             reply.code(400);
             return { error: 'No project selected' };
         }
-        const { projectRoot, paths } = ctx;
         const { id } = request.params;
         const body = request.body as { count?: number } | undefined;
-        const count = body?.count || 1;
+        const requestedCount = Number(body?.count ?? 1);
+        const count = Number.isFinite(requestedCount)
+            ? Math.max(1, Math.min(10, Math.floor(requestedCount)))
+            : 1;
 
         try {
-            // 1. Load context data
-            const catalog = await readCatalog(paths);
+            // Keep this endpoint as a compatibility facade. All provider calls,
+            // persistence, cancellation, and candidate creation belong to the
+            // canonical generation service.
+            const catalog = await readCatalog(ctx.paths);
             const media = catalog.media.find(m => m.id === id);
             if (!media) {
                 reply.code(404);
@@ -337,144 +337,26 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
                 return { error: 'Bin not found' };
             }
 
-            let owner: Actor | Scene | null = null;
-            if (media.owner_type === 'actor' && media.owner_id) {
-                owner = catalog.actors.find(a => a.id === media.owner_id) || null;
-            } else if (media.owner_type === 'scene' && media.owner_id) {
-                owner = catalog.scenes.find(s => s.id === media.owner_id) || null;
-            }
-
-            // Load global defaults
-            const defaultsPath = join(paths.root, 'defaults.json');
-            let globalDefaults: Defaults | null = null;
-            if (await fs.pathExists(defaultsPath)) {
-                globalDefaults = await fs.readJson(defaultsPath);
-            }
-
-            // 2. Resolve Settings
-            const resolved = resolveDefaultBlock(media.media_type, media, bin, owner, globalDefaults);
-            const settings = resolved.settings;
-
-            // 3. Setup Generation
-            const provider = await getAudioProvider(projectRoot);
-            const takes = await readJsonl<Take>(paths.catalog.takes, TakeSchema);
-            const takesForMedia = takes.filter(t => t.media_id === media.id);
+            const owner = media.owner_type === 'actor'
+                ? catalog.actors.find(a => a.id === media.owner_id) ?? null
+                : media.owner_type === 'scene'
+                    ? catalog.scenes.find(s => s.id === media.owner_id) ?? null
+                    : null;
+            const defaults = await fs.pathExists(ctx.paths.moo.defaults)
+                ? await fs.readJson(ctx.paths.moo.defaults)
+                : null;
+            const settings = resolveDefaultBlock(media.media_type, media, bin, owner, defaults).settings;
+            const takes = await readJsonl<Take>(ctx.paths.catalog.takes, TakeSchema);
             const lifecycle = calculateCueLifecycle(media, takes, settings.approval_count_default ?? 1);
             if (lifecycle.is_complete) {
                 reply.code(409);
                 return { error: 'Cue is complete. Remove Finish Early or unapprove a take before generating more.' };
             }
-            let nextTakeNumber = takesForMedia.reduce((max, t) => Math.max(max, t.take_number), 0) + 1;
 
-            const generatedTakes: Take[] = [];
-
-            for (let i = 0; i < count; i++) {
-                const takeNumber = nextTakeNumber++;
-
-                // 4. Resolve Template Variables
-                const templateContext = buildTemplateContext({
-                    media,
-                    bin,
-                    owner,
-                    takeNumber
-                });
-
-                const promptTemplate = settings.templates?.prompt || '{prompt}';
-                let prompt = resolveTemplate(promptTemplate, templateContext);
-
-                if (!prompt || prompt === '{prompt}' || prompt === promptTemplate) {
-                    prompt = media.prompt || media.name;
-                }
-
-                // Generate buffer
-                let buffer: Buffer;
-                if (media.media_type === 'dialogue') {
-                    if (!settings.voice_id) throw new Error('No voice_id resolved for dialogue');
-                    buffer = await provider.generateDialogue(prompt, settings.voice_id, {
-                        stability: settings.stability,
-                        similarity_boost: settings.similarity_boost
-                    }, settings.model_id);
-                } else if (media.media_type === 'music') {
-                    buffer = await provider.generateMusic(prompt, { duration_seconds: settings.duration_seconds || 30 });
-                } else if (media.media_type === 'sfx') {
-                    buffer = await provider.generateSFX(prompt, {});
-                } else {
-                    throw new Error(`Generation not supported for ${media.media_type}`);
-                }
-
-                // Construct path
-                const actorBaseFilename = owner && 'base_filename' in owner ? owner.base_filename : undefined;
-                const relativePath = constructTakePath(media, bin, takeNumber, actorBaseFilename);
-                const fullFilePath = join(paths.root, relativePath);
-                const folderPath = join(paths.root, relativePath, '..');
-
-                // Save file
-                await fs.ensureDir(folderPath);
-                await fs.writeFile(fullFilePath, buffer);
-
-                // Analyze file
-                const { probeAudio } = await import('../../services/audio/ffprobe.js');
-                const { hashFile } = await import('../../services/audio/hash.js');
-                const probeResult = await probeAudio(fullFilePath);
-                const hash = await hashFile(fullFilePath);
-
-                const now = new Date().toISOString();
-                const primaryStream = probeResult.streams[0];
-
-                // Create Take object with full provenance
-                const take: Take = {
-                    id: generateId(),
-                    media_id: media.id,
-                    take_number: takeNumber,
-                    filename: join(relativePath).split(/[/\\]/).pop() || 'file.mp3',
-                    path: relativePath,
-                    status: 'new',
-                    format: getExtensionForType(media.media_type),
-                    size_bytes: buffer.length,
-                    duration_sec: probeResult.format.duration || 0,
-                    hash_sha256: hash,
-                    sample_rate: primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 41000,
-                    channels: primaryStream?.channels || 1,
-                    bit_depth: 16, // Default
-                    lufs_integrated: 0,
-                    peak_dbfs: 0,
-                    generation_params: {
-                        provider: settings.provider,
-                        resolved_from: resolved.resolvedFrom,
-                        full_settings: settings,
-                        prompt: prompt,
-                        owner_type: media.owner_type,
-                        owner_id: media.owner_id ?? null,
-                        owner_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
-                        bin_name: bin.name,
-                        generated_at: now
-                    },
-                    created_at: now,
-                    updated_at: now,
-                };
-
-                const takeValidation = validate('take', take);
-                if (!takeValidation.valid) {
-                    console.error('Generated invalid take:', takeValidation.errors);
-                }
-
-                await appendJsonl(paths.catalog.takes, take, TakeSchema);
-
-                // Write metadata
-                try {
-                    const metadata = buildMetadataFromTake(take, media, {
-                        actor_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
-                        bin_name: bin.name,
-                    });
-                    await writeMetadata(fullFilePath, fullFilePath, metadata);
-                } catch (mErr) {
-                    fastify.log.warn(mErr, 'Failed to write metadata');
-                }
-
-                generatedTakes.push(take);
-            }
-
-            return { takes: generatedTakes };
+            const { job } = await runBatchGeneration(ctx.projectRoot, { mediaId: id, count });
+            const createdIds = new Set(job.items.flatMap(item => item.take_ids ?? []));
+            const updatedTakes = await readJsonl<Take>(ctx.paths.catalog.takes, TakeSchema);
+            return { takes: updatedTakes.filter(take => createdIds.has(take.id)), job };
         } catch (err) {
             request.log.error(err);
             reply.code(500);

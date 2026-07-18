@@ -15,8 +15,10 @@ export interface BatchGenerationOptions {
     actorId?: string;
     binId?: string;
     mediaId?: string;
-    contentType?: 'dialogue' | 'music' | 'sfx';
-    mediaType?: 'dialogue' | 'music' | 'sfx';
+    contentType?: 'dialogue' | 'music' | 'sfx' | 'image' | 'video';
+    mediaType?: 'dialogue' | 'music' | 'sfx' | 'image' | 'video';
+    /** Explicit candidate count for a single-media "Generate More" request. */
+    count?: number;
     dryRun?: boolean;
 }
 
@@ -51,6 +53,7 @@ function batchRequestKey(projectRoot: string, options: BatchGenerationOptions): 
         binId: options.binId ?? null,
         mediaId: options.mediaId ?? null,
         contentType: options.contentType ?? options.mediaType ?? null,
+        count: options.count ?? null,
         dryRun: !!options.dryRun,
     });
 }
@@ -104,6 +107,7 @@ async function executeBatchGeneration(
             bin_id: options.binId,
             media_id: options.mediaId,
             media_type: options.contentType ?? options.mediaType,
+            count: options.count,
             dry_run: !!options.dryRun,
         },
     };
@@ -135,6 +139,7 @@ async function executeBatchGeneration(
         const itemSummary: GenerationJobItemSummary = {
             media_id: media.id,
             generated_takes: 0,
+            take_ids: [],
         };
 
         const owner = media.owner_type === 'actor'
@@ -185,9 +190,12 @@ async function executeBatchGeneration(
         // takes, do not spend more tokens merely to satisfy a larger candidate
         // pool setting. Until then, maintain the review pool and ensure enough
         // candidates exist to make the remaining approvals possible.
+        const explicitCount = options.mediaId && options.count !== undefined
+            ? Math.max(0, Math.floor(options.count))
+            : null;
         const needed = lifecycle.is_complete
             ? 0
-            : Math.max(0, Math.max(minCandidates, targetApprovals - approvedCount) - undecidedCount);
+            : explicitCount ?? Math.max(0, Math.max(minCandidates, targetApprovals - approvedCount) - undecidedCount);
 
         if (needed <= 0) {
             items.push(itemSummary);
@@ -292,6 +300,7 @@ async function executeBatchGeneration(
 
                 existingTakes.push(take);
                 itemSummary.generated_takes += 1;
+                itemSummary.take_ids?.push(take.id);
             } catch (err) {
                 itemSummary.error = (err as Error).message;
                 break;

@@ -52,6 +52,7 @@ export interface ProjectInfo {
 export interface GenerationJobItemSummary {
     media_id: string;
     generated_takes: number;
+    take_ids?: string[];
     error?: string;
 }
 
@@ -68,7 +69,8 @@ export interface GenerationJob {
         actor_id?: string;
         bin_id?: string;
         media_id?: string;
-        media_type?: 'dialogue' | 'music' | 'sfx';
+        media_type?: 'dialogue' | 'music' | 'sfx' | 'image' | 'video';
+        count?: number;
         dry_run: boolean;
     };
 }

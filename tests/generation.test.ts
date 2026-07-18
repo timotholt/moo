@@ -110,6 +110,64 @@ describe('M2.5 Batch Generation', () => {
     expect(job.items).toHaveLength(2);
   });
 
+  it('honors an explicit single-media Generate More count', async () => {
+    const paths = getProjectPaths(projectRoot);
+    const now = new Date().toISOString();
+    const actor = {
+      id: 'actor-more',
+      display_name: 'More',
+      base_filename: 'more',
+      default_blocks: {
+        dialogue: {
+          provider: 'elevenlabs',
+          approval_count_default: 1,
+          min_candidates: 1,
+          voice_id: 'voice-more',
+        },
+      },
+      actor_complete: false,
+      created_at: now,
+      updated_at: now,
+    };
+    const bin = {
+      id: 'bin-more',
+      owner_type: 'actor',
+      owner_id: actor.id,
+      media_type: 'dialogue',
+      name: 'More',
+      default_blocks: { dialogue: { provider: 'inherit' } },
+      bin_complete: false,
+      created_at: now,
+      updated_at: now,
+    };
+    const media = {
+      id: 'media-more',
+      owner_type: 'actor',
+      owner_id: actor.id,
+      bin_id: bin.id,
+      media_type: 'dialogue',
+      name: 'line',
+      prompt: 'Generate another option',
+      created_at: now,
+      updated_at: now,
+    };
+    await fs.appendFile(paths.catalog.actors, `${JSON.stringify(actor)}\n`);
+    await fs.appendFile(paths.catalog.bins, `${JSON.stringify(bin)}\n`);
+    await fs.appendFile(paths.catalog.media, `${JSON.stringify(media)}\n`);
+
+    const { job } = await runBatchGeneration(projectRoot, {
+      mediaId: media.id,
+      count: 3,
+      dryRun: true,
+    });
+
+    expect(job.total_takes_created).toBe(3);
+    expect(job.request?.count).toBe(3);
+    expect(job.items).toEqual([
+      expect.objectContaining({ media_id: media.id, generated_takes: 3 }),
+    ]);
+  });
+
   it('should write takes in real mode', async () => {
     const paths = getProjectPaths(projectRoot);
 

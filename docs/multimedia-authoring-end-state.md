@@ -47,8 +47,7 @@ type OperationStatus =
   | 'submitted'
   | 'processing'
   | 'completed'
-  | 'failed'
-  | 'cancelled';
+  | 'failed';
 
 interface ProviderCapabilities {
   provider: string;
@@ -91,6 +90,8 @@ interface AssetGenerator {
 ```
 
 An immediately returned audio or image result is represented as a completed provider operation. Long-running video work stays durable in `submitted` or `processing` until it can be downloaded. MOO records the provider operation before moving on so a restart never loses externally submitted work.
+
+Provider operations intentionally have no MOO-level cancelled state. A job may stop submitting new work, but every operation already accepted by a provider remains pollable and harvestable until it completes or fails.
 
 ## Job execution and cancellation
 
