@@ -32,6 +32,9 @@ describe('global generator credentials', () => {
     clearConfigCache();
 
     await expect(getElevenLabsApiKey()).resolves.toBe('legacy-key');
+    await expect(listGenerationProviderSettings()).resolves.toEqual({
+      elevenlabs: { api_key: 'legacy-key' },
+    });
   });
 
   it('writes ElevenLabs credentials in both generic and legacy-compatible locations', async () => {

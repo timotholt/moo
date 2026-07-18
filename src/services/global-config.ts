@@ -93,7 +93,15 @@ export async function getGenerationProviderSettings(providerId: string): Promise
 }
 
 export async function listGenerationProviderSettings(): Promise<Record<string, GenerationProviderSettings>> {
-  return structuredClone((await loadGlobalConfig()).generation_providers || {});
+  const config = await loadGlobalConfig();
+  const providers = structuredClone(config.generation_providers || {});
+  if (config.elevenlabs_api_key && !providers.elevenlabs?.api_key) {
+    providers.elevenlabs = {
+      ...providers.elevenlabs,
+      api_key: config.elevenlabs_api_key,
+    };
+  }
+  return providers;
 }
 
 export async function setGenerationProviderSettings(
