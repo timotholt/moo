@@ -4,6 +4,7 @@ import { getProjectPaths } from '../utils/paths.js';
 
 const CATALOG_FILES = [
   'actors.jsonl',
+  'cards.jsonl',
   'scenes.jsonl',
   'bins.jsonl',
   'media.jsonl',
@@ -31,11 +32,13 @@ export async function initializeProject(
   await Promise.all([
     fs.ensureDir(paths.moo.dir),
     fs.ensureDir(paths.media.actors),
+    fs.ensureDir(paths.media.cards),
     fs.ensureDir(paths.media.scenes),
     fs.ensureDir(paths.media.global),
     fs.ensureDir(paths.media.exports),
     fs.ensureDir(paths.catalog.indexes.dir),
     fs.ensureDir(join(paths.catalog.indexes.dir, 'by_actor')),
+    fs.ensureDir(join(paths.catalog.indexes.dir, 'by_card')),
     fs.ensureDir(join(paths.catalog.indexes.dir, 'by_bin')),
     fs.ensureDir(join(paths.catalog.indexes.dir, 'by_media')),
   ]);

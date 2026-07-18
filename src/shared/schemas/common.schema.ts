@@ -4,7 +4,7 @@ import { z } from 'zod';
 // Enums
 // ============================================================================
 
-export const OwnerTypeSchema = z.enum(['actor', 'scene', 'global']);
+export const OwnerTypeSchema = z.enum(['actor', 'scene', 'global', 'card']);
 export const MediaTypeSchema = z.enum(['dialogue', 'music', 'sfx', 'image', 'video', 'text']);
 export const TakeStatusSchema = z.enum(['new', 'approved', 'rejected', 'hidden']);
 // Provider IDs are capability-driven. Keeping this open avoids schema changes

@@ -27,6 +27,7 @@ export function getProjectPaths(projectRoot: string) {
         // Catalog files (inside .moo/)
         catalog: {
             actors: join(mooDir, 'actors.jsonl'),
+            cards: join(mooDir, 'cards.jsonl'),
             scenes: join(mooDir, 'scenes.jsonl'),
             bins: join(mooDir, 'bins.jsonl'),
             media: join(mooDir, 'media.jsonl'),
@@ -40,6 +41,7 @@ export function getProjectPaths(projectRoot: string) {
             indexes: {
                 dir: join(mooDir, 'indexes'),
                 byActor: (id: string) => join(mooDir, 'indexes', 'by_actor', `${id}.json`),
+                byCard: (id: string) => join(mooDir, 'indexes', 'by_card', `${id}.json`),
                 byBin: (id: string) => join(mooDir, 'indexes', 'by_bin', `${id}.json`),
                 byMedia: (id: string) => join(mooDir, 'indexes', 'by_media', `${id}.json`),
             },
@@ -48,6 +50,7 @@ export function getProjectPaths(projectRoot: string) {
         // Media folders (at root)
         media: {
             actors: join(projectRoot, 'actors'),
+            cards: join(projectRoot, 'cards'),
             scenes: join(projectRoot, 'scenes'),
             global: join(projectRoot, 'global'),
             exports: join(projectRoot, 'exports'),
