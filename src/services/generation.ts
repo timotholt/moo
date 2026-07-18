@@ -1,11 +1,8 @@
 import fs from 'fs-extra';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { getProjectPaths } from '../utils/paths.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../utils/jsonl.js';
 import { generateId } from '../utils/ids.js';
-import { probeAudio } from './audio/ffprobe.js';
-import { hashFile } from './audio/hash.js';
-import { writeMetadata, buildMetadataFromTake } from './audio/metadata.js';
 import type { Actor, Defaults, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
 import { getExtensionForType } from '../utils/pathConstruction.js';
 import { calculateCueLifecycle } from './cue-lifecycle.js';
@@ -20,6 +17,7 @@ import type {
 } from './generators/types.js';
 import { GenerationOperationStore } from './generation-operation-store.js';
 import type { RequestedDeliveryProfile } from '../shared/schemas/generation-operation.schema.js';
+import { writeCandidate } from './candidate-writer.js';
 
 export interface BatchGenerationOptions {
     actorId?: string;
@@ -338,75 +336,21 @@ async function executeBatchGeneration(
                     throw new Error(providerOperation.error || `${providerId} generation failed`);
                 }
                 const generatedAsset = await generator.download(providerOperation);
-                const buffer = generatedAsset.bytes;
-
                 const takeNumber = baseTakeNumber + i;
-
-                // Construct path using common utility
-                const { constructTakePath } = await import('../utils/pathConstruction.js');
-                const actorBaseFilename = owner && 'base_filename' in owner ? owner.base_filename : undefined;
-                const relativePath = constructTakePath(media, bin, takeNumber, actorBaseFilename);
-                const fullFilePath = join(paths.root, relativePath);
-                const folderPath = dirname(fullFilePath);
-
-                await fs.ensureDir(folderPath);
-                await fs.writeFile(fullFilePath, buffer);
-
-                const probeResult = await probeAudio(fullFilePath);
-                const hash = await hashFile(fullFilePath);
-
-                const primaryStream = probeResult.streams[0];
-                const durationSec = probeResult.format.duration;
-
-                const now = new Date().toISOString();
-                const take: Take = {
-                    id: generateId(),
-                    media_id: media.id,
-                    take_number: takeNumber,
-                    filename: join(relativePath).split(/[/\\]/).pop() || 'file.mp3',
-                    path: relativePath,
-                    status: 'new',
-                    format: getExtensionForType(media.media_type),
-                    size_bytes: buffer.length,
-                    duration_sec: durationSec || 0,
-                    hash_sha256: hash,
-                    sample_rate: primaryStream?.sample_rate ? Number(primaryStream.sample_rate) : 41000,
-                    channels: primaryStream?.channels || 1,
-                    bit_depth: 16,
-                    lufs_integrated: 0,
-                    peak_dbfs: 0,
-                    generation_params: {
-                        provider: providerOperation.providerId,
-                        resolved_from: resolved.resolvedFrom,
-                        full_settings: settings,
-                        prompt,
-                        owner_type: media.owner_type,
-                        owner_id: media.owner_id ?? null,
-                        owner_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
-                        bin_name: bin.name,
-                        generated_at: now,
-                        api_request_id: providerOperation.operationId,
-                        provider_metadata: generatedAsset.providerMetadata,
-                    },
-                    generated_by: providerOperation.providerId,
-                    generated_at: now,
-                    created_at: now,
-                    updated_at: now,
-                };
-
-                await appendJsonl(paths.catalog.takes, take);
+                const { take } = await writeCandidate({
+                    projectRoot,
+                    paths,
+                    media,
+                    bin,
+                    owner: owner ?? undefined,
+                    takeNumber,
+                    generatedAsset,
+                    providerOperation,
+                    settings,
+                    resolvedFrom: resolved.resolvedFrom,
+                    delivery,
+                });
                 await operationStore.update(persistedOperation.id, { downloaded_take_id: take.id });
-
-                // Embed metadata
-                try {
-                    const metadata = buildMetadataFromTake(take, media, {
-                        actor_name: owner && 'display_name' in owner ? owner.display_name : 'Global',
-                        bin_name: bin.name,
-                    });
-                    await writeMetadata(fullFilePath, fullFilePath, metadata);
-                } catch (metaErr) {
-                    console.warn('[batch-generation] failed to write metadata:', (metaErr as Error).message);
-                }
 
                 existingTakes.push(take);
                 itemSummary.generated_takes += 1;

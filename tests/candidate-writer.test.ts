@@ -85,6 +85,29 @@ describe('writeCandidate', () => {
     expect((await readFile(value.paths.catalog.takes, 'utf8')).trim().split('\n')).toHaveLength(1);
   });
 
+  it('does not confuse identical operation IDs from different providers', async () => {
+    const firstInput = await input('dialogue', Buffer.from('mp3'), 'audio/mpeg', audio);
+    const first = await writeCandidate(firstInput);
+    const secondInput = {
+      ...firstInput,
+      takeNumber: 2,
+      providerOperation: {
+        ...firstInput.providerOperation,
+        providerId: 'other-provider',
+      },
+      settings: { provider: 'other-provider' },
+      dependencies: {
+        ...firstInput.dependencies,
+        generateId: () => '018f53e2-9ac1-7000-8000-000000000002',
+      },
+    };
+
+    const second = await writeCandidate(secondInput);
+    expect(second.existing).toBe(false);
+    expect(second.take.id).not.toBe(first.take.id);
+    expect((await readFile(firstInput.paths.catalog.takes, 'utf8')).trim().split('\n')).toHaveLength(2);
+  });
+
   it('cleans up on a delivery mismatch without cataloging a take', async () => {
     const value = await input('video', Buffer.from('mp4'), 'video/mp4', portrait);
     value.delivery = { aspectRatio: '16:9' };

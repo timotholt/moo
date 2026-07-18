@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import fs from 'fs-extra';
 
@@ -71,8 +71,13 @@ export interface CandidateWriterResult {
  * canonical destination, inspected, and only then renamed and cataloged.
  */
 export async function writeCandidate(input: CandidateWriterInput): Promise<CandidateWriterResult> {
+  if (resolve(input.paths.root) !== resolve(input.projectRoot)) {
+    throw new Error('Candidate project root does not match its catalog paths');
+  }
   const existingTakes = await readJsonl<Take>(input.paths.catalog.takes, TakeSchema);
-  const existing = existingTakes.find((take) => take.generation_params?.api_request_id === input.providerOperation.operationId);
+  const existing = existingTakes.find((take) =>
+    take.generation_params?.provider === input.providerOperation.providerId
+    && take.generation_params?.api_request_id === input.providerOperation.operationId);
   if (existing) {
     return {
       take: existing,
@@ -105,7 +110,7 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
 
     const { inspection, alpha, validated } = await inspectAndValidate(temporaryPath, input);
     const hash = await (input.dependencies?.hashFile ?? defaultHashFile)(temporaryPath);
-    await fs.rename(temporaryPath, finalPath);
+    await fs.move(temporaryPath, finalPath, { overwrite: false });
 
     const now = (input.dependencies?.now ?? (() => new Date()))().toISOString();
     const take = TakeSchema.parse({

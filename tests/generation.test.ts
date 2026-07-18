@@ -10,17 +10,12 @@ vi.mock('../src/services/provider-factory.js', () => ({
   getAudioProvider: vi.fn(),
 }));
 
-vi.mock('../src/services/audio/ffprobe.js', () => ({
-  probeAudio: vi.fn(),
-}));
-
-vi.mock('../src/services/audio/hash.js', () => ({
-  hashFile: vi.fn(),
+vi.mock('../src/services/inspection/ffprobe-inspector.js', () => ({
+  inspectWithFFprobe: vi.fn(),
 }));
 
 import * as providerFactory from '../src/services/provider-factory.js';
-import * as ffprobeSvc from '../src/services/audio/ffprobe.js';
-import * as hashSvc from '../src/services/audio/hash.js';
+import * as ffprobeSvc from '../src/services/inspection/ffprobe-inspector.js';
 
 describe('M2.5 Batch Generation', () => {
   let projectRoot: string;
@@ -226,12 +221,19 @@ describe('M2.5 Batch Generation', () => {
       getQuota: vi.fn(),
     } as any);
 
-    vi.mocked(ffprobeSvc.probeAudio).mockResolvedValue({
-      format: { duration: 1.23, size: 1234, bit_rate: 64000 },
-      streams: [{ codec_name: 'wav', sample_rate: '44100', channels: 1 }],
-    } as any);
-
-    vi.mocked(hashSvc.hashFile).mockResolvedValue('abc123'.padEnd(64, '0'));
+    vi.mocked(ffprobeSvc.inspectWithFFprobe).mockResolvedValue({
+      mediaKind: 'audio',
+      format: 'mp3',
+      mimeType: 'audio/mpeg',
+      byteLength: fakeBuffer.length,
+      durationSeconds: 1.23,
+      sampleRate: 44100,
+      channels: 1,
+      codec: 'mp3',
+      container: 'mp3',
+      bitrate: 64000,
+      audioTrackCount: 1,
+    });
 
     const { job } = await runBatchGeneration(projectRoot, { mediaType: 'dialogue' });
 
@@ -349,11 +351,19 @@ describe('M2.5 Batch Generation', () => {
       getQuota: vi.fn(),
       getVoices: vi.fn(),
     });
-    vi.mocked(ffprobeSvc.probeAudio).mockResolvedValue({
-      format: { duration: 1, size: 4, bit_rate: 64000 },
-      streams: [{ codec_name: 'mp3', sample_rate: '44100', channels: 1 }],
+    vi.mocked(ffprobeSvc.inspectWithFFprobe).mockResolvedValue({
+      mediaKind: 'audio',
+      format: 'mp3',
+      mimeType: 'audio/mpeg',
+      byteLength: 4,
+      durationSeconds: 1,
+      sampleRate: 44100,
+      channels: 1,
+      codec: 'mp3',
+      container: 'mp3',
+      bitrate: 64000,
+      audioTrackCount: 1,
     });
-    vi.mocked(hashSvc.hashFile).mockResolvedValue('cancelled'.padEnd(64, '0'));
 
     const run = runBatchGeneration(projectRoot, { mediaId: media.id });
     await providerStarted;
