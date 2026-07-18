@@ -17,14 +17,26 @@ import Collapse from './Collapse.jsx';
 import TextInput from './TextInput.jsx';
 
 const DEFAULT_LLM_SETTINGS = { provider: 'groq', apiKey: '', model: 'llama-3.1-8b-instant', systemPrompts: { generate: '', improve: '' } };
+const GENERATION_PROVIDERS = [
+    { id: 'elevenlabs', name: 'ElevenLabs', description: 'Voice and audio generation', keyPlaceholder: 'Enter your ElevenLabs API key', modelPlaceholder: 'eleven_multilingual_v2', keyUrl: 'https://elevenlabs.io/app/settings/api-keys' },
+    { id: 'openai', name: 'OpenAI', description: 'Image and video generation', keyPlaceholder: 'Enter your OpenAI API key', modelPlaceholder: 'Optional default image or video model', keyUrl: 'https://platform.openai.com/api-keys' },
+    { id: 'google', name: 'Google', description: 'Image and video generation', keyPlaceholder: 'Enter your Google AI API key', modelPlaceholder: 'Optional default image or video model', keyUrl: 'https://aistudio.google.com/app/apikey' },
+];
+
+function defaultGenerationProviderSettings() {
+    return Object.fromEntries(GENERATION_PROVIDERS.map(({ id }) => [id, { api_key: '', enabled: false, model: '' }]));
+}
 
 export default function SettingsDialog(props) {
     const [activeTab, setActiveTab] = createSignal('provider');
     const [advancedExpanded, setAdvancedExpanded] = createSignal(false);
 
-    // ElevenLabs settings state
-    const [elevenLabsApiKey, setElevenLabsApiKey] = createSignal('');
-    const [showElevenLabsKey, setShowElevenLabsKey] = createSignal(false);
+    // Generation provider settings state. MOO is local-only, so loaded keys are
+    // intentionally retained in the form and can be revealed by the author.
+    const [generationProviderSettings, setGenerationProviderSettings] = createSignal(defaultGenerationProviderSettings());
+    const [providerKeyVisibility, setProviderKeyVisibility] = createSignal({});
+    const [providerSaveStatus, setProviderSaveStatus] = createSignal({});
+    const [providerSaveError, setProviderSaveError] = createSignal({});
     const [elevenLabsTestStatus, setElevenLabsTestStatus] = createSignal(null);
     const [elevenLabsTestError, setElevenLabsTestError] = createSignal('');
 
@@ -68,16 +80,20 @@ export default function SettingsDialog(props) {
             })
             .catch(err => console.error('Failed to load AI settings:', err));
 
-        // Check for existing ElevenLabs key on server
-        fetch('/api/provider/api-key')
+        fetch('/api/generation/providers/settings')
             .then(res => res.json())
             .then(data => {
-                if (data.hasKey) {
-                    setElevenLabsApiKey(data.apiKey || '');
-                    setElevenLabsTestStatus('success');
-                }
+                const loaded = data.providers || {};
+                setGenerationProviderSettings({
+                    ...defaultGenerationProviderSettings(),
+                    ...Object.fromEntries(GENERATION_PROVIDERS.map(({ id }) => [id, {
+                        ...defaultGenerationProviderSettings()[id],
+                        ...(loaded[id] || {}),
+                    }])),
+                });
+                if (loaded.elevenlabs?.api_key) setElevenLabsTestStatus('success');
             })
-            .catch(err => console.error('Failed to check API key:', err));
+            .catch(err => console.error('Failed to load generation provider settings:', err));
     });
 
     const persistLLMSettings = async (settings) => {
@@ -87,10 +103,39 @@ export default function SettingsDialog(props) {
         });
     };
 
-    // ElevenLabs handlers
-    const handleElevenLabsKeyChange = (value) => {
-        setElevenLabsApiKey(value);
-        setElevenLabsTestStatus(null);
+    const generationProvider = (providerId) => generationProviderSettings()[providerId] || { api_key: '', enabled: false, model: '' };
+
+    const updateGenerationProvider = (providerId, updates) => {
+        setGenerationProviderSettings(current => ({
+            ...current,
+            [providerId]: { ...generationProvider(providerId), ...updates },
+        }));
+        setProviderSaveStatus(current => ({ ...current, [providerId]: null }));
+        setProviderSaveError(current => ({ ...current, [providerId]: '' }));
+        if (providerId === 'elevenlabs') setElevenLabsTestStatus(null);
+    };
+
+    const handleSaveGenerationProvider = async (providerId) => {
+        const settings = generationProvider(providerId);
+        setProviderSaveStatus(current => ({ ...current, [providerId]: 'saving' }));
+        setProviderSaveError(current => ({ ...current, [providerId]: '' }));
+
+        try {
+            const response = await fetch(`/api/generation/providers/${providerId}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: settings.api_key, enabled: settings.enabled, model: settings.model }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Unable to save settings');
+            updateGenerationProvider(providerId, data.settings || settings);
+            setProviderSaveStatus(current => ({ ...current, [providerId]: 'success' }));
+            return true;
+        } catch (err) {
+            setProviderSaveStatus(current => ({ ...current, [providerId]: 'error' }));
+            setProviderSaveError(current => ({ ...current, [providerId]: err.message || 'Unable to save settings' }));
+            return false;
+        }
     };
 
     const handleTestElevenLabs = async () => {
@@ -101,18 +146,18 @@ export default function SettingsDialog(props) {
             const testRes = await fetch('/api/provider/test-key', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ apiKey: elevenLabsApiKey() })
+                body: JSON.stringify({ apiKey: generationProvider('elevenlabs').api_key })
             });
 
             const testData = await testRes.json();
 
             if (testRes.ok && testData.success) {
-                await fetch('/api/provider/api-key', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiKey: elevenLabsApiKey() })
-                });
-                setElevenLabsTestStatus('success');
+                if (await handleSaveGenerationProvider('elevenlabs')) {
+                    setElevenLabsTestStatus('success');
+                } else {
+                    setElevenLabsTestStatus('error');
+                    setElevenLabsTestError('Connection worked, but MOO could not save the API key');
+                }
             } else {
                 setElevenLabsTestStatus('error');
                 setElevenLabsTestError(testData.error || 'Connection failed');
@@ -206,76 +251,132 @@ export default function SettingsDialog(props) {
                 <Show when={activeTab() === 'provider'}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            Configure your ElevenLabs API key for voice generation.
+                            Configure the generation services MOO can use. API keys stay on this local machine.
                         </Typography>
 
-                        <TextInput
-                            size="small"
-                            fullWidth
-                            label="API Key"
-                            type={showElevenLabsKey() ? 'text' : 'password'}
-                            value={elevenLabsApiKey()}
-                            onValueChange={handleElevenLabsKeyChange}
-                            placeholder="Enter your ElevenLabs API key"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <IconButton
+                        <For each={GENERATION_PROVIDERS}>
+                            {(provider) => (
+                                <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                        <Box sx={{ flexGrow: 1 }}>
+                                            <Typography variant="subtitle2">{provider.name}</Typography>
+                                            <Typography variant="caption" color="text.secondary">{provider.description}</Typography>
+                                        </Box>
+                                        <Button
                                             size="small"
-                                            onClick={() => setShowElevenLabsKey(!showElevenLabsKey())}
-                                            edge="end"
-                                            sx={{ p: 0.5 }}
+                                            variant={generationProvider(provider.id).enabled ? 'contained' : 'outlined'}
+                                            aria-pressed={generationProvider(provider.id).enabled}
+                                            onClick={() => updateGenerationProvider(provider.id, { enabled: !generationProvider(provider.id).enabled })}
                                         >
-                                            <Show when={showElevenLabsKey()} fallback={<VisibilityIcon fontSize="small" />}>
-                                                <VisibilityOffIcon fontSize="small" />
+                                            {generationProvider(provider.id).enabled ? 'Enabled' : 'Disabled'}
+                                        </Button>
+                                    </Box>
+
+                                    <TextInput
+                                        size="small"
+                                        fullWidth
+                                        label={`${provider.name} API Key`}
+                                        type={providerKeyVisibility()[provider.id] ? 'text' : 'password'}
+                                        value={generationProvider(provider.id).api_key || ''}
+                                        onValueChange={(value) => updateGenerationProvider(provider.id, { api_key: value })}
+                                        placeholder={provider.keyPlaceholder}
+                                        InputProps={{
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={providerKeyVisibility()[provider.id] ? `Hide ${provider.name} API key` : `Show ${provider.name} API key`}
+                                                        onClick={() => setProviderKeyVisibility(current => ({ ...current, [provider.id]: !current[provider.id] }))}
+                                                        edge="end"
+                                                        sx={{ p: 0.5 }}
+                                                    >
+                                                        <Show when={providerKeyVisibility()[provider.id]} fallback={<VisibilityIcon fontSize="small" />}>
+                                                            <VisibilityOffIcon fontSize="small" />
+                                                        </Show>
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            ),
+                                            sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
+                                        }}
+                                        sx={DESIGN_SYSTEM.components.formControl}
+                                    />
+
+                                    <TextInput
+                                        size="small"
+                                        fullWidth
+                                        label="Default model (optional)"
+                                        value={generationProvider(provider.id).model || ''}
+                                        onValueChange={(value) => updateGenerationProvider(provider.id, { model: value })}
+                                        placeholder={provider.modelPlaceholder}
+                                        sx={DESIGN_SYSTEM.components.formControl}
+                                    />
+
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+                                        <Button
+                                            size="small"
+                                            variant="contained"
+                                            onClick={() => handleSaveGenerationProvider(provider.id)}
+                                            disabled={providerSaveStatus()[provider.id] === 'saving'}
+                                        >
+                                            <Show when={providerSaveStatus()[provider.id] === 'saving'} fallback="Save">
+                                                <CircularProgress size={16} sx={{ mr: 1 }} /> Saving
                                             </Show>
-                                        </IconButton>
-                                    </InputAdornment>
-                                ),
-                                sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
-                            }}
-                            sx={DESIGN_SYSTEM.components.formControl}
-                        />
+                                        </Button>
 
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                            <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={handleTestElevenLabs}
-                                disabled={!elevenLabsApiKey() || elevenLabsTestStatus() === 'testing'}
-                            >
-                                <Show when={elevenLabsTestStatus() === 'testing'}>
-                                    <CircularProgress size={16} sx={{ mr: 1 }} />
-                                </Show>
-                                Test Connection
-                            </Button>
+                                        <Show when={provider.id === 'elevenlabs'}>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={handleTestElevenLabs}
+                                                disabled={!generationProvider('elevenlabs').api_key || elevenLabsTestStatus() === 'testing'}
+                                            >
+                                                <Show when={elevenLabsTestStatus() === 'testing'}>
+                                                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                                                </Show>
+                                                Test Connection
+                                            </Button>
+                                        </Show>
 
-                            <Show when={elevenLabsTestStatus() === 'success'}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-                                    <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
-                                    <Typography variant="caption">Connected</Typography>
+                                        <Button
+                                            size="small"
+                                            variant="text"
+                                            component="a"
+                                            href={provider.keyUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            endIcon={<OpenInNewIcon fontSize="small" />}
+                                        >
+                                            Get API Key
+                                        </Button>
+
+                                        <Show when={providerSaveStatus()[provider.id] === 'success'}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
+                                                <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                                <Typography variant="caption">Saved</Typography>
+                                            </Box>
+                                        </Show>
+                                        <Show when={providerSaveStatus()[provider.id] === 'error'}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
+                                                <ErrorIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                                <Typography variant="caption">{providerSaveError()[provider.id]}</Typography>
+                                            </Box>
+                                        </Show>
+                                        <Show when={provider.id === 'elevenlabs' && elevenLabsTestStatus() === 'success'}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
+                                                <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                                <Typography variant="caption">Connected</Typography>
+                                            </Box>
+                                        </Show>
+                                        <Show when={provider.id === 'elevenlabs' && elevenLabsTestStatus() === 'error'}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
+                                                <ErrorIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                                <Typography variant="caption">{elevenLabsTestError()}</Typography>
+                                            </Box>
+                                        </Show>
+                                    </Box>
                                 </Box>
-                            </Show>
-
-                            <Show when={elevenLabsTestStatus() === 'error'}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
-                                    <ErrorIcon fontSize="small" sx={{ mr: 0.5 }} />
-                                    <Typography variant="caption">{elevenLabsTestError()}</Typography>
-                                </Box>
-                            </Show>
-
-                            <Button
-                                size="small"
-                                variant="text"
-                                component="a"
-                                href="https://elevenlabs.io/app/settings/api-keys"
-                                target="_blank"
-                                endIcon={<OpenInNewIcon fontSize="small" />}
-                                sx={{ ml: 'auto' }}
-                            >
-                                Get API Key
-                            </Button>
-                        </Box>
+                            )}
+                        </For>
                     </Box>
                 </Show>
 
