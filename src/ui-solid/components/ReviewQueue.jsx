@@ -73,6 +73,9 @@ export default function ReviewQueue(props) {
         selectedTakeIds(),
         visibleTakes(),
     ));
+    const selectedApprovableTakes = createMemo(() => (
+        selectedVisibleTakes().filter((take) => take.technical_status !== 'invalid')
+    ));
     const selectedItems = createMemo(() => items().filter((entry) => selectedCueIds().has(entry.media.id)));
     const finishableSelected = createMemo(() => selectedItems().filter((entry) => entry.lifecycle.approved_take_count > 0));
 
@@ -173,7 +176,9 @@ export default function ReviewQueue(props) {
     };
 
     const decideSelected = async (nextStatus) => {
-        const selected = selectedVisibleTakes();
+        const selected = nextStatus === 'approved'
+            ? selectedApprovableTakes()
+            : selectedVisibleTakes();
         if (selected.length === 0 || bulkDecision()) return;
         setBulkDecision(nextStatus);
         try {
@@ -218,7 +223,9 @@ export default function ReviewQueue(props) {
             setActiveCueIndex((index) => moveWithinBounds(index, items().length, -1));
         } else if (key === 'a') {
             event.preventDefault();
-            void decideTake(activeTake(), 'approved');
+            if (activeTake()?.technical_status !== 'invalid') {
+                void decideTake(activeTake(), 'approved');
+            }
         } else if (key === 'r') {
             event.preventDefault();
             void decideTake(activeTake(), 'rejected');
@@ -336,10 +343,10 @@ export default function ReviewQueue(props) {
                                         color="success"
                                         variant="contained"
                                         startIcon={<ThumbUpIcon />}
-                                        disabled={selectedVisibleTakes().length === 0 || Boolean(bulkDecision())}
+                                        disabled={selectedApprovableTakes().length === 0 || Boolean(bulkDecision())}
                                         onClick={() => void decideSelected('approved')}
                                     >
-                                        Approve selected ({selectedVisibleTakes().length})
+                                        Approve valid selected ({selectedApprovableTakes().length})
                                     </Button>
                                     <Button
                                         size="small"
@@ -399,6 +406,9 @@ export default function ReviewQueue(props) {
                                                         {take().filename || `Take ${take().take_number}`}
                                                     </Typography>
                                                     <Chip label={takeState().label} color={takeState().color} size="small" />
+                                                    <Show when={take().technical_status === 'invalid'}>
+                                                        <Chip label="Technically invalid" color="error" size="small" />
+                                                    </Show>
                                                     <Chip
                                                         label={isSelectedDeliverable() ? 'Selected deliverable' : 'Not selected for export'}
                                                         color={isSelectedDeliverable() ? 'warning' : 'default'}
@@ -406,6 +416,18 @@ export default function ReviewQueue(props) {
                                                         size="small"
                                                     />
                                                 </Box>
+
+                                                <Show when={take().technical_status === 'invalid'}>
+                                                    <Alert severity="error" sx={{ mb: 1 }}>
+                                                        This candidate is preserved for diagnosis but cannot be approved,
+                                                        selected, rendered, or published.
+                                                        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                                                            <For each={take().technical_issues || []}>
+                                                                {(issue) => <li>{issue.message}</li>}
+                                                            </For>
+                                                        </Box>
+                                                    </Alert>
+                                                </Show>
 
                                                 <Show when={isVisual()} fallback={
                                                     <Box sx={{ mb: 1 }}>
@@ -458,7 +480,7 @@ export default function ReviewQueue(props) {
                                                         color="success"
                                                         variant={take().status === 'approved' ? 'contained' : 'outlined'}
                                                         startIcon={<ThumbUpIcon />}
-                                                        disabled={decisionBusy().has(take().id) || Boolean(bulkDecision())}
+                                                        disabled={take().technical_status === 'invalid' || decisionBusy().has(take().id) || Boolean(bulkDecision())}
                                                         onClick={() => void decideTake(take(), take().status === 'approved' ? 'new' : 'approved')}
                                                     >
                                                         {take().status === 'approved' ? 'Undo approval' : 'Approve'}

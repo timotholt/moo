@@ -44,11 +44,14 @@ describe('unified multimedia review workspace', () => {
     expect(reviewQueue).toContain('Not selected for export');
     expect(reviewQueue).toContain('Review take metadata');
     expect(reviewQueue).toContain('Provider:');
-    expect(reviewQueue).toContain('Approve selected');
+    expect(reviewQueue).toContain('Approve valid selected');
     expect(reviewQueue).toContain('Reject selected');
     expect(reviewQueue).toContain('Maximum {MAX_BULK_REVIEW_TAKES} visible takes');
     expect(reviewQueue).toContain('<Alert severity="error"');
     expect(reviewQueue).toContain('Saving review decision');
+    expect(reviewQueue).toContain('Technically invalid');
+    expect(reviewQueue).toContain("take().technical_status === 'invalid'");
+    expect(reviewQueue).toContain('selectedApprovableTakes');
   });
 
   it('recognizes typing targets so review hotkeys do not fire while editing', () => {
