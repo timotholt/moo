@@ -17,6 +17,10 @@ import { GenerationReconciler } from './generation-reconciler.js';
 import { GenerationOperationStore } from './generation-operation-store.js';
 import { GeneratorRegistry } from './generators/registry.js';
 import type { DeliveryRequirements } from './generators/types.js';
+import {
+  createConfiguredTransparencyPostprocessor,
+  ensureRequestedTransparency,
+} from './postprocessing/transparency.js';
 
 type CandidateOwner = Actor | Scene | Card;
 
@@ -32,6 +36,7 @@ export function requestedProfileToDeliveryRequirements(
     durationSeconds: profile.duration_sec,
     frameRate: profile.fps,
     aspectRatio: profile.video_aspect_ratio,
+    transparency: profile.transparency,
   };
 }
 
@@ -71,6 +76,16 @@ export function createProjectDownloadedTake(projectRoot: string): CreateDownload
       .filter((take) => take.media_id === media.id)
       .reduce((highest, take) => Math.max(highest, take.take_number), 0) + 1;
 
+    const delivery = requestedProfileToDeliveryRequirements(input.operation.requested_delivery_profile);
+    const transparencyPostprocessor = delivery?.transparency
+      ? await createConfiguredTransparencyPostprocessor()
+      : undefined;
+    const generatedAsset = await ensureRequestedTransparency(
+      input.asset,
+      delivery,
+      transparencyPostprocessor,
+    );
+
     const { take } = await writeCandidate({
       projectRoot,
       paths,
@@ -78,11 +93,11 @@ export function createProjectDownloadedTake(projectRoot: string): CreateDownload
       bin,
       owner: owner ?? undefined,
       takeNumber,
-      generatedAsset: input.asset,
+      generatedAsset,
       providerOperation: input.providerOperation,
       settings: resolved.settings,
       resolvedFrom: resolved.resolvedFrom,
-      delivery: requestedProfileToDeliveryRequirements(input.operation.requested_delivery_profile),
+      delivery,
     });
     return take.id;
   };

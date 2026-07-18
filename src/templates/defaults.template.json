@@ -23,17 +23,16 @@
         },
         "image": {
             "provider": "openai",
-            "model": "dall-e-3",
-            "style": "natural",
-            "quality": "standard",
+            "model": "gpt-image-2",
+            "quality": "low",
             "size": "1024x1024",
             "min_candidates": 1,
             "approval_count_default": 1
         },
         "video": {
-            "provider": "runway",
-            "model": "gen-3-alpha",
-            "duration_seconds": 5,
+            "provider": "openai",
+            "model": "sora-2",
+            "duration_seconds": 4,
             "aspect_ratio": "16:9",
             "fps": 24,
             "min_candidates": 1,

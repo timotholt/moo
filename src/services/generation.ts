@@ -18,6 +18,12 @@ import type {
 import { GenerationOperationStore } from './generation-operation-store.js';
 import type { RequestedDeliveryProfile } from '../shared/schemas/generation-operation.schema.js';
 import { writeCandidate } from './candidate-writer.js';
+import type { GeneratedAssetPostprocessor } from './postprocessing/background-removal.js';
+import {
+    createConfiguredTransparencyPostprocessor,
+    ensureRequestedTransparency,
+    providerDeliveryRequirements,
+} from './postprocessing/transparency.js';
 
 export interface BatchGenerationOptions {
     actorId?: string;
@@ -44,10 +50,15 @@ function asVideoAspectRatio(value: unknown): VideoAspectRatio | undefined {
 }
 
 function buildDeliveryRequirements(settings: Record<string, unknown>, mediaType: Media['media_type']): DeliveryRequirements {
+    const configuredSize = typeof settings.size === 'string'
+        ? /^(\d+)x(\d+)$/.exec(settings.size.trim())
+        : null;
+    const configuredWidth = configuredSize ? Number(configuredSize[1]) : undefined;
+    const configuredHeight = configuredSize ? Number(configuredSize[2]) : undefined;
     return {
         format: getExtensionForType(mediaType),
-        width: typeof settings.width === 'number' ? settings.width : undefined,
-        height: typeof settings.height === 'number' ? settings.height : undefined,
+        width: typeof settings.width === 'number' ? settings.width : configuredWidth,
+        height: typeof settings.height === 'number' ? settings.height : configuredHeight,
         aspectRatio: asVideoAspectRatio(settings.aspect_ratio),
         durationSeconds: typeof settings.duration_seconds === 'number' ? settings.duration_seconds : undefined,
         frameRate: typeof settings.fps === 'number' ? settings.fps : undefined,
@@ -63,6 +74,7 @@ function toRequestedDeliveryProfile(delivery: DeliveryRequirements): RequestedDe
         fps: delivery.frameRate,
         format: delivery.format,
         video_aspect_ratio: delivery.aspectRatio,
+        transparency: delivery.transparency,
     };
 }
 
@@ -175,6 +187,15 @@ async function executeBatchGeneration(
     try {
       registry = options.dryRun ? null : await createDefaultGeneratorRegistry(projectRoot);
       const operationStore = new GenerationOperationStore(projectRoot);
+      let transparencyPostprocessor: GeneratedAssetPostprocessor | undefined;
+      let transparencyConfigurationLoaded = false;
+      const loadTransparencyPostprocessor = async () => {
+          if (!transparencyConfigurationLoaded) {
+              transparencyPostprocessor = await createConfiguredTransparencyPostprocessor();
+              transparencyConfigurationLoaded = true;
+          }
+          return transparencyPostprocessor;
+      };
 
     // Filter media by requested scope. Completion is evaluated from the
     // canonical lifecycle below, after each cue's settings are resolved.
@@ -290,18 +311,29 @@ async function executeBatchGeneration(
                 }
 
                 const delivery = buildDeliveryRequirements(settings, media.media_type);
+                const capability = generator.capabilities().media[assetKind];
+                const configuredTransparencyPostprocessor = delivery.transparency
+                    ? await loadTransparencyPostprocessor()
+                    : undefined;
+                const providerDelivery = providerDeliveryRequirements(
+                    delivery,
+                    capability,
+                    Boolean(configuredTransparencyPostprocessor),
+                );
                 const generationRequest: GenerationRequest = {
                     id: generateId(),
                     assetKind,
                     prompt,
-                    delivery,
+                    delivery: providerDelivery,
                     settings: {
+                        ...settings,
                         voiceId: settings.voice_id,
                         voice: {
                             stability: settings.stability,
                             similarity_boost: settings.similarity_boost,
                         },
                         modelId: settings.model_id,
+                        imageSize: settings.image_size,
                         music: { duration_seconds: settings.duration_seconds },
                         sfx: { duration_seconds: settings.duration_seconds },
                     },
@@ -339,7 +371,12 @@ async function executeBatchGeneration(
                 if (providerOperation.status === 'failed') {
                     throw new Error(providerOperation.error || `${providerId} generation failed`);
                 }
-                const generatedAsset = await generator.download(providerOperation);
+                let generatedAsset = await generator.download(providerOperation);
+                generatedAsset = await ensureRequestedTransparency(
+                    generatedAsset,
+                    delivery,
+                    configuredTransparencyPostprocessor,
+                );
                 const takeNumber = baseTakeNumber + i;
                 const { take } = await writeCandidate({
                     projectRoot,

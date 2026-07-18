@@ -18,6 +18,8 @@ export const RequestedDeliveryProfileSchema = z.object({
   duration_sec: z.number().positive().optional(),
   fps: z.number().positive().optional(),
   format: z.string().min(1).max(32).optional(),
+  /** Image alpha is part of the durable delivery contract and recovery path. */
+  transparency: z.boolean().optional(),
   /** Required for video so the requested orientation is durable and testable. */
   video_aspect_ratio: VideoAspectRatioSchema.optional(),
 }).strict();
