@@ -1,13 +1,80 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAudioProvider } from '../../services/provider-factory.js';
-import { setElevenLabsApiKey, getElevenLabsApiKey } from '../../services/global-config.js';
+import {
+  getElevenLabsApiKey,
+  getGenerationProviderSettings,
+  listGenerationProviderSettings,
+  setElevenLabsApiKey,
+  setGenerationProviderSettings,
+  type GenerationProviderSettings,
+} from '../../services/global-config.js';
 
 // In-memory cache for voice previews
 const voicePreviewCache = new Map<string, string>();
 
 type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
 
+function validateProviderSettingsBody(body: unknown): { settings?: GenerationProviderSettings; error?: string } {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Settings body must be an object' };
+  }
+
+  const value = body as Record<string, unknown>;
+  const allowedKeys = new Set(['api_key', 'enabled', 'model', 'config']);
+  const unknownKeys = Object.keys(value).filter((key) => !allowedKeys.has(key));
+  if (unknownKeys.length > 0) {
+    return { error: `Unsupported settings field: ${unknownKeys.join(', ')}` };
+  }
+
+  if (value.api_key !== undefined && typeof value.api_key !== 'string') {
+    return { error: 'api_key must be a string' };
+  }
+  if (value.enabled !== undefined && typeof value.enabled !== 'boolean') {
+    return { error: 'enabled must be a boolean' };
+  }
+  if (value.model !== undefined && typeof value.model !== 'string') {
+    return { error: 'model must be a string' };
+  }
+  if (value.config !== undefined && (!value.config || typeof value.config !== 'object' || Array.isArray(value.config))) {
+    return { error: 'config must be an object' };
+  }
+
+  return { settings: value as GenerationProviderSettings };
+}
+
 export function registerProviderRoutes(fastify: FastifyInstance, getProjectContext: () => ProjectContext | null) {
+  // MOO is local-only: the authoring UI intentionally receives full API keys.
+  fastify.get('/api/generation/providers/settings', async () => ({
+    providers: await listGenerationProviderSettings(),
+  }));
+
+  fastify.get('/api/generation/providers/:providerId/settings', async (request: FastifyRequest<{ Params: { providerId: string } }>, reply: FastifyReply) => {
+    const providerId = request.params.providerId.trim();
+    if (!providerId) {
+      reply.code(400);
+      return { error: 'Provider ID is required' };
+    }
+
+    return { providerId, settings: await getGenerationProviderSettings(providerId) || {} };
+  });
+
+  fastify.put('/api/generation/providers/:providerId/settings', async (request: FastifyRequest<{ Params: { providerId: string }; Body: unknown }>, reply: FastifyReply) => {
+    const providerId = request.params.providerId.trim();
+    if (!providerId) {
+      reply.code(400);
+      return { error: 'Provider ID is required' };
+    }
+
+    const validation = validateProviderSettingsBody(request.body);
+    if (validation.error) {
+      reply.code(400);
+      return { error: validation.error };
+    }
+
+    await setGenerationProviderSettings(providerId, validation.settings!);
+    return { providerId, settings: await getGenerationProviderSettings(providerId) || {} };
+  });
+
   fastify.get('/api/voices', async (_request: FastifyRequest, reply: FastifyReply) => {
     try {
       const ctx = getProjectContext();
