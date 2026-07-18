@@ -9,11 +9,19 @@ import type { DefaultBlock } from '../shared/schemas/common.schema.js';
 import type { Media } from '../shared/schemas/media.schema.js';
 import type { Scene } from '../shared/schemas/scene.schema.js';
 import type { Card } from '../shared/schemas/card.schema.js';
-import { TakeSchema, type Take } from '../shared/schemas/take.schema.js';
+import {
+  TakeSchema,
+  type Take,
+  type TakeTechnicalIssue,
+} from '../shared/schemas/take.schema.js';
 import type { GeneratedAsset, ProviderOperation, DeliveryRequirements } from './generators/types.js';
-import { inspectWithFFprobe, type FFprobeInspectionResult } from './inspection/ffprobe-inspector.js';
+import {
+  FFprobeInspectionError,
+  inspectWithFFprobe,
+  type FFprobeInspectionResult,
+} from './inspection/ffprobe-inspector.js';
 import { analyzePngAlpha, type PNGAlphaAnalysis } from './inspection/png-alpha.js';
-import { inspectPng } from './inspection/png-inspector.js';
+import { inspectPng, PNGInspectionError } from './inspection/png-inspector.js';
 import type { ImageInspectionResult } from './inspection/types.js';
 import { constructTakePath } from '../utils/pathConstruction.js';
 import type { getProjectPaths } from '../utils/paths.js';
@@ -52,11 +60,12 @@ export interface CandidateWriterInput {
 }
 
 export interface CandidateTechnicalFacts {
-  inspection: CandidateInspection;
+  inspection?: CandidateInspection;
   alpha?: PNGAlphaAnalysis;
+  issues: TakeTechnicalIssue[];
   requestedDelivery?: DeliveryRequirements;
   validated: {
-    mime: true;
+    mime: boolean;
     dimensions: boolean;
     aspectRatio: boolean;
     transparency: boolean;
@@ -74,7 +83,9 @@ export interface CandidateWriterResult {
  *
  * The provider operation ID is the idempotency key: retries return the prior
  * catalog entry before touching bytes. New bytes are first staged beside their
- * canonical destination, inspected, and only then renamed and cataloged.
+ * canonical destination, inspected, and only then renamed and cataloged. If a
+ * prior process promoted the exact bytes but failed before catalog append, the
+ * retry adopts that orphaned file and completes the catalog transaction.
  */
 export async function writeCandidate(input: CandidateWriterInput): Promise<CandidateWriterResult> {
   if (resolve(input.paths.root) !== resolve(input.projectRoot)) {
@@ -89,14 +100,14 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
       take: existing,
       facts: {
         inspection: inspectionFromTake(existing),
-        validated: { mime: true, dimensions: true, aspectRatio: true, transparency: true },
+        issues: existing.technical_issues,
+        validated: validationFlags(existing.technical_issues),
       },
       existing: true,
     };
   }
 
   assertSupportedMedia(input.media.media_type);
-  assertProviderMimeMatches(input.media.media_type, input.generatedAsset.mimeType);
 
   const actorBaseFilename = input.owner && 'base_filename' in input.owner ? input.owner.base_filename : undefined;
   const relativePath = constructTakePath(input.media, input.bin, input.takeNumber, actorBaseFilename);
@@ -106,18 +117,25 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
     `.${basename(finalPath)}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.candidate.tmp`,
   );
 
-  if (await fs.pathExists(finalPath)) {
-    throw new Error(`Candidate destination already exists and has no matching provider operation: ${relativePath}`);
+  const finalAlreadyPresent = await fs.pathExists(finalPath);
+  if (finalAlreadyPresent) {
+    const existingBytes = await fs.readFile(finalPath);
+    if (!existingBytes.equals(input.generatedAsset.bytes)) {
+      throw new Error(`Candidate destination already exists and has no matching provider operation: ${relativePath}`);
+    }
   }
 
   try {
-    await fs.ensureDir(dirname(finalPath));
-    await fs.writeFile(temporaryPath, input.generatedAsset.bytes, { flag: 'wx' });
+    if (!finalAlreadyPresent) {
+      await fs.ensureDir(dirname(finalPath));
+      await fs.writeFile(temporaryPath, input.generatedAsset.bytes, { flag: 'wx' });
+    }
 
-    const { inspection, alpha, validated } = await inspectAndValidate(temporaryPath, input);
-    const hash = await (input.dependencies?.hashFile ?? defaultHashFile)(temporaryPath);
+    const inspectionPath = finalAlreadyPresent ? finalPath : temporaryPath;
+    const { inspection, alpha, issues, validated } = await inspectAndValidate(inspectionPath, input);
+    const hash = await (input.dependencies?.hashFile ?? defaultHashFile)(inspectionPath);
     const sourceArchive = await archivePostprocessedSource(input);
-    await fs.move(temporaryPath, finalPath, { overwrite: false });
+    if (!finalAlreadyPresent) await fs.move(temporaryPath, finalPath, { overwrite: false });
 
     const now = (input.dependencies?.now ?? (() => new Date()))().toISOString();
     const take = TakeSchema.parse({
@@ -126,10 +144,12 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
       take_number: input.takeNumber,
       filename: basename(relativePath),
       path: relativePath,
-      format: inspection.format,
+      format: inspection?.format ?? formatFromMime(input.generatedAsset.mimeType, input.media.media_type),
       size_bytes: input.generatedAsset.bytes.length,
       status: 'new',
-      ...takeFacts(inspection),
+      technical_status: issues.length > 0 ? 'invalid' : 'valid',
+      technical_issues: issues,
+      ...(inspection ? takeFacts(inspection) : {}),
       hash_sha256: hash,
       generated_by: input.providerOperation.providerId,
       generated_at: now,
@@ -150,6 +170,10 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
           operation: input.providerOperation.providerMetadata,
           asset: input.generatedAsset.providerMetadata,
           delivery: input.delivery,
+          technical_validation: {
+            status: issues.length > 0 ? 'invalid' : 'valid',
+            issues,
+          },
           ...(sourceArchive ? { source: sourceArchive } : {}),
         },
       },
@@ -160,7 +184,11 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
     await fs.ensureDir(dirname(input.paths.catalog.takes));
     await ensureJsonlFile(input.paths.catalog.takes);
     await appendJsonl(input.paths.catalog.takes, take, TakeSchema);
-    return { take, facts: { inspection, alpha, requestedDelivery: input.delivery, validated }, existing: false };
+    return {
+      take,
+      facts: { inspection, alpha, issues, requestedDelivery: input.delivery, validated },
+      existing: false,
+    };
   } catch (error) {
     await fs.remove(temporaryPath).catch(() => undefined);
     throw error;
@@ -184,43 +212,79 @@ async function archivePostprocessedSource(
 async function inspectAndValidate(
   temporaryPath: string,
   input: CandidateWriterInput,
-): Promise<{ inspection: CandidateInspection; alpha?: PNGAlphaAnalysis; validated: CandidateTechnicalFacts['validated'] }> {
+): Promise<{
+  inspection?: CandidateInspection;
+  alpha?: PNGAlphaAnalysis;
+  issues: TakeTechnicalIssue[];
+  validated: CandidateTechnicalFacts['validated'];
+}> {
   const delivery = input.delivery;
+  const issues: TakeTechnicalIssue[] = [];
+  const providerMimeIssue = providerMimeIssueFor(input.media.media_type, input.generatedAsset.mimeType);
+  if (providerMimeIssue) issues.push(providerMimeIssue);
+
   if (input.media.media_type === 'image') {
-    const inspection = inspectPng(input.generatedAsset.bytes);
-    const alpha = analyzePngAlpha(input.generatedAsset.bytes);
-    assertMimeAgreement(input.generatedAsset.mimeType, inspection.mimeType);
-    validateDimensions(inspection.width, inspection.height, delivery);
-    validateTransparency(alpha, delivery);
+    let inspection: ImageInspectionResult | undefined;
+    let alpha: PNGAlphaAnalysis | undefined;
+    try {
+      inspection = inspectPng(input.generatedAsset.bytes);
+    } catch (error) {
+      if (!(error instanceof PNGInspectionError)) throw error;
+      issues.push(technicalIssue('inspection_failed', 'inspection', error.message));
+    }
+    if (inspection) {
+      const mimeIssue = mimeAgreementIssue(input.generatedAsset.mimeType, inspection.mimeType);
+      if (mimeIssue) issues.push(mimeIssue);
+      issues.push(...dimensionIssues(inspection.width, inspection.height, delivery));
+      try {
+        alpha = analyzePngAlpha(input.generatedAsset.bytes);
+        const transparencyIssue = transparencyIssueFor(alpha, delivery);
+        if (transparencyIssue) issues.push(transparencyIssue);
+      } catch (error) {
+        issues.push(technicalIssue(
+          'inspection_failed',
+          'inspection',
+          `PNG alpha inspection failed: ${errorMessage(error)}`,
+        ));
+      }
+    }
     return {
       inspection,
       alpha,
-      validated: {
-        mime: true,
-        dimensions: Boolean(delivery?.width || delivery?.height),
-        aspectRatio: Boolean(delivery?.aspectRatio),
-        transparency: delivery?.transparency === true,
-      },
+      issues,
+      validated: validationFlags(issues),
     };
   }
 
   const inspect = input.dependencies?.inspectWithFFprobe ?? inspectWithFFprobe;
-  const inspection = await inspect(temporaryPath);
-  const expectedKind = input.media.media_type === 'video' ? 'video' : 'audio';
-  if (inspection.mediaKind !== expectedKind) {
-    throw new Error(`Generated ${inspection.mediaKind} does not match ${input.media.media_type} media`);
+  let inspection: FFprobeInspectionResult | undefined;
+  try {
+    inspection = await inspect(temporaryPath);
+  } catch (error) {
+    if (!(error instanceof FFprobeInspectionError) || isFFprobeInfrastructureFailure(error)) throw error;
+    issues.push(technicalIssue('inspection_failed', 'inspection', error.message));
   }
-  assertMimeAgreement(input.generatedAsset.mimeType, inspection.mimeType);
-
-  if (inspection.mediaKind === 'video') validateDimensions(inspection.width, inspection.height, delivery);
+  const expectedKind = input.media.media_type === 'video' ? 'video' : 'audio';
+  if (inspection) {
+    if (inspection.mediaKind !== expectedKind) {
+      issues.push(technicalIssue(
+        'media_type_mismatch',
+        'inspection',
+        `Generated ${inspection.mediaKind} does not match ${input.media.media_type} media`,
+        expectedKind,
+        inspection.mediaKind,
+      ));
+    }
+    const mimeIssue = mimeAgreementIssue(input.generatedAsset.mimeType, inspection.mimeType);
+    if (mimeIssue) issues.push(mimeIssue);
+    if (inspection.mediaKind === 'video') {
+      issues.push(...dimensionIssues(inspection.width, inspection.height, delivery));
+    }
+  }
   return {
     inspection,
-    validated: {
-      mime: true,
-      dimensions: inspection.mediaKind === 'video' && Boolean(delivery?.width || delivery?.height),
-      aspectRatio: inspection.mediaKind === 'video' && Boolean(delivery?.aspectRatio),
-      transparency: false,
-    },
+    issues,
+    validated: validationFlags(issues),
   };
 }
 
@@ -228,37 +292,104 @@ function assertSupportedMedia(mediaType: Media['media_type']): void {
   if (mediaType === 'text') throw new Error('Text media does not produce a binary candidate take');
 }
 
-function assertProviderMimeMatches(mediaType: Media['media_type'], mimeType: string): void {
+function providerMimeIssueFor(
+  mediaType: Media['media_type'],
+  mimeType: string,
+): TakeTechnicalIssue | undefined {
   const normalized = mimeType.toLowerCase().split(';', 1)[0].trim();
   const valid = mediaType === 'image'
     ? normalized === 'image/png'
     : mediaType === 'video'
       ? normalized.startsWith('video/')
       : normalized.startsWith('audio/');
-  if (!valid) throw new Error(`Provider MIME ${mimeType} does not match ${mediaType} media`);
+  if (valid) return undefined;
+  return technicalIssue(
+    'media_type_mismatch',
+    'delivery',
+    `Provider MIME ${mimeType} does not match ${mediaType} media`,
+    mediaType,
+    normalized || 'empty MIME',
+  );
 }
 
-function assertMimeAgreement(providerMime: string, inspectedMime: string): void {
+function mimeAgreementIssue(
+  providerMime: string,
+  inspectedMime: string,
+): TakeTechnicalIssue | undefined {
   const provider = providerMime.toLowerCase().split(';', 1)[0].trim();
   const inspected = inspectedMime.toLowerCase();
-  if (provider !== inspected) throw new Error(`Provider MIME ${providerMime} does not match inspected MIME ${inspectedMime}`);
+  if (provider === inspected) return undefined;
+  return technicalIssue(
+    'mime_mismatch',
+    'inspection',
+    `Provider MIME ${providerMime} does not match inspected MIME ${inspectedMime}`,
+    inspected,
+    provider,
+  );
 }
 
-function validateDimensions(width: number | undefined, height: number | undefined, delivery?: DeliveryRequirements): void {
-  if (delivery?.width !== undefined && width !== delivery.width) throw new Error(`Generated width ${width} does not meet requested width ${delivery.width}`);
-  if (delivery?.height !== undefined && height !== delivery.height) throw new Error(`Generated height ${height} does not meet requested height ${delivery.height}`);
-  if (!delivery?.aspectRatio) return;
-  if (!width || !height) throw new Error(`Generated asset has no dimensions for requested ${delivery.aspectRatio} aspect ratio`);
+function dimensionIssues(
+  width: number | undefined,
+  height: number | undefined,
+  delivery?: DeliveryRequirements,
+): TakeTechnicalIssue[] {
+  const issues: TakeTechnicalIssue[] = [];
+  if (delivery?.width !== undefined && width !== delivery.width) {
+    issues.push(technicalIssue(
+      'dimensions_mismatch',
+      'delivery',
+      `Generated width ${width ?? 'unknown'} does not meet requested width ${delivery.width}`,
+      String(delivery.width),
+      String(width ?? 'unknown'),
+    ));
+  }
+  if (delivery?.height !== undefined && height !== delivery.height) {
+    issues.push(technicalIssue(
+      'dimensions_mismatch',
+      'delivery',
+      `Generated height ${height ?? 'unknown'} does not meet requested height ${delivery.height}`,
+      String(delivery.height),
+      String(height ?? 'unknown'),
+    ));
+  }
+  if (!delivery?.aspectRatio) return issues;
+  if (!width || !height) {
+    issues.push(technicalIssue(
+      'aspect_ratio_mismatch',
+      'delivery',
+      `Generated asset has no dimensions for requested ${delivery.aspectRatio} aspect ratio`,
+      delivery.aspectRatio,
+      'unknown',
+    ));
+    return issues;
+  }
   const [requestedWidth, requestedHeight] = delivery.aspectRatio.split(':').map(Number);
   if (width * requestedHeight !== height * requestedWidth) {
-    throw new Error(`Generated ${width}:${height} does not meet requested ${delivery.aspectRatio} aspect ratio`);
+    issues.push(technicalIssue(
+      'aspect_ratio_mismatch',
+      'delivery',
+      `Generated ${width}:${height} does not meet requested ${delivery.aspectRatio} aspect ratio`,
+      delivery.aspectRatio,
+      `${width}:${height}`,
+    ));
   }
+  return issues;
 }
 
-function validateTransparency(alpha: PNGAlphaAnalysis, delivery?: DeliveryRequirements): void {
+function transparencyIssueFor(
+  alpha: PNGAlphaAnalysis,
+  delivery?: DeliveryRequirements,
+): TakeTechnicalIssue | undefined {
   if (delivery?.transparency && !alpha.hasTransparentPixels) {
-    throw new Error('Generated PNG does not contain transparent pixels as requested');
+    return technicalIssue(
+      'transparency_missing',
+      'delivery',
+      'Generated PNG does not contain transparent pixels as requested',
+      'transparent pixels',
+      'fully opaque',
+    );
   }
+  return undefined;
 }
 
 function takeFacts(inspection: CandidateInspection): Partial<Take> {
@@ -269,10 +400,65 @@ function takeFacts(inspection: CandidateInspection): Partial<Take> {
   return { duration_sec: inspection.durationSeconds, sample_rate: inspection.sampleRate, channels: inspection.channels };
 }
 
-function inspectionFromTake(take: Take): CandidateInspection {
+function validationFlags(issues: TakeTechnicalIssue[]): CandidateTechnicalFacts['validated'] {
+  const codes = new Set(issues.map(issue => issue.code));
+  return {
+    mime: !codes.has('media_type_mismatch') && !codes.has('mime_mismatch') && !codes.has('inspection_failed'),
+    dimensions: !codes.has('dimensions_mismatch') && !codes.has('inspection_failed'),
+    aspectRatio: !codes.has('aspect_ratio_mismatch') && !codes.has('inspection_failed'),
+    transparency: !codes.has('transparency_missing') && !codes.has('inspection_failed'),
+  };
+}
+
+function technicalIssue(
+  code: TakeTechnicalIssue['code'],
+  stage: TakeTechnicalIssue['stage'],
+  message: string,
+  expected?: string,
+  actual?: string,
+): TakeTechnicalIssue {
+  return {
+    code,
+    stage,
+    message,
+    ...(expected ? { expected } : {}),
+    ...(actual ? { actual } : {}),
+  };
+}
+
+function isFFprobeInfrastructureFailure(error: FFprobeInspectionError): boolean {
+  const cause = error.cause;
+  if (!cause || typeof cause !== 'object') return false;
+  const code = 'code' in cause ? String(cause.code) : '';
+  return ['ENOENT', 'EACCES', 'EPERM'].includes(code);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function formatFromMime(mimeType: string, mediaType: Media['media_type']): string {
+  const mime = mimeType.toLowerCase().split(';', 1)[0].trim();
+  const known: Record<string, string> = {
+    'audio/mpeg': 'mp3',
+    'audio/mp4': 'm4a',
+    'audio/wav': 'wav',
+    'image/png': 'png',
+    'image/jpeg': 'jpeg',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+  };
+  return known[mime]
+    ?? mime.split('/')[1]?.replace(/[^a-z0-9.+-]/g, '')
+    ?? (mediaType === 'image' ? 'png' : mediaType === 'video' ? 'mp4' : 'mp3');
+}
+
+function inspectionFromTake(take: Take): CandidateInspection | undefined {
+  if (take.technical_issues.some(issue => issue.code === 'inspection_failed')) return undefined;
   const kind = take.format === 'png' ? 'image' : take.format === 'mp4' ? 'video' : 'audio';
   if (kind === 'image') {
-    return { mediaKind: 'image', format: take.format, mimeType: 'image/png', byteLength: take.size_bytes, width: take.width ?? 1, height: take.height ?? 1, hasAlphaChannel: false, hasAlpha: false };
+    if (!take.width || !take.height) return undefined;
+    return { mediaKind: 'image', format: take.format, mimeType: 'image/png', byteLength: take.size_bytes, width: take.width, height: take.height, hasAlphaChannel: false, hasAlpha: false };
   }
   if (kind === 'video') {
     return { mediaKind: 'video', format: take.format, mimeType: 'video/mp4', byteLength: take.size_bytes, durationSeconds: take.duration_sec, width: take.width, height: take.height, frameRate: take.fps, codec: 'unknown', container: take.format, bitrate: 0, audioTrackCount: 0 };

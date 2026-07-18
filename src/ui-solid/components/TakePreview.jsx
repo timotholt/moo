@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, Show } from 'solid-js';
 import { Alert, Box, CircularProgress, Typography } from '@suid/material';
 
 const NEUTRAL_VIDEO_POSTER = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221600%22 height=%22900%22 viewBox=%220 0 1600 900%22%3E%3Crect width=%221600%22 height=%22900%22 fill=%22%23101014%22/%3E%3C/svg%3E';
@@ -85,6 +85,7 @@ export default function TakePreview(props) {
     const isImage = () => props.mediaType === 'image';
     const isVideo = () => props.mediaType === 'video';
     const isPortrait = () => (props.take?.height || 0) > (props.take?.width || 0);
+    const technicalIssues = () => props.take?.technical_issues || [];
 
     createEffect(() => {
         source();
@@ -108,6 +109,24 @@ export default function TakePreview(props) {
                 bgcolor: 'background.default',
             }}
         >
+            <Show when={props.take?.technical_status === 'invalid'}>
+                <Alert severity="error" aria-live="assertive" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle2">Technically invalid candidate</Typography>
+                    <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                        <For each={technicalIssues()}>
+                            {(issue) => (
+                                <li>
+                                    <Typography variant="caption">
+                                        {issue.message}
+                                        {issue.expected ? ` Expected: ${issue.expected}.` : ''}
+                                        {issue.actual ? ` Actual: ${issue.actual}.` : ''}
+                                    </Typography>
+                                </li>
+                            )}
+                        </For>
+                    </Box>
+                </Alert>
+            </Show>
             <Box
                 sx={{
                     position: 'relative',

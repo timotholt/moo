@@ -67,6 +67,19 @@ describe('renderProjectCard', () => {
     await writeJsonlAll(value.paths.catalog.media, value.media);
     await expect(renderProjectCard(value.root, 'card-1')).rejects.toThrow('exactly one selected take');
   });
+
+  it('blocks technically invalid selected slot takes even if marked approved', async () => {
+    const value = await fixture();
+    value.takes[0].technical_status = 'invalid';
+    value.takes[0].technical_issues = [{
+      code: 'dimensions_mismatch',
+      stage: 'delivery',
+      message: 'Wrong card-art dimensions',
+    }];
+    await writeJsonlAll(value.paths.catalog.takes, value.takes);
+
+    await expect(renderProjectCard(value.root, 'card-1')).rejects.toThrow('technically invalid');
+  });
 });
 
 function hash(bytes: Buffer): string {

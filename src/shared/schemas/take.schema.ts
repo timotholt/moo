@@ -2,6 +2,29 @@ import { z } from 'zod';
 import { IdSchema, TimestampSchema, TakeStatusSchema, ProviderSchema, OwnerTypeSchema, DefaultBlockSchema } from './common.schema.js';
 
 // ============================================================================
+// Technical Validation Schema
+// ============================================================================
+
+export const TakeTechnicalStatusSchema = z.enum(['valid', 'invalid']);
+
+export const TakeTechnicalIssueCodeSchema = z.enum([
+    'inspection_failed',
+    'media_type_mismatch',
+    'mime_mismatch',
+    'dimensions_mismatch',
+    'aspect_ratio_mismatch',
+    'transparency_missing',
+]);
+
+export const TakeTechnicalIssueSchema = z.object({
+    code: TakeTechnicalIssueCodeSchema,
+    stage: z.enum(['inspection', 'delivery']),
+    message: z.string().min(1).max(2000),
+    expected: z.string().min(1).max(500).optional(),
+    actual: z.string().min(1).max(500).optional(),
+});
+
+// ============================================================================
 // Generation Params Schema
 // ============================================================================
 
@@ -65,9 +88,13 @@ export const TakeSchema = z.object({
     // Hash for deduplication
     hash_sha256: z.string().optional(),
 
-    // Status
+    // Human review status. Technical validity is deliberately orthogonal:
+    // an invalid take remains visible and can still be human-rejected, but it
+    // can never be approved or selected as a deliverable.
     status: TakeStatusSchema.default('new'),
     status_changed_at: TimestampSchema.optional(),
+    technical_status: TakeTechnicalStatusSchema.default('valid'),
+    technical_issues: z.array(TakeTechnicalIssueSchema).default([]),
     // Human review record. MOO is local-first, so there is no required user
     // identity; the timestamp and freeform note preserve authoring intent.
     review_note: z.string().max(2000).optional(),
@@ -94,6 +121,8 @@ export const CreateTakeSchema = TakeSchema.omit({
 }).partial({
     status: true,
     status_changed_at: true,
+    technical_status: true,
+    technical_issues: true,
     review_note: true,
     reviewed_at: true,
     generated_by: true,
@@ -121,6 +150,9 @@ export const UpdateTakeSchema = TakeSchema.partial().omit({
 // ============================================================================
 
 export type Take = z.infer<typeof TakeSchema>;
+export type TakeTechnicalStatus = z.infer<typeof TakeTechnicalStatusSchema>;
+export type TakeTechnicalIssueCode = z.infer<typeof TakeTechnicalIssueCodeSchema>;
+export type TakeTechnicalIssue = z.infer<typeof TakeTechnicalIssueSchema>;
 export type GenerationParams = z.infer<typeof GenerationParamsSchema>;
 export type CreateTakeInput = z.infer<typeof CreateTakeSchema>;
 export type UpdateTakeInput = z.infer<typeof UpdateTakeSchema>;

@@ -58,6 +58,9 @@ export async function renderProjectCard(
     if (!take || take.status !== 'approved') {
       throw new Error(`Card slot "${slot.key}" selected take is missing or not approved`);
     }
+    if (take.technical_status === 'invalid') {
+      throw new Error(`Card slot "${slot.key}" selected take is technically invalid`);
+    }
 
     const sourcePath = join(projectRoot, take.path);
     if (!(await fs.pathExists(sourcePath))) {

@@ -95,6 +95,9 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
     for (const takeId of selectedIds) {
       const take = takes.find((candidate) => candidate.id === takeId && candidate.media_id === cue.id);
       if (!take || take.status !== 'approved') throw new Error(`Cue ${cue.name}: selected take ${takeId} is not an approved cue take`);
+      if (take.technical_status === 'invalid') {
+        throw new Error(`Cue ${cue.name}: selected take ${takeId} is technically invalid`);
+      }
       const source = join(projectRoot, take.path);
       if (!(await fs.pathExists(source))) throw new Error(`Cue ${cue.name}: selected source file is missing: ${take.path}`);
       const destinationDirectory = publicationDirectory(cue, take);

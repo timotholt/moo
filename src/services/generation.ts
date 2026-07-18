@@ -372,11 +372,17 @@ async function executeBatchGeneration(
                     throw new Error(providerOperation.error || `${providerId} generation failed`);
                 }
                 let generatedAsset = await generator.download(providerOperation);
-                generatedAsset = await ensureRequestedTransparency(
-                    generatedAsset,
-                    delivery,
-                    configuredTransparencyPostprocessor,
-                );
+                // A configured postprocessor is infrastructure and must succeed
+                // if invoked. Without one, preserve the downloaded provider
+                // bytes and let the candidate writer record missing alpha as a
+                // durable technical-invalidity issue instead of losing the take.
+                if (configuredTransparencyPostprocessor) {
+                    generatedAsset = await ensureRequestedTransparency(
+                        generatedAsset,
+                        delivery,
+                        configuredTransparencyPostprocessor,
+                    );
+                }
                 const takeNumber = baseTakeNumber + i;
                 const { take } = await writeCandidate({
                     projectRoot,

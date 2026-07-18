@@ -80,11 +80,9 @@ export function createProjectDownloadedTake(projectRoot: string): CreateDownload
     const transparencyPostprocessor = delivery?.transparency
       ? await createConfiguredTransparencyPostprocessor()
       : undefined;
-    const generatedAsset = await ensureRequestedTransparency(
-      input.asset,
-      delivery,
-      transparencyPostprocessor,
-    );
+    const generatedAsset = transparencyPostprocessor
+      ? await ensureRequestedTransparency(input.asset, delivery, transparencyPostprocessor)
+      : input.asset;
 
     const { take } = await writeCandidate({
       projectRoot,

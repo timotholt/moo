@@ -257,9 +257,12 @@ export function registerMediaRoutes(fastify: FastifyInstance, getProjectContext:
 
         const takes = await readJsonl<Take>(ctx.paths.catalog.takes, TakeSchema);
         const selectedTakes = takes.filter((take) => takeIds.includes(take.id));
-        if (selectedTakes.length !== takeIds.length || selectedTakes.some((take) => take.media_id !== request.params.id || take.status !== 'approved')) {
+        if (selectedTakes.length !== takeIds.length || selectedTakes.some((take) =>
+            take.media_id !== request.params.id
+            || take.status !== 'approved'
+            || take.technical_status === 'invalid')) {
             reply.code(400);
-            return { error: 'Selected takes must be approved takes belonging to this media item' };
+            return { error: 'Selected takes must be technically valid, approved takes belonging to this media item' };
         }
 
         const currentMedia = catalog.media[mediaIndex];

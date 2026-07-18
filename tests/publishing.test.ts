@@ -51,6 +51,49 @@ describe('publishSelectedTakes', () => {
     await expect(fs.pathExists(join(root, 'exports', 'unsafe-release'))).resolves.toBe(false);
   });
 
+  it('blocks a selected approved take when it is technically invalid', async () => {
+    const root = await fs.mkdtemp(join(os.tmpdir(), 'moo-publish-invalid-'));
+    roots.push(root);
+    await initializeProject(root, { displayName: 'Invalid Library' });
+    const paths = getProjectPaths(root);
+    const now = new Date().toISOString();
+    const media = {
+      id: 'cue-invalid',
+      owner_type: 'global',
+      owner_id: null,
+      bin_id: 'bin-1',
+      media_type: 'image',
+      name: 'invalid art',
+      selected_take_ids: ['take-invalid'],
+      created_at: now,
+      updated_at: now,
+    };
+    const take = {
+      id: 'take-invalid',
+      media_id: 'cue-invalid',
+      take_number: 1,
+      filename: 'invalid.png',
+      path: 'global/image/invalid.png',
+      format: 'png',
+      size_bytes: 5,
+      status: 'approved',
+      technical_status: 'invalid',
+      technical_issues: [{
+        code: 'dimensions_mismatch',
+        stage: 'delivery',
+        message: 'Wrong dimensions',
+      }],
+      created_at: now,
+      updated_at: now,
+    };
+    await fs.writeFile(paths.catalog.media, `${JSON.stringify(media)}\n`);
+    await fs.writeFile(paths.catalog.takes, `${JSON.stringify(take)}\n`);
+    await fs.outputFile(join(root, take.path), 'image');
+
+    await expect(publishSelectedTakes(root, 'invalid-release')).rejects.toThrow('technically invalid');
+    await expect(fs.pathExists(join(root, 'exports', 'invalid-release'))).resolves.toBe(false);
+  });
+
   it('publishes images and both video orientations into distinct destinations', async () => {
     const root = await fs.mkdtemp(join(os.tmpdir(), 'moo-publish-media-'));
     roots.push(root);

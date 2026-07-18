@@ -4,6 +4,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import fs from 'fs-extra';
 import { describe, expect, it } from 'vitest';
 
 import { writeCandidate } from '../src/services/candidate-writer.js';
@@ -80,8 +81,58 @@ describe('writeCandidate', () => {
     const value = await input('image', png(), 'image/png');
     value.delivery = { width: 2, height: 1, transparency: true };
     const result = await writeCandidate(value);
-    expect(result.take).toMatchObject({ format: 'png', width: 2, height: 1 });
+    expect(result.take).toMatchObject({
+      format: 'png',
+      width: 2,
+      height: 1,
+      technical_status: 'valid',
+      technical_issues: [],
+    });
     expect(result.facts.alpha).toMatchObject({ hasTransparentPixels: true, transparentPixels: 1 });
+  });
+
+  it('preserves an opaque PNG as technically invalid when transparency was requested', async () => {
+    const value = await input('image', opaquePng(), 'image/png');
+    value.delivery = { width: 2, height: 1, transparency: true };
+
+    const result = await writeCandidate(value);
+
+    expect(result.take).toMatchObject({
+      status: 'new',
+      technical_status: 'invalid',
+      technical_issues: [
+        expect.objectContaining({
+          code: 'transparency_missing',
+          stage: 'delivery',
+        }),
+      ],
+    });
+    await expect(readFile(join(value.projectRoot, result.take.path))).resolves.toEqual(opaquePng());
+    await expect(readFile(value.paths.catalog.takes, 'utf8')).resolves.toContain('transparency_missing');
+
+    const repeated = await writeCandidate(value);
+    expect(repeated).toMatchObject({ existing: true, take: { id: result.take.id, technical_status: 'invalid' } });
+    expect((await readFile(value.paths.catalog.takes, 'utf8')).trim().split('\n')).toHaveLength(1);
+  });
+
+  it('preserves uninspectable downloaded image bytes with explicit diagnostics', async () => {
+    const bytes = Buffer.from('not-a-png');
+    const value = await input('image', bytes, 'image/png');
+
+    const result = await writeCandidate(value);
+
+    expect(result.take).toMatchObject({
+      format: 'png',
+      technical_status: 'invalid',
+      technical_issues: [
+        expect.objectContaining({
+          code: 'inspection_failed',
+          stage: 'inspection',
+          message: 'Invalid PNG signature',
+        }),
+      ],
+    });
+    await expect(readFile(join(value.projectRoot, result.take.path))).resolves.toEqual(bytes);
   });
 
   it('archives original provider bytes and links source to a postprocessed candidate', async () => {
@@ -130,6 +181,21 @@ describe('writeCandidate', () => {
     expect((await readFile(value.paths.catalog.takes, 'utf8')).trim().split('\n')).toHaveLength(1);
   });
 
+  it('adopts exact promoted bytes after an interrupted catalog write', async () => {
+    const value = await input('dialogue', Buffer.from('mp3'), 'audio/mpeg', audio);
+    const orphanPath = join(value.projectRoot, 'global/dialogue/main/hero_asset_001.mp3');
+    await fs.outputFile(orphanPath, value.generatedAsset.bytes);
+
+    const result = await writeCandidate(value);
+
+    expect(result).toMatchObject({
+      existing: false,
+      take: { technical_status: 'valid', path: 'global/dialogue/main/hero_asset_001.mp3' },
+    });
+    await expect(readFile(orphanPath)).resolves.toEqual(value.generatedAsset.bytes);
+    expect((await readFile(value.paths.catalog.takes, 'utf8')).trim().split('\n')).toHaveLength(1);
+  });
+
   it('does not confuse identical operation IDs from different providers', async () => {
     const firstInput = await input('dialogue', Buffer.from('mp3'), 'audio/mpeg', audio);
     const first = await writeCandidate(firstInput);
@@ -153,16 +219,41 @@ describe('writeCandidate', () => {
     expect((await readFile(firstInput.paths.catalog.takes, 'utf8')).trim().split('\n')).toHaveLength(2);
   });
 
-  it('cleans up on a delivery mismatch without cataloging a take', async () => {
+  it('preserves a dimension or aspect-ratio mismatch as a technically invalid take', async () => {
     const value = await input('video', Buffer.from('mp4'), 'video/mp4', portrait);
-    value.delivery = { aspectRatio: '16:9' };
-    await expect(writeCandidate(value)).rejects.toThrow('16:9');
-    await expect(readFile(value.paths.catalog.takes, 'utf8')).rejects.toThrow();
-    await expect(readFile(join(value.projectRoot, 'global/video/main/hero_asset_001.mp4'))).rejects.toThrow();
+    value.delivery = { aspectRatio: '16:9', width: 1920, height: 1080 };
+
+    const result = await writeCandidate(value);
+
+    expect(result.take.technical_status).toBe('invalid');
+    expect(result.take.technical_issues.map(issue => issue.code)).toEqual([
+      'dimensions_mismatch',
+      'dimensions_mismatch',
+      'aspect_ratio_mismatch',
+    ]);
+    await expect(readFile(join(value.projectRoot, result.take.path))).resolves.toEqual(Buffer.from('mp4'));
   });
 
-  it('rejects a provider MIME that does not match the media kind', async () => {
+  it('preserves a provider media mismatch as a technically invalid take', async () => {
     const value = await input('dialogue', Buffer.from('png'), 'image/png', audio);
-    await expect(writeCandidate(value)).rejects.toThrow('does not match dialogue media');
+    const result = await writeCandidate(value);
+
+    expect(result.take).toMatchObject({
+      status: 'new',
+      technical_status: 'invalid',
+    });
+    expect(result.take.technical_issues.map(issue => issue.code)).toContain('media_type_mismatch');
+    await expect(readFile(join(value.projectRoot, result.take.path))).resolves.toEqual(Buffer.from('png'));
+  });
+
+  it('does not disguise an inspector infrastructure failure as an invalid candidate', async () => {
+    const value = await input('dialogue', Buffer.from('mp3'), 'audio/mpeg', audio);
+    value.dependencies.inspectWithFFprobe = async () => {
+      throw new Error('inspection service unavailable');
+    };
+
+    await expect(writeCandidate(value)).rejects.toThrow('inspection service unavailable');
+    await expect(fs.pathExists(value.paths.catalog.takes)).resolves.toBe(false);
+    await expect(fs.pathExists(join(value.projectRoot, 'global/dialogue/main/hero_asset_001.mp3'))).resolves.toBe(false);
   });
 });

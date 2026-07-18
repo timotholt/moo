@@ -180,6 +180,9 @@ export default function MediaView(props) {
         try {
             if (status.onStatusChange) status.onStatusChange('Processing');
             const take = takes().find(t => t.id === takeId);
+            if (newStatus === 'approved' && take?.technical_status === 'invalid') {
+                throw new Error('This take is technically invalid and cannot be approved.');
+            }
             const previousStatus = take?.status || 'new';
 
             const result = await updateTake(takeId, { status: newStatus });
@@ -339,10 +342,10 @@ export default function MediaView(props) {
         setAiError('');
     };
 
-    const approvedCount = () => takes().filter(t => t.status === 'approved').length;
+    const approvedCount = () => takes().filter(t => t.status === 'approved' && t.technical_status !== 'invalid').length;
     const isSelectedTake = (takeId) => (props.item.selected_take_ids || []).includes(takeId);
     const toggleSelectedTake = async (take) => {
-        if (take.status !== 'approved') return;
+        if (take.status !== 'approved' || take.technical_status === 'invalid') return;
         const next = isSelectedTake(take.id)
             ? (props.item.selected_take_ids || []).filter((id) => id !== take.id)
             : [...(props.item.selected_take_ids || []), take.id];
@@ -507,9 +510,12 @@ export default function MediaView(props) {
                                 <ListItem
                                     sx={{
                                         py: 0.25, px: 0.5, borderRadius: 1,
-                                        bgcolor: take.status === 'approved' ? 'success.dark' :
+                                        bgcolor: take.technical_status === 'invalid' ? 'error.dark' :
+                                            take.status === 'approved' ? 'success.dark' :
                                             take.status === 'rejected' ? 'error.light' : 'action.hover',
-                                        opacity: take.status === 'rejected' ? 0.6 : 1
+                                        opacity: take.status === 'rejected' ? 0.6 : 1,
+                                        border: take.technical_status === 'invalid' ? '1px solid' : 'none',
+                                        borderColor: take.technical_status === 'invalid' ? 'error.main' : 'transparent'
                                     }}
                                 >
                                     <ListItemIcon sx={{ minWidth: 28 }}>
@@ -545,9 +551,11 @@ export default function MediaView(props) {
                                         aria-label={`${isVisualMedia() ? 'Toggle preview for' : 'Play'} ${take.filename || `take ${take.take_number}`}`}
                                     >
                                         <ListItemText
-                                            primary={`${take.filename || `take_${take.take_number}`}${take.status === 'new' && !playback.playedTakes[take.id] ? ' (new)' : ''}`}
+                                            primary={`${take.filename || `take_${take.take_number}`}${take.technical_status === 'invalid' ? ' (technically invalid)' : take.status === 'new' && !playback.playedTakes[take.id] ? ' (new)' : ''}`}
                                             secondary={
-                                                take.status === 'approved' && take.status_changed_at
+                                                take.technical_status === 'invalid'
+                                                    ? `${take.technical_issues?.length || 0} technical issue${take.technical_issues?.length === 1 ? '' : 's'} • preserved for diagnosis`
+                                                    : take.status === 'approved' && take.status_changed_at
                                                     ? `${take.duration_sec?.toFixed(1) || '?'}s • approved ${formatStatusDate(take.status_changed_at)}`
                                                     : take.status === 'rejected' && take.status_changed_at
                                                         ? `${take.duration_sec?.toFixed(1) || '?'}s • rejected ${formatStatusDate(take.status_changed_at)}`
@@ -561,8 +569,10 @@ export default function MediaView(props) {
                                     <IconButton
                                         size="small"
                                         onClick={() => toggleSelectedTake(take)}
-                                        disabled={take.status !== 'approved' || saving()}
-                                        title={isSelectedTake(take.id) ? 'Remove selected deliverable' : 'Select as deliverable'}
+                                        disabled={take.status !== 'approved' || take.technical_status === 'invalid' || saving()}
+                                        title={take.technical_status === 'invalid'
+                                            ? 'Technically invalid takes cannot be selected'
+                                            : isSelectedTake(take.id) ? 'Remove selected deliverable' : 'Select as deliverable'}
                                         sx={{ p: 0.25, color: isSelectedTake(take.id) ? 'warning.main' : 'text.disabled' }}
                                     >
                                         <span style={{ 'font-size': '0.8rem' }}>★</span>
@@ -570,7 +580,10 @@ export default function MediaView(props) {
                                     <IconButton
                                         size="small"
                                         onClick={() => handleTakeStatus(take.id, take.status === 'approved' ? 'new' : 'approved')}
-                                        disabled={isDisabled()}
+                                        disabled={isDisabled() || take.technical_status === 'invalid'}
+                                        title={take.technical_status === 'invalid'
+                                            ? 'Technically invalid takes cannot be approved'
+                                            : take.status === 'approved' ? 'Undo approval' : 'Approve take'}
                                         sx={{
                                             p: 0.25,
                                             color: take.status === 'approved' ? 'common.white' : 'text.disabled',
@@ -624,6 +637,24 @@ export default function MediaView(props) {
                                         fontFamily: 'monospace',
                                         color: 'text.secondary'
                                     }}>
+                                        <Show when={take.technical_status === 'invalid'}>
+                                            <Alert severity="error" sx={{ mb: 1 }}>
+                                                <Typography variant="subtitle2">Technically invalid candidate</Typography>
+                                                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                                                    <For each={take.technical_issues || []}>
+                                                        {(issue) => (
+                                                            <li>
+                                                                <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+                                                                    [{issue.code}] {issue.message}
+                                                                    {issue.expected ? ` Expected: ${issue.expected}.` : ''}
+                                                                    {issue.actual ? ` Actual: ${issue.actual}.` : ''}
+                                                                </Typography>
+                                                            </li>
+                                                        )}
+                                                    </For>
+                                                </Box>
+                                            </Alert>
+                                        </Show>
                                         <Show when={isVisualMedia()}>
                                             <TakePreview take={take} mediaType={props.item.media_type} />
                                         </Show>

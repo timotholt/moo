@@ -47,6 +47,10 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
       reply.code(400);
       return { error: 'Request body is required' };
     }
+    if (body.technical_status !== undefined || body.technical_issues !== undefined) {
+      reply.code(400);
+      return { error: 'Technical validation fields are system-managed and cannot be edited' };
+    }
 
     const catalog = await readCatalog(paths);
 
@@ -66,6 +70,13 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
     }
 
     const currentTake = takes[takeIndex];
+    if (body.status === 'approved' && currentTake.technical_status === 'invalid') {
+      reply.code(409);
+      return {
+        error: 'Technically invalid takes cannot be approved',
+        technical_issues: currentTake.technical_issues,
+      };
+    }
     const now = new Date().toISOString();
     const statusChanged = body.status !== undefined && body.status !== currentTake.status;
     const updatedTake: Take = {
