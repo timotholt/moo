@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { join } from 'path';
 import os from 'os';
 import { getProjectPaths } from '../src/utils/paths.js';
-import { runBatchGeneration } from '../src/services/generation.js';
+import { requestGenerationCancellation, runBatchGeneration } from '../src/services/generation.js';
 
 vi.mock('../src/services/provider-factory.js', () => ({
   getAudioProvider: vi.fn(),
@@ -287,5 +287,87 @@ describe('M2.5 Batch Generation', () => {
     await fs.appendFile(paths.catalog.media, JSON.stringify(media) + '\n');
     const [first, second] = await Promise.all([runBatchGeneration(projectRoot, { dryRun: true }), runBatchGeneration(projectRoot, { dryRun: true })]);
     expect(first.job.id).toBe(second.job.id);
+  });
+
+  it('harvests the in-flight provider request after cancellation and submits no more', async () => {
+    const paths = getProjectPaths(projectRoot);
+    const now = new Date().toISOString();
+    const actor = {
+      id: 'actor-cancel',
+      display_name: 'Cancel',
+      base_filename: 'cancel',
+      default_blocks: {
+        dialogue: {
+          provider: 'elevenlabs',
+          approval_count_default: 2,
+          min_candidates: 2,
+          voice_id: 'voice-cancel',
+        },
+      },
+      actor_complete: false,
+      created_at: now,
+      updated_at: now,
+    };
+    const bin = {
+      id: 'bin-cancel',
+      owner_type: 'actor',
+      owner_id: actor.id,
+      media_type: 'dialogue',
+      name: 'Cancel',
+      default_blocks: { dialogue: { provider: 'inherit' } },
+      bin_complete: false,
+      created_at: now,
+      updated_at: now,
+    };
+    const media = {
+      id: 'media-cancel',
+      owner_type: 'actor',
+      owner_id: actor.id,
+      bin_id: bin.id,
+      media_type: 'dialogue',
+      name: 'line',
+      prompt: 'Finish this paid request',
+      created_at: now,
+      updated_at: now,
+    };
+    await fs.appendFile(paths.catalog.actors, `${JSON.stringify(actor)}\n`);
+    await fs.appendFile(paths.catalog.bins, `${JSON.stringify(bin)}\n`);
+    await fs.appendFile(paths.catalog.media, `${JSON.stringify(media)}\n`);
+
+    let resolveProvider!: (bytes: Buffer) => void;
+    let markProviderStarted!: () => void;
+    const providerStarted = new Promise<void>(resolve => { markProviderStarted = resolve; });
+    const providerResult = new Promise<Buffer>(resolve => { resolveProvider = resolve; });
+    const generateDialogue = vi.fn().mockImplementation(async () => {
+      markProviderStarted();
+      return providerResult;
+    });
+    vi.mocked(providerFactory.getAudioProvider).mockResolvedValue({
+      generateDialogue,
+      generateMusic: vi.fn(),
+      generateSFX: vi.fn(),
+      getQuota: vi.fn(),
+      getVoices: vi.fn(),
+    });
+    vi.mocked(ffprobeSvc.probeAudio).mockResolvedValue({
+      format: { duration: 1, size: 4, bit_rate: 64000 },
+      streams: [{ codec_name: 'mp3', sample_rate: '44100', channels: 1 }],
+    });
+    vi.mocked(hashSvc.hashFile).mockResolvedValue('cancelled'.padEnd(64, '0'));
+
+    const run = runBatchGeneration(projectRoot, { mediaId: media.id });
+    await providerStarted;
+    const runningJobs = (await fs.readFile(paths.catalog.generationJobs, 'utf8')).trim().split('\n').map(JSON.parse);
+    await requestGenerationCancellation(projectRoot, runningJobs[0].id);
+    resolveProvider(Buffer.from('paid'));
+
+    const { job } = await run;
+    expect(job.status).toBe('cancelled');
+    expect(job.cancel_requested_at).toBeTruthy();
+    expect(job.total_takes_created).toBe(1);
+    expect(generateDialogue).toHaveBeenCalledTimes(1);
+    const takes = (await fs.readFile(paths.catalog.takes, 'utf8')).trim().split('\n').map(JSON.parse);
+    expect(takes).toHaveLength(1);
+    expect(takes[0]).toMatchObject({ media_id: media.id, status: 'new' });
   });
 });
