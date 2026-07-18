@@ -21,7 +21,14 @@ export async function createDefaultGeneratorRegistry(
   dependencies: DefaultGeneratorRegistryDependencies = {},
 ): Promise<GeneratorRegistry> {
   const loadAudioProvider = dependencies.loadAudioProvider ?? getAudioProvider;
-  const elevenLabs = new ElevenLabsGeneratorAdapter(await loadAudioProvider(projectRoot));
+  const registry = new GeneratorRegistry();
+  try {
+    registry.register(new ElevenLabsGeneratorAdapter(await loadAudioProvider(projectRoot)));
+  } catch {
+    // Provider availability is a capability/preflight concern. Returning the
+    // remaining registry lets projects open and reconcile other providers even
+    // when ElevenLabs is not configured.
+  }
 
-  return new GeneratorRegistry([elevenLabs]);
+  return registry;
 }

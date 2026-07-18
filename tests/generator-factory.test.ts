@@ -40,4 +40,13 @@ describe('default generator registry factory', () => {
     expect(registry.supports('elevenlabs', 'image')).toBe(false);
     expect(registry.supports('elevenlabs', 'video')).toBe(false);
   });
+
+  it('still creates a usable empty registry when ElevenLabs is unconfigured', async () => {
+    const registry = await createDefaultGeneratorRegistry('/projects/moo', {
+      loadAudioProvider: vi.fn().mockRejectedValue(new Error('ElevenLabs API key not configured')),
+    });
+
+    expect(registry.list()).toEqual([]);
+    expect(registry.supports('elevenlabs', 'dialogue')).toBe(false);
+  });
 });
