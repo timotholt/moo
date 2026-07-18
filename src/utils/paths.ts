@@ -32,6 +32,7 @@ export function getProjectPaths(projectRoot: string) {
             media: join(mooDir, 'media.jsonl'),
             takes: join(mooDir, 'takes.jsonl'),
             generationJobs: join(mooDir, 'generation-jobs.jsonl'),
+            generationOperations: join(mooDir, 'generation-operations.jsonl'),
             releases: join(mooDir, 'releases.jsonl'),
             snapshots: join(mooDir, 'snapshots.jsonl'),
             redoSnapshots: join(mooDir, 'redo-snapshots.jsonl'),
