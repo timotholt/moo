@@ -2,6 +2,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fs from 'fs-extra';
 import { join, basename } from 'path';
 import { initializeProject } from '../../services/project-initializer.js';
+import { createDefaultGeneratorRegistry } from '../../services/generators/factory.js';
+import { reconcileProjectGeneration } from '../../services/project-generation-recovery.js';
 
 // Projects are stored relative to the app root
 const PROJECTS_DIR = join(process.cwd(), 'projects');
@@ -258,6 +260,14 @@ export default async function projectRoutes(fastify: FastifyInstance) {
       // Switch to the new project
       setCurrentProject(projectPath);
 
+      let recovery: Awaited<ReturnType<typeof reconcileProjectGeneration>> | { error: string };
+      try {
+        const registry = await createDefaultGeneratorRegistry(projectPath);
+        recovery = await reconcileProjectGeneration(projectPath, registry);
+      } catch (error) {
+        recovery = { error: error instanceof Error ? error.message : String(error) };
+      }
+
       // Read project config for display name
       const configPath = join(mooPath, 'config.json');
       let config: { name?: string } = {};
@@ -270,7 +280,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
           name: body.name,
           displayName: config.name || body.name,
           path: projectPath,
-        }
+        },
+        recovery,
       };
     } catch (error) {
       fastify.log.error(error);
