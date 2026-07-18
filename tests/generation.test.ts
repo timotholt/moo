@@ -245,6 +245,18 @@ describe('M2.5 Batch Generation', () => {
     expect(take.media_id).toBe(media.id);
     expect(take.hash_sha256).toHaveLength(64);
     expect(take.duration_sec).toBeCloseTo(1.23);
+
+    const operationsContent = await fs.readFile(paths.catalog.generationOperations, 'utf-8');
+    const operation = JSON.parse(operationsContent.trim());
+    expect(operation).toMatchObject({
+      generation_job_id: job.id,
+      media_id: media.id,
+      asset_kind: 'dialogue',
+      provider: 'elevenlabs',
+      status: 'completed',
+      downloaded_take_id: take.id,
+    });
+    expect(operation.request_id).toBeTruthy();
   });
 
   it('does not generate more takes after the approval target is met', async () => {

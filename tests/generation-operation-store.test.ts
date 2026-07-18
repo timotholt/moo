@@ -24,6 +24,7 @@ function operationInput(overrides: Record<string, unknown> = {}) {
     generation_job_id: 'job-1',
     media_id: 'media-1',
     asset_kind: 'video' as const,
+    request_id: 'request-1',
     provider: 'openai',
     provider_operation_id: 'provider-op-1',
     submitted_at: '2026-07-17T12:00:00.000Z',
@@ -62,12 +63,29 @@ describe('GenerationOperationStore', () => {
       progress: 0.4,
       last_polled_at: '2026-07-17T12:01:00.000Z',
     });
-    const completed = await firstProcess.create(operationInput({ provider_operation_id: 'provider-op-2', media_id: 'media-2', asset_kind: 'image' }));
-    await firstProcess.update(completed.id, { status: 'completed', downloaded_take_id: 'take-1' });
+    const completed = await firstProcess.create(operationInput({
+      provider_operation_id: 'provider-op-2',
+      media_id: 'media-2',
+      asset_kind: 'image',
+      status: 'completed',
+      provider_metadata: { request_id: 'request-2' },
+    }));
 
     const restartedProcess = new GenerationOperationStore(root);
     await expect(restartedProcess.list()).resolves.toHaveLength(2);
-    await expect(restartedProcess.listForRestartReconciliation()).resolves.toEqual([expect.objectContaining({ id: processing.id, status: 'processing', progress: 0.4 })]);
+    await expect(restartedProcess.listForRestartReconciliation()).resolves.toEqual([
+      expect.objectContaining({ id: processing.id, status: 'processing', progress: 0.4 }),
+      expect.objectContaining({
+        id: completed.id,
+        status: 'completed',
+        provider_metadata: { request_id: 'request-2' },
+      }),
+    ]);
+
+    await firstProcess.update(completed.id, { downloaded_take_id: 'take-1' });
+    await expect(restartedProcess.listForRestartReconciliation()).resolves.toEqual([
+      expect.objectContaining({ id: processing.id }),
+    ]);
   });
 
   it('keeps remote work reconcilable when a generation job stops submitting new work', async () => {

@@ -35,9 +35,11 @@ export const GenerationOperationSchema = z.object({
   generation_job_id: IdSchema,
   media_id: IdSchema,
   asset_kind: GenerationAssetKindSchema,
+  request_id: IdSchema,
   /** Provider names remain open so new adapters do not require schema churn. */
   provider: z.string().min(1).max(80),
   provider_operation_id: z.string().min(1).max(255),
+  provider_metadata: z.record(z.string(), z.unknown()).optional(),
   status: GenerationOperationStatusSchema,
   progress: z.number().min(0).max(1).optional(),
   requested_delivery_profile: RequestedDeliveryProfileSchema.optional(),
@@ -77,12 +79,15 @@ export const CreateGenerationOperationSchema = z.object({
   generation_job_id: IdSchema,
   media_id: IdSchema,
   asset_kind: GenerationAssetKindSchema,
+  request_id: IdSchema,
   provider: z.string().min(1).max(80),
   provider_operation_id: z.string().min(1).max(255),
+  provider_metadata: z.record(z.string(), z.unknown()).optional(),
   requested_delivery_profile: RequestedDeliveryProfileSchema.optional(),
-  submitted_at: TimestampSchema,
+  submitted_at: TimestampSchema.optional(),
   status: GenerationOperationStatusSchema.optional(),
   progress: z.number().min(0).max(1).optional(),
+  error: z.string().min(1).max(4000).optional(),
 }).strict();
 
 export const UpdateGenerationOperationSchema = z.object({
@@ -92,6 +97,7 @@ export const UpdateGenerationOperationSchema = z.object({
   completed_at: TimestampSchema.optional(),
   failed_at: TimestampSchema.optional(),
   error: z.string().min(1).max(4000).optional(),
+  provider_metadata: z.record(z.string(), z.unknown()).optional(),
   downloaded_take_id: IdSchema.optional(),
 }).strict();
 

@@ -36,11 +36,15 @@ export class GenerationOperationStore {
   async create(input: CreateGenerationOperationInput): Promise<GenerationOperation> {
     const validated = CreateGenerationOperationSchema.parse(input);
     const now = new Date().toISOString();
+    const status = validated.status ?? 'submitted';
     const operation = GenerationOperationSchema.parse({
       ...validated,
       id: generateId(),
-      status: validated.status ?? 'submitted',
+      status,
       submitted_at: validated.submitted_at ?? now,
+      completed_at: status === 'completed' ? now : undefined,
+      failed_at: status === 'failed' ? now : undefined,
+      error: status === 'failed' ? validated.error : undefined,
       created_at: now,
       updated_at: now,
     });
@@ -89,10 +93,11 @@ export class GenerationOperationStore {
 
   /** Operations to poll/download after a process restart. Terminal records are excluded. */
   async listForRestartReconciliation(options: RestartReconciliationOptions = {}): Promise<GenerationOperation[]> {
-    return this.list({
-      generationJobId: options.generationJobId,
-      statuses: ['submitted', 'processing'],
-    });
+    const operations = await this.list({ generationJobId: options.generationJobId });
+    return operations.filter((operation) =>
+      operation.status === 'submitted'
+      || operation.status === 'processing'
+      || (operation.status === 'completed' && !operation.downloaded_take_id));
   }
 
   private async readAll(): Promise<GenerationOperation[]> {

@@ -3,13 +3,23 @@ import { dirname, join } from 'path';
 import { getProjectPaths } from '../utils/paths.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../utils/jsonl.js';
 import { generateId } from '../utils/ids.js';
-import { getAudioProvider } from './provider-factory.js';
 import { probeAudio } from './audio/ffprobe.js';
 import { hashFile } from './audio/hash.js';
 import { writeMetadata, buildMetadataFromTake } from './audio/metadata.js';
 import type { Actor, Defaults, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
 import { getExtensionForType } from '../utils/pathConstruction.js';
 import { calculateCueLifecycle } from './cue-lifecycle.js';
+import { createDefaultGeneratorRegistry } from './generators/factory.js';
+import type {
+    AssetGenerator,
+    AssetKind,
+    DeliveryRequirements,
+    GenerationRequest,
+    ProviderOperation,
+    VideoAspectRatio,
+} from './generators/types.js';
+import { GenerationOperationStore } from './generation-operation-store.js';
+import type { RequestedDeliveryProfile } from '../shared/schemas/generation-operation.schema.js';
 
 export interface BatchGenerationOptions {
     actorId?: string;
@@ -24,6 +34,52 @@ export interface BatchGenerationOptions {
 
 export interface BatchGenerationResult {
     job: GenerationJob;
+}
+
+function asAssetKind(mediaType: Media['media_type']): AssetKind {
+    if (mediaType === 'text') throw new Error('Generation not supported for text');
+    return mediaType;
+}
+
+function asVideoAspectRatio(value: unknown): VideoAspectRatio | undefined {
+    return value === '16:9' || value === '9:16' ? value : undefined;
+}
+
+function buildDeliveryRequirements(settings: Record<string, unknown>, mediaType: Media['media_type']): DeliveryRequirements {
+    return {
+        format: getExtensionForType(mediaType),
+        width: typeof settings.width === 'number' ? settings.width : undefined,
+        height: typeof settings.height === 'number' ? settings.height : undefined,
+        aspectRatio: asVideoAspectRatio(settings.aspect_ratio),
+        durationSeconds: typeof settings.duration_seconds === 'number' ? settings.duration_seconds : undefined,
+        frameRate: typeof settings.fps === 'number' ? settings.fps : undefined,
+        transparency: typeof settings.transparency === 'boolean' ? settings.transparency : undefined,
+    };
+}
+
+function toRequestedDeliveryProfile(delivery: DeliveryRequirements): RequestedDeliveryProfile {
+    return {
+        width: delivery.width,
+        height: delivery.height,
+        duration_sec: delivery.durationSeconds,
+        fps: delivery.frameRate,
+        format: delivery.format,
+        video_aspect_ratio: delivery.aspectRatio,
+    };
+}
+
+async function waitForProviderCompletion(
+    generator: AssetGenerator,
+    initial: ProviderOperation,
+    onTransition: (operation: ProviderOperation) => Promise<void>,
+): Promise<ProviderOperation> {
+    let operation = initial;
+    while (operation.status === 'submitted' || operation.status === 'processing') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        operation = await generator.poll(operation);
+        await onTransition(operation);
+    }
+    return operation;
 }
 
 export async function requestGenerationCancellation(projectRoot: string, jobId: string): Promise<GenerationJob> {
@@ -115,9 +171,10 @@ async function executeBatchGeneration(
     const items: GenerationJobItemSummary[] = [];
     await appendJsonl(paths.catalog.generationJobs, job);
 
-    let provider: Awaited<ReturnType<typeof getAudioProvider>> | null = null;
+    let registry: Awaited<ReturnType<typeof createDefaultGeneratorRegistry>> | null = null;
     try {
-      provider = options.dryRun ? null : await getAudioProvider(projectRoot);
+      registry = options.dryRun ? null : await createDefaultGeneratorRegistry(projectRoot);
+      const operationStore = new GenerationOperationStore(projectRoot);
 
     // Filter media by requested scope. Completion is evaluated from the
     // canonical lifecycle below, after each cue's settings are resolved.
@@ -218,22 +275,70 @@ async function executeBatchGeneration(
                 break;
             }
             try {
-                if (!provider) throw new Error('Audio provider unavailable');
+                if (!registry) throw new Error('Generator registry unavailable');
                 const prompt = media.prompt || media.name;
-                let buffer: Buffer;
-                if (media.media_type === 'dialogue') {
-                    if (!settings.voice_id) throw new Error('No voice_id resolved for dialogue');
-                    buffer = await provider.generateDialogue(prompt, settings.voice_id, {
-                        stability: settings.stability,
-                        similarity_boost: settings.similarity_boost,
-                    }, settings.model_id);
-                } else if (media.media_type === 'music') {
-                    buffer = await provider.generateMusic(prompt, { duration_seconds: settings.duration_seconds });
-                } else if (media.media_type === 'sfx') {
-                    buffer = await provider.generateSFX(prompt, { duration_seconds: settings.duration_seconds });
-                } else {
-                    throw new Error(`Generation not supported for ${media.media_type}`);
+                const assetKind = asAssetKind(media.media_type);
+                const providerId = settings.provider === 'inherit' ? 'elevenlabs' : settings.provider;
+                const generator = registry.get(providerId);
+                if (!generator || !registry.supports(providerId, assetKind)) {
+                    throw new Error(`${providerId} does not support ${assetKind} generation`);
                 }
+                if (assetKind === 'dialogue' && !settings.voice_id) {
+                    throw new Error('No voice_id resolved for dialogue');
+                }
+
+                const delivery = buildDeliveryRequirements(settings, media.media_type);
+                const generationRequest: GenerationRequest = {
+                    id: generateId(),
+                    assetKind,
+                    prompt,
+                    delivery,
+                    settings: {
+                        voiceId: settings.voice_id,
+                        voice: {
+                            stability: settings.stability,
+                            similarity_boost: settings.similarity_boost,
+                        },
+                        modelId: settings.model_id,
+                        music: { duration_seconds: settings.duration_seconds },
+                        sfx: { duration_seconds: settings.duration_seconds },
+                    },
+                    metadata: {
+                        generationJobId: job.id,
+                        mediaId: media.id,
+                    },
+                };
+
+                let providerOperation = await generator.submit(generationRequest);
+                const persistedOperation = await operationStore.create({
+                    generation_job_id: job.id,
+                    media_id: media.id,
+                    asset_kind: assetKind,
+                    request_id: generationRequest.id,
+                    provider: providerOperation.providerId,
+                    provider_operation_id: providerOperation.operationId,
+                    provider_metadata: providerOperation.providerMetadata,
+                    requested_delivery_profile: toRequestedDeliveryProfile(delivery),
+                    status: providerOperation.status,
+                    error: providerOperation.error,
+                });
+                providerOperation = await waitForProviderCompletion(
+                    generator,
+                    providerOperation,
+                    async next => {
+                        await operationStore.update(persistedOperation.id, {
+                            status: next.status,
+                            provider_metadata: next.providerMetadata,
+                            error: next.error,
+                            last_polled_at: new Date().toISOString(),
+                        });
+                    },
+                );
+                if (providerOperation.status === 'failed') {
+                    throw new Error(providerOperation.error || `${providerId} generation failed`);
+                }
+                const generatedAsset = await generator.download(providerOperation);
+                const buffer = generatedAsset.bytes;
 
                 const takeNumber = baseTakeNumber + i;
 
@@ -279,13 +384,18 @@ async function executeBatchGeneration(
                         owner_id: media.owner_id ?? null,
                         owner_name: owner ? ('display_name' in owner ? owner.display_name : owner.name) : 'Global',
                         bin_name: bin.name,
-                        generated_at: now
+                        generated_at: now,
+                        api_request_id: providerOperation.operationId,
+                        provider_metadata: generatedAsset.providerMetadata,
                     },
+                    generated_by: settings.provider,
+                    generated_at: now,
                     created_at: now,
                     updated_at: now,
                 };
 
                 await appendJsonl(paths.catalog.takes, take);
+                await operationStore.update(persistedOperation.id, { downloaded_take_id: take.id });
 
                 // Embed metadata
                 try {
