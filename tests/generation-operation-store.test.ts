@@ -52,6 +52,22 @@ describe('GenerationOperationStore', () => {
     await expect(fs.readFile(paths.catalog.generationOperations, 'utf8')).resolves.toContain('provider-op-1');
   });
 
+  it('persists an orientation request even when the provider chooses exact dimensions', async () => {
+    const { store } = await createStore();
+    const created = await store.create(operationInput({
+      provider_operation_id: 'provider-op-ratio-only',
+      requested_delivery_profile: {
+        format: 'mp4',
+        video_aspect_ratio: '16:9',
+      },
+    }));
+
+    expect(created.requested_delivery_profile).toEqual({
+      format: 'mp4',
+      video_aspect_ratio: '16:9',
+    });
+  });
+
   it('reloads submitted work after restart and only reconciles non-terminal operations', async () => {
     const root = await fs.mkdtemp(join(os.tmpdir(), 'moo-operation-restart-'));
     roots.push(root);

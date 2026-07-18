@@ -376,7 +376,7 @@ async function executeBatchGeneration(
                     lufs_integrated: 0,
                     peak_dbfs: 0,
                     generation_params: {
-                        provider: settings.provider,
+                        provider: providerOperation.providerId,
                         resolved_from: resolved.resolvedFrom,
                         full_settings: settings,
                         prompt,
@@ -388,7 +388,7 @@ async function executeBatchGeneration(
                         api_request_id: providerOperation.operationId,
                         provider_metadata: generatedAsset.providerMetadata,
                     },
-                    generated_by: settings.provider,
+                    generated_by: providerOperation.providerId,
                     generated_at: now,
                     created_at: now,
                     updated_at: now,

@@ -7,7 +7,9 @@ import { z } from 'zod';
 export const OwnerTypeSchema = z.enum(['actor', 'scene', 'global']);
 export const MediaTypeSchema = z.enum(['dialogue', 'music', 'sfx', 'image', 'video', 'text']);
 export const TakeStatusSchema = z.enum(['new', 'approved', 'rejected', 'hidden']);
-export const ProviderSchema = z.enum(['elevenlabs', 'openai', 'runway', 'manual', 'inherit']);
+// Provider IDs are capability-driven. Keeping this open avoids schema changes
+// every time MOO gains another image/video provider.
+export const ProviderSchema = z.string().min(1).max(80);
 
 // ============================================================================
 // Common Fields

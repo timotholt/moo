@@ -20,15 +20,7 @@ export const RequestedDeliveryProfileSchema = z.object({
   format: z.string().min(1).max(32).optional(),
   /** Required for video so the requested orientation is durable and testable. */
   video_aspect_ratio: VideoAspectRatioSchema.optional(),
-}).strict().superRefine((profile, context) => {
-  if (profile.video_aspect_ratio && (!profile.width || !profile.height)) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['video_aspect_ratio'],
-      message: 'Video delivery profiles require width and height.',
-    });
-  }
-});
+}).strict();
 
 export const GenerationOperationSchema = z.object({
   id: IdSchema,
