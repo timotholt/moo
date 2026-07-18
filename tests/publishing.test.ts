@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import fs from 'fs-extra';
 import os from 'node:os';
 import { join } from 'node:path';
@@ -76,7 +77,7 @@ describe('publishSelectedTakes', () => {
     const result = await publishSelectedTakes(root, 'mixed-release');
     const manifest = await fs.readJson(result.manifest_path);
 
-    expect(manifest.schema_version).toBe('2.0.0');
+    expect(manifest.schema_version).toBe('3.0.0');
     expect(manifest.assets.map((asset: { file: string }) => asset.file)).toEqual([
       'images/unit.png',
       'video/landscape/wide.mp4',
@@ -85,5 +86,77 @@ describe('publishSelectedTakes', () => {
     await expect(fs.pathExists(join(root, 'exports/mixed-release/images/unit.png'))).resolves.toBe(true);
     await expect(fs.pathExists(join(root, 'exports/mixed-release/video/landscape/wide.mp4'))).resolves.toBe(true);
     await expect(fs.pathExists(join(root, 'exports/mixed-release/video/portrait/tall.mp4'))).resolves.toBe(true);
+  });
+
+  it('renders and publishes a complete card package with source art and provenance', async () => {
+    const root = await fs.mkdtemp(join(os.tmpdir(), 'moo-publish-card-'));
+    roots.push(root);
+    await initializeProject(root, { displayName: 'Card Library' });
+    const paths = getProjectPaths(root);
+    const now = new Date().toISOString();
+    const art = Buffer.from('card-source-art');
+    const media = {
+      id: 'card-art',
+      owner_type: 'card',
+      owner_id: 'card-1',
+      bin_id: 'card-images',
+      media_type: 'image',
+      name: 'Illustration',
+      selected_take_ids: ['take-art'],
+      created_at: now,
+      updated_at: now,
+    };
+    const take = {
+      id: 'take-art',
+      media_id: 'card-art',
+      take_number: 1,
+      filename: 'illustration.png',
+      path: 'cards/card-1/image/illustration.png',
+      format: 'png',
+      size_bytes: art.length,
+      status: 'approved',
+      hash_sha256: createHash('sha256').update(art).digest('hex'),
+      created_at: now,
+      updated_at: now,
+    };
+    const card = {
+      id: 'card-1',
+      key: 'ember-adept',
+      name: 'Ember Adept',
+      rules: { cost: 3 },
+      asset_slots: [
+        {
+          key: 'illustration',
+          label: 'Illustration',
+          asset_kind: 'image',
+          required: true,
+          media_id: 'card-art',
+          delivery: { format: 'png' },
+        },
+      ],
+      created_at: now,
+      updated_at: now,
+    };
+    await fs.writeFile(paths.catalog.cards, `${JSON.stringify(card)}\n`);
+    await fs.writeFile(paths.catalog.media, `${JSON.stringify(media)}\n`);
+    await fs.writeFile(paths.catalog.takes, `${JSON.stringify(take)}\n`);
+    await fs.outputFile(join(root, take.path), art);
+
+    const result = await publishSelectedTakes(root, 'card-release');
+    const manifest = await fs.readJson(result.manifest_path);
+
+    expect(result.exported_count).toBe(2);
+    expect(manifest.assets[0]).toMatchObject({
+      file: 'cards/source-art/illustration.png',
+      card_id: 'card-1',
+      card_slot_key: 'illustration',
+    });
+    expect(manifest.cards[0]).toMatchObject({
+      card_key: 'ember-adept',
+      rendered_file: 'cards/rendered/ember-adept.svg',
+      composition_file: 'cards/rendered/ember-adept.composition.json',
+      provenance: { templateVersion: '1.0.0' },
+    });
+    await expect(fs.pathExists(join(root, 'exports/card-release/cards/rendered/ember-adept.svg'))).resolves.toBe(true);
   });
 });
