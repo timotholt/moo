@@ -25,7 +25,14 @@ describe('inspectWithFFprobe', () => {
       streams: [{ codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080, r_frame_rate: '30000/1001' }],
     };
     const result = await inspectWithFFprobe('/tmp/landscape.mp4', { runner: runner(output) });
-    expect(result).toMatchObject({ mediaKind: 'video', width: 1920, height: 1080, codec: 'h264', audioTrackCount: 0 });
+    expect(result).toMatchObject({
+      mediaKind: 'video',
+      mimeType: 'video/mp4',
+      width: 1920,
+      height: 1080,
+      codec: 'h264',
+      audioTrackCount: 0,
+    });
     expect(result.mediaKind === 'video' && result.frameRate).toBeCloseTo(29.97002997);
   });
 

@@ -225,11 +225,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function audioMimeType(output: FFprobeOutput): string {
-  const name = container(output);
-  return name === 'mp3' ? 'audio/mpeg' : name === 'wav' ? 'audio/wav' : `audio/${name}`;
+  const names = formatNames(output);
+  if (names.includes('mp3')) return 'audio/mpeg';
+  if (names.includes('wav')) return 'audio/wav';
+  if (names.includes('m4a') || names.includes('mp4')) return 'audio/mp4';
+  return `audio/${names[0]}`;
 }
 
 function videoMimeType(output: FFprobeOutput): string {
-  const name = container(output);
-  return name === 'mov' ? 'video/quicktime' : 'video/mp4';
+  const names = formatNames(output);
+  if (names.includes('mp4') || names.includes('m4v')) return 'video/mp4';
+  if (names.includes('webm')) return 'video/webm';
+  if (names.includes('matroska')) return 'video/x-matroska';
+  if (names.length === 1 && names[0] === 'mov') return 'video/quicktime';
+  return `video/${names[0]}`;
+}
+
+function formatNames(output: FFprobeOutput): string[] {
+  const names = nonEmptyString(output.format?.format_name, 'container')
+    .split(',')
+    .map(name => name.trim().toLowerCase())
+    .filter(Boolean);
+  if (names.length === 0) throw new FFprobeInspectionError('container is required');
+  return names;
 }
