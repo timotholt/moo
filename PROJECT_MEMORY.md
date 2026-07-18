@@ -2,7 +2,7 @@
 
 ## Purpose
 
-MOO (Media Output Organizer) is a local media manager intended to support a prompt -> ElevenLabs generation -> take review/approval workflow. It is being developed as a future asset-generation tool for Fireteam; Fireteam integration is out of scope for the current MOO work.
+MOO (Media Output Organizer) is a local-first multimedia authoring tool built around prompt -> generation -> candidate review/approval -> selection -> publication. The end state supports audio, transparent images, `16:9` and `9:16` video, and first-class CCG cards with deterministic composition. Game integration is out of scope for the current MOO work.
 
 ## Runtime
 
@@ -25,6 +25,7 @@ MOO currently uses filesystem data, not SQLite or another database.
 - Generated media is stored under project-root folders: `actors/`, `scenes/`, `global/`, and `exports/`.
 - The checked-in sample data is older/legacy-shaped (`catalog/*.jsonl`, `projects/test/*`) and does not fully match the V2 `.moo/` path convention.
 - Generation jobs and history are also represented as JSONL in the legacy sample/catalog layout.
+- Durable provider operations use `<project>/.moo/generation-operations.jsonl` so submitted asynchronous work can be reconciled after restart.
 - Global ElevenLabs credentials are read from `<app cwd>/.moo-config.json`; project-specific provider configuration is read from `<project>/.moo/config.json`.
 
 ## Current implementation facts
@@ -34,6 +35,7 @@ MOO currently uses filesystem data, not SQLite or another database.
 - Take review decisions persist `status_changed_at` and `reviewed_at`; expanded take details provide a persistent local-first `review_note`.
 - System → review queue is server-derived from cue lifecycle and excludes cues that meet their target or were finished early.
 - MOO is clean-start only: live media has no legacy `all_approved` flag. Completion is derived from takes plus `completion_override` (Finish Early).
+- Cancellation means stop submitting new provider work. Any provider operation already submitted is allowed to finish and must be harvested; MOO does not relabel remote paid work as cancelled.
 - Prompt-improvement provider settings (including Groq keys) are stored in the same local server config as ElevenLabs and displayed in Settings; they are not browser-local.
 - Local setup is pinned by `.nvmrc` and `packageManager`; use `pnpm install --frozen-lockfile` and `pnpm run audio:preflight`.
 - The API keeps the selected project only in server process memory; it is not persisted across restarts.
@@ -42,9 +44,13 @@ MOO currently uses filesystem data, not SQLite or another database.
 
 ## Working assumptions
 
-When extending MOO, preserve project-local portability, keep Fireteam integration separate, and treat the V2 `.moo/` layout versus legacy `catalog/` and `projects/` fixtures as an explicit migration/compatibility concern.
+When extending MOO, preserve project-local portability and keep all game integration separate.
 
 Current rewrite scope starts clean: there are no existing users, legacy project data, or audio files that must be migrated or imported. Do not spend implementation effort on compatibility, migration tooling, or existing-file ingestion unless that scope changes later.
+
+Do not read, edit, stage, restore, or otherwise touch `/Users/timotholt/Projects/fireteam` or MOO's tracked `projects/fireteam/` paths. They are outside the authorized MOO rewrite scope. Do not touch CruelDeal unless the user explicitly requests it.
+
+The multimedia end-state specification and nine-milestone implementation program live in `docs/multimedia-authoring-end-state.md`.
 
 ## Collaboration preference
 
