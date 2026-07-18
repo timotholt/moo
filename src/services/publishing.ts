@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { basename, join, extname } from 'path';
+import { basename, dirname, join, extname } from 'path';
 import { getProjectPaths } from '../utils/paths.js';
 import type { Media, ReleaseRecord, Take } from '../types/index.js';
 import { appendJsonl, readJsonl } from '../utils/jsonl.js';
@@ -18,6 +18,7 @@ interface ExportCandidate {
   take: Take;
   filename: string;
   source: string;
+  destinationDirectory: string;
 }
 
 function releaseId(input?: string): string {
@@ -35,6 +36,33 @@ function validateExportFilename(filename: string): string {
   return normalized;
 }
 
+function videoOrientation(take: Take): 'landscape' | 'portrait' {
+  const configuredRatio = take.generation_params?.full_settings?.aspect_ratio;
+  if (configuredRatio === '9:16') return 'portrait';
+  if (configuredRatio === '16:9') return 'landscape';
+  if (take.width && take.height && take.height > take.width) return 'portrait';
+  return 'landscape';
+}
+
+function publicationDirectory(cue: Media, take: Take): string {
+  switch (cue.media_type) {
+    case 'dialogue':
+    case 'music':
+    case 'sfx':
+      return 'audio';
+    case 'image':
+      return 'images';
+    case 'video':
+      return `video/${videoOrientation(take)}`;
+    case 'text':
+      return 'text';
+  }
+}
+
+function manifestPath(...parts: string[]): string {
+  return parts.join('/');
+}
+
 /** Create a portable, game-agnostic release from explicitly selected takes. */
 export async function publishSelectedTakes(projectRoot: string, requestedReleaseId?: string): Promise<PublishResult> {
   const paths = getProjectPaths(projectRoot);
@@ -47,7 +75,6 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
 
   const releaseDir = join(paths.media.exports, id);
   const stagingDir = join(paths.media.exports, `.${id}.staging`);
-  const audioDir = join(stagingDir, 'audio');
   if (await fs.pathExists(releaseDir)) throw new Error(`Release already exists: ${id}`);
   if (await fs.pathExists(stagingDir)) throw new Error(`Release staging directory already exists: ${id}`);
 
@@ -62,8 +89,10 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
       if (!take || take.status !== 'approved') throw new Error(`Cue ${cue.name}: selected take ${takeId} is not an approved cue take`);
       const source = join(projectRoot, take.path);
       if (!(await fs.pathExists(source))) throw new Error(`Cue ${cue.name}: selected source file is missing: ${take.path}`);
+      const destinationDirectory = publicationDirectory(cue, take);
       let filename = validateExportFilename(cue.export_filename || basename(take.path));
-      if (usedFilenames.has(filename)) {
+      const collisionKey = (candidate: string) => manifestPath(destinationDirectory, candidate);
+      if (usedFilenames.has(collisionKey(filename))) {
         const ext = extname(filename);
         const base = basename(filename, ext);
         const takeNumStr = take.take_number ? String(take.take_number).padStart(3, '0') : '';
@@ -71,7 +100,7 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
         let resolved = false;
         if (takeNumStr) {
           const attempt = `${base}_${takeNumStr}${ext}`;
-          if (!usedFilenames.has(attempt)) {
+          if (!usedFilenames.has(collisionKey(attempt))) {
             filename = attempt;
             resolved = true;
           }
@@ -79,14 +108,14 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
         
         if (!resolved) {
           let counter = 1;
-          while (usedFilenames.has(`${base}_${counter}${ext}`)) {
+          while (usedFilenames.has(collisionKey(`${base}_${counter}${ext}`))) {
             counter++;
           }
           filename = `${base}_${counter}${ext}`;
         }
       }
-      usedFilenames.add(filename);
-      candidates.push({ cue, take, filename, source });
+      usedFilenames.add(collisionKey(filename));
+      candidates.push({ cue, take, filename, source, destinationDirectory });
     }
   }
   if (candidates.length === 0) throw new Error('Select at least one approved take before publishing a release');
@@ -94,9 +123,12 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
   const selected: Array<Record<string, unknown>> = [];
   const skipped: PublishResult['skipped'] = [];
   try {
-    await fs.ensureDir(audioDir);
-    for (const { cue, take, filename, source } of candidates) {
-      await fs.copy(source, join(audioDir, filename));
+    await fs.ensureDir(stagingDir);
+    for (const { cue, take, filename, source, destinationDirectory } of candidates) {
+      const relativeDestination = manifestPath(destinationDirectory, filename);
+      const destination = join(stagingDir, destinationDirectory, filename);
+      await fs.ensureDir(dirname(destination));
+      await fs.copy(source, destination);
       selected.push({
         cue_id: cue.id,
         cue_key: cue.cue_key || cue.name,
@@ -107,9 +139,12 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
         looping: cue.looping || false,
         mix_bus: cue.mix_bus || null,
         selected_take_id: take.id,
-        file: `audio/${filename}`,
+        file: relativeDestination,
         format: take.format,
         duration_sec: take.duration_sec || null,
+        width: take.width || null,
+        height: take.height || null,
+        fps: take.fps || null,
         hash_sha256: take.hash_sha256 || null,
         generation_params: take.generation_params || null,
       });
@@ -117,7 +152,7 @@ export async function publishSelectedTakes(projectRoot: string, requestedRelease
 
     const stagingManifestPath = join(stagingDir, 'manifest.json');
     await fs.writeJson(stagingManifestPath, {
-    schema_version: '1.0.0',
+    schema_version: '2.0.0',
     release_id: id,
     created_at: new Date().toISOString(),
     source_project: (await fs.readJson(paths.moo.config).catch(() => ({}))).name || basename(projectRoot),

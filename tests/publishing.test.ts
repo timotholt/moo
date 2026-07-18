@@ -49,4 +49,41 @@ describe('publishSelectedTakes', () => {
     await expect(publishSelectedTakes(root, 'unsafe-release')).rejects.toThrow('plain file name');
     await expect(fs.pathExists(join(root, 'exports', 'unsafe-release'))).resolves.toBe(false);
   });
+
+  it('publishes images and both video orientations into distinct destinations', async () => {
+    const root = await fs.mkdtemp(join(os.tmpdir(), 'moo-publish-media-'));
+    roots.push(root);
+    await initializeProject(root, { displayName: 'Mixed Library' });
+    const paths = getProjectPaths(root);
+    const now = new Date().toISOString();
+    const media = [
+      { id: 'image-1', owner_type: 'global', owner_id: null, bin_id: 'bin-images', media_type: 'image', name: 'unit', selected_take_ids: ['take-image'], created_at: now, updated_at: now },
+      { id: 'video-wide', owner_type: 'global', owner_id: null, bin_id: 'bin-video', media_type: 'video', name: 'promo', selected_take_ids: ['take-wide'], created_at: now, updated_at: now },
+      { id: 'video-tall', owner_type: 'global', owner_id: null, bin_id: 'bin-video', media_type: 'video', name: 'promo', selected_take_ids: ['take-tall'], created_at: now, updated_at: now },
+    ];
+    const takes = [
+      { id: 'take-image', media_id: 'image-1', take_number: 1, filename: 'unit.png', path: 'global/image/unit.png', format: 'png', size_bytes: 5, status: 'approved', width: 1024, height: 1024, created_at: now, updated_at: now },
+      { id: 'take-wide', media_id: 'video-wide', take_number: 1, filename: 'promo.mp4', path: 'global/video/wide.mp4', format: 'mp4', size_bytes: 5, status: 'approved', width: 1920, height: 1080, fps: 24, created_at: now, updated_at: now },
+      { id: 'take-tall', media_id: 'video-tall', take_number: 1, filename: 'promo.mp4', path: 'global/video/tall.mp4', format: 'mp4', size_bytes: 5, status: 'approved', width: 1080, height: 1920, fps: 24, created_at: now, updated_at: now },
+    ];
+    await fs.writeFile(paths.catalog.media, `${media.map(item => JSON.stringify(item)).join('\n')}\n`);
+    await fs.writeFile(paths.catalog.takes, `${takes.map(item => JSON.stringify(item)).join('\n')}\n`);
+    for (const take of takes) {
+      await fs.ensureDir(join(root, take.path, '..'));
+      await fs.writeFile(join(root, take.path), take.id);
+    }
+
+    const result = await publishSelectedTakes(root, 'mixed-release');
+    const manifest = await fs.readJson(result.manifest_path);
+
+    expect(manifest.schema_version).toBe('2.0.0');
+    expect(manifest.assets.map((asset: { file: string }) => asset.file)).toEqual([
+      'images/unit.png',
+      'video/landscape/wide.mp4',
+      'video/portrait/tall.mp4',
+    ]);
+    await expect(fs.pathExists(join(root, 'exports/mixed-release/images/unit.png'))).resolves.toBe(true);
+    await expect(fs.pathExists(join(root, 'exports/mixed-release/video/landscape/wide.mp4'))).resolves.toBe(true);
+    await expect(fs.pathExists(join(root, 'exports/mixed-release/video/portrait/tall.mp4'))).resolves.toBe(true);
+  });
 });
