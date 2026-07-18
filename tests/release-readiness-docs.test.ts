@@ -16,12 +16,13 @@ describe('packaging and operator documentation', () => {
     expect(guide).toContain('There is no `.env` setup');
   });
 
-  it('does not claim that single-executable packaging already works', () => {
+  it('distinguishes proven single-process hosting from unfinished executable packaging', () => {
     const packaging = read('docs/packaging-and-release.md');
 
-    expect(packaging).toContain('not yet one deployable application');
-    expect(packaging).toContain('does not register `@fastify/static`');
-    expect(packaging).toContain('MOO must not be advertised as a working single executable');
+    expect(packaging).toContain('These artifacts now run as one production process');
+    expect(packaging).toContain('source-built single-process application');
+    expect(packaging).toContain('not yet a self-contained');
+    expect(packaging).toContain('[x] One production entrypoint serves both API and Solid UI.');
     expect(packaging).toContain('Known blockers at this milestone');
   });
 
@@ -30,6 +31,7 @@ describe('packaging and operator documentation', () => {
       scripts: Record<string, string>;
     };
 
+    expect(packageJson.scripts.build).toBe('tsc && node scripts/copy-runtime-assets.mjs');
     expect(packageJson.scripts['build:all']).toBe('pnpm run build && pnpm run build:ui');
     expect(packageJson.scripts['verify:release']).toBe('node scripts/verify-release-readiness.mjs');
   });

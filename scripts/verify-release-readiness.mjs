@@ -4,7 +4,7 @@ import { access, readFile } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(scriptDirectory, '..');
@@ -41,7 +41,7 @@ function compareVersion(left, right) {
 function nodeMeetsEngine(version) {
   const parsed = parseVersion(version);
   if (!parsed) return false;
-  return compareVersion(parsed, [22, 13, 0]) >= 0 && compareVersion(parsed, [25, 0, 0]) < 0;
+  return compareVersion(parsed, [20, 20, 2]) >= 0 && compareVersion(parsed, [25, 0, 0]) < 0;
 }
 
 function commandVersion(command, args) {
@@ -78,11 +78,20 @@ if (pnpmVersion) {
   record('blocker', 'pnpm runtime', 'pnpm is not available on PATH');
 }
 
-for (const relativePath of ['dist/server.js', 'dist/cli/index.js', 'dist-ui-solid/index.html']) {
+const requiredArtifacts = [
+  'dist/server.js',
+  'dist/cli/index.js',
+  'dist/templates/defaults.template.json',
+  'dist-ui-solid/index.html',
+];
+const artifactPresence = new Map();
+for (const relativePath of requiredArtifacts) {
+  const present = await fileExists(relativePath);
+  artifactPresence.set(relativePath, present);
   record(
-    (await fileExists(relativePath)) ? 'pass' : 'blocker',
+    present ? 'pass' : 'blocker',
     `build artifact ${relativePath}`,
-    (await fileExists(relativePath)) ? 'present' : 'missing; run pnpm run build:all',
+    present ? 'present' : 'missing; run pnpm run build:all',
   );
 }
 
@@ -114,18 +123,82 @@ record(
     'optional command is not available; non-native transparent output will be blocked',
 );
 
-const serverSource = await readFile(join(root, 'src/server.ts'), 'utf8');
-const servesSolidBuild =
-  serverSource.includes('@fastify/static') &&
-  serverSource.includes('dist-ui-solid') &&
-  /fastify\.register\s*\(/.test(serverSource);
-record(
-  servesSolidBuild ? 'pass' : 'blocker',
-  'single-process production host',
-  servesSolidBuild
-    ? 'Fastify source registers the built Solid assets'
-    : 'Fastify does not serve dist-ui-solid; the production API cannot launch the built client',
-);
+function probeProductionHost() {
+  const serverUrl = pathToFileURL(join(root, 'dist/server.js')).href;
+  const probeSource = `
+    const { buildServer } = await import(${JSON.stringify(serverUrl)});
+    const app = buildServer({ serveUi: true });
+    try {
+      const index = await app.inject({ method: 'GET', url: '/', headers: { accept: 'text/html' } });
+      const assetPath = index.body.match(/(?:src|href)="(\\/assets\\/[^"]+)"/)?.[1];
+      const asset = assetPath ? await app.inject({ method: 'GET', url: assetPath }) : null;
+      const spa = await app.inject({ method: 'GET', url: '/release-readiness', headers: { accept: 'text/html' } });
+      const health = await app.inject({ method: 'GET', url: '/api/health' });
+      const missingApi = await app.inject({ method: 'GET', url: '/api/release-readiness-missing', headers: { accept: 'text/html' } });
+      const missingMedia = await app.inject({ method: 'GET', url: '/media/actors/release-readiness-missing.wav', headers: { accept: 'text/html' } });
+      const result = {
+        uiAvailable: app.productionUi?.available === true,
+        index: index.statusCode === 200 && String(index.headers['content-type']).includes('text/html'),
+        asset: !!asset && asset.statusCode === 200,
+        spa: spa.statusCode === 200 && spa.body === index.body,
+        api: health.statusCode === 200 && health.json().status === 'ok',
+        apiPrecedence: missingApi.statusCode === 404 && missingApi.body !== index.body,
+        mediaPrecedence: missingMedia.statusCode === 404 && missingMedia.body !== index.body,
+      };
+      console.log(JSON.stringify(result));
+      if (Object.values(result).some(value => value !== true)) process.exitCode = 1;
+    } finally {
+      await app.close();
+    }
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '--eval', probeSource], {
+    cwd: dirname(root),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      MOO_SERVE_UI: '1',
+      MOO_UI_ROOT: '',
+      NODE_ENV: 'production',
+    },
+    maxBuffer: 1024 * 1024,
+  });
+
+  if (result.error) return { passed: false, detail: result.error.message };
+  if (result.status !== 0) {
+    const output = `${result.stderr || result.stdout}`.trim();
+    return { passed: false, detail: output || `probe exited ${result.status}` };
+  }
+
+  try {
+    const details = JSON.parse(result.stdout.trim());
+    return {
+      passed: Object.values(details).every(value => value === true),
+      detail: JSON.stringify(details),
+    };
+  } catch {
+    return { passed: false, detail: `invalid probe output: ${result.stdout.trim()}` };
+  }
+}
+
+if (
+  artifactPresence.get('dist/server.js') &&
+  artifactPresence.get('dist-ui-solid/index.html')
+) {
+  const productionHost = probeProductionHost();
+  record(
+    productionHost.passed ? 'pass' : 'blocker',
+    'single-process production host',
+    productionHost.passed
+      ? `compiled server passed runtime injection from outside the checkout: ${productionHost.detail}`
+      : `compiled server runtime probe failed: ${productionHost.detail}`,
+  );
+} else {
+  record(
+    'blocker',
+    'single-process production host',
+    'build artifacts are missing; run pnpm run build:all before the runtime probe',
+  );
+}
 
 const symbols = { pass: 'PASS', warning: 'WARN', blocker: 'BLOCK' };
 for (const check of checks) {

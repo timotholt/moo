@@ -1,6 +1,6 @@
 # MOO development setup
 
-MOO is tested with Node `24.14.0` and pnpm `11.7.0`.
+MOO is tested with Node `20.20.2` and pnpm `11.7.0`.
 
 ```sh
 nvm use
@@ -11,9 +11,9 @@ pnpm run dev:app
 ```
 
 The local UI is `http://localhost:6001`; the API is `http://127.0.0.1:6000`.
-Run these commands from the repository root. Global settings are currently
-stored at `.moo-config.json` and managed projects at `projects/`, both relative
-to the process working directory.
+Run these commands from the repository root. Development stores global settings
+at `.moo-config.json` and managed projects at `projects/`. Packaged mode uses
+native user-data storage; `MOO_DATA_DIR` can override it.
 
 Before a real audio-generation run, verify the local audio tools:
 
@@ -32,9 +32,23 @@ pnpm run build:all
 ```
 
 This creates ignored `dist/` TypeScript output and `dist-ui-solid/` browser
-assets. It does not create a production application: `dist/server.js` currently
-serves only API and media routes, not the Solid build. Run
-`pnpm run verify:release` to evaluate that and the other packaging prerequisites.
+assets. The compiled entrypoint serves both halves in one process:
+
+```sh
+node dist/server.js
+```
+
+Open `http://127.0.0.1:6000`. Direct compiled execution enables production UI
+hosting when `dist-ui-solid/index.html` is present. Static resources resolve
+relative to `dist/server.js`, not the process working directory. An explicitly
+enabled host returns a clear `503` for UI navigation if the build is missing,
+while API routes remain available.
+
+Development remains a two-process Vite/Fastify launch with hot reload on ports
+6001 and 6000. `MOO_SERVE_UI=1` can explicitly enable the built UI from a source
+launch, and `MOO_SERVE_UI=0` can explicitly disable production hosting. Run
+`pnpm run verify:release` after `pnpm run build:all` to runtime-probe the compiled
+single-process host and evaluate the remaining packaging prerequisites.
 
 See [operator-guide.md](operator-guide.md) for day-to-day use and
 [packaging-and-release.md](packaging-and-release.md) for the supported packaging

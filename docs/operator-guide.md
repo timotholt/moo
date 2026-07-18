@@ -18,7 +18,7 @@ Both bind locally. Keep the terminal running while using MOO.
 
 ## First launch
 
-Install Node `24.14.0`, pnpm `11.7.0` (the declared engine accepts
+Install Node `20.20.2`, pnpm `11.7.0` (the declared engine accepts
 `>=11.7.0 <12`), and FFmpeg. With Homebrew, FFmpeg can normally be installed
 with `brew install ffmpeg`; verify the actual commands MOO uses with:
 
@@ -57,15 +57,17 @@ required for media generation; prompts can always be written and edited by
 hand. OpenAI and Google keys used for media generation do not currently replace
 the separate Groq prompt-assistance key.
 
-There is no `.env` setup. MOO writes provider and LLM settings to:
+There is no `.env` setup. A source-development launch writes provider and LLM
+settings to:
 
 ```text
 <MOO checkout>/.moo-config.json
 ```
 
-That file is ignored by Git. It contains plaintext local credentials and the UI
-intentionally returns and displays them in full. Treat the checkout as trusted
-local storage and do not copy the file into a release.
+Packaged mode stores the same file beneath the platform’s user-data directory
+(`~/Library/Application Support/MOO` on macOS). The file contains plaintext
+local credentials and the UI intentionally returns and displays them in full.
+Treat it as trusted local storage and do not copy it into a release.
 
 ## Local tool setup
 
@@ -114,7 +116,8 @@ pnpm run audio:preflight
 
 ## Data and backup locations
 
-All paths below are relative to the directory from which MOO was launched:
+For source development, all paths below are relative to the checkout. Packaged
+mode puts the same layout beneath the platform user-data directory.
 
 ```text
 .moo-config.json                         provider and prompt-assistance keys
@@ -153,7 +156,7 @@ files, but that is not a substitute for a backup.
 
 ## Troubleshooting
 
-- `pnpm is unavailable`: install/activate Node 24.14.0, run
+- `pnpm is unavailable`: install/activate Node 20.20.2, run
   `corepack enable`, then `corepack prepare pnpm@11.7.0 --activate` if your
   Corepack installation has not provisioned pnpm.
 - UI opens but API calls fail: confirm `pnpm run dev:app` shows both processes

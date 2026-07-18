@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
-import { join } from 'path';
+import type { FastifyInstance } from 'fastify';
+import { join, resolve } from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { getProjectPaths } from './utils/paths.js';
 import { registerActorRoutes } from './server/routes/actors.js';
 import { registerMediaRoutes } from './server/routes/media.js';
@@ -18,16 +20,16 @@ import { registerCardRoutes } from './server/routes/cards.js';
 import { registerPublishRoutes } from './server/routes/publish.js';
 import { registerReviewRoutes } from './server/routes/review.js';
 import { ProjectWriteLocks } from './services/project-write-lock.js';
-import projectRoutes, { getCurrentProjectPath } from './server/routes/projects.js';
-
-const fastify = Fastify({
-  logger: false,
-});
-const projectWriteLocks = new ProjectWriteLocks();
-const requestUnlocks = new WeakMap<object, () => void>();
-
-// Projects directory
-const PROJECTS_DIR = join(process.cwd(), 'projects');
+import projectRoutes, {
+  getCurrentProjectPath,
+  PROJECTS_DIR,
+} from './server/routes/projects.js';
+import {
+  registerProductionUi,
+  resolveProductionUiRoot,
+  shouldServeProductionUi,
+  type ProductionUiStatus,
+} from './server/production-host.js';
 
 // Dynamic project context - uses the switchable project path. Returns null when no project selected.
 function getProjectContextNullable() {
@@ -40,103 +42,149 @@ function getProjectContextNullable() {
 // Export for use by route modules that need access to the current project
 export { getProjectContextNullable as getProjectContext, PROJECTS_DIR };
 
-// MOO is local-first and uses flat catalog files. Serialize mutations per
-// selected project so read-modify-write handlers cannot clobber each other.
-fastify.addHook('onRequest', async (request) => {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
-  const context = getProjectContextNullable();
-  if (!context) return;
-  requestUnlocks.set(request, await projectWriteLocks.acquire(context.projectRoot));
-});
+export interface BuildServerOptions {
+  serveUi?: boolean;
+  uiRoot?: string;
+  logger?: boolean;
+}
 
-const releaseRequestLock = (request: object) => {
-  const unlock = requestUnlocks.get(request);
-  if (!unlock) return;
-  requestUnlocks.delete(request);
-  unlock();
-};
-fastify.addHook('onResponse', async (request) => { releaseRequestLock(request); });
-fastify.addHook('onError', async (request) => { releaseRequestLock(request); });
+export interface MooServer extends FastifyInstance {
+  productionUi: ProductionUiStatus;
+}
 
-fastify.get('/api/health', async () => {
-  return { status: 'ok' };
-});
+export function buildServer(options: BuildServerOptions = {}): MooServer {
+  const app = Fastify({
+    logger: options.logger ?? false,
+  }) as unknown as MooServer;
+  const projectWriteLocks = new ProjectWriteLocks();
+  const requestUnlocks = new WeakMap<object, () => void>();
 
-// Serve media files for the currently selected project
-fastify.get('/media/*', async (request, reply) => {
-  const ctx = getProjectContextNullable();
-  if (!ctx) {
-    reply.code(404);
-    return 'No project selected';
-  }
+  // MOO is local-first and uses flat catalog files. Serialize mutations per
+  // selected project so read-modify-write handlers cannot clobber each other.
+  app.addHook('onRequest', async (request) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return;
+    const context = getProjectContextNullable();
+    if (!context) return;
+    requestUnlocks.set(request, await projectWriteLocks.acquire(context.projectRoot));
+  });
 
-  const relPath = (request.params as { '*': string })['*'];
+  const releaseRequestLock = (request: object) => {
+    const unlock = requestUnlocks.get(request);
+    if (!unlock) return;
+    requestUnlocks.delete(request);
+    unlock();
+  };
+  app.addHook('onResponse', async (request) => {
+    releaseRequestLock(request);
+  });
+  app.addHook('onError', async (request) => {
+    releaseRequestLock(request);
+  });
 
-  // Security: Ensure path stays within allowed subfolders at project root
-  const allowedFolders = ['actors', 'cards', 'scenes', 'global', 'exports'];
-  const firstPart = relPath.split(/[/\\]/)[0];
+  app.get('/api/health', async () => {
+    return { status: 'ok' };
+  });
 
-  if (!allowedFolders.includes(firstPart)) {
-    reply.code(403);
-    return 'Forbidden';
-  }
+  // Serve media files for the currently selected project
+  app.get('/media/*', async (request, reply) => {
+    const ctx = getProjectContextNullable();
+    if (!ctx) {
+      reply.code(404);
+      return 'No project selected';
+    }
 
-  const filePath = join(ctx.projectRoot, relPath);
+    const relPath = (request.params as { '*': string })['*'];
 
-  if (!fs.existsSync(filePath)) {
-    reply.code(404);
-    return 'Not found';
-  }
+    // Security: Ensure path stays within allowed subfolders at project root
+    const allowedFolders = ['actors', 'cards', 'scenes', 'global', 'exports'];
+    const firstPart = relPath.split(/[/\\]/)[0];
 
-  // Basic content type handling based on extension
-  if (filePath.endsWith('.wav')) {
-    reply.type('audio/wav');
-  } else if (filePath.endsWith('.mp3')) {
-    reply.type('audio/mpeg');
-  } else if (filePath.endsWith('.mp4')) {
-    reply.type('video/mp4');
-  } else if (filePath.endsWith('.png')) {
-    reply.type('image/png');
-  } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
-    reply.type('image/jpeg');
-  }
+    if (!allowedFolders.includes(firstPart)) {
+      reply.code(403);
+      return 'Forbidden';
+    }
 
-  const stream = fs.createReadStream(filePath);
-  return reply.send(stream);
-});
+    const filePath = join(ctx.projectRoot, relPath);
 
-// Register all route modules
-registerActorRoutes(fastify, getProjectContextNullable);
-registerMediaRoutes(fastify, getProjectContextNullable);
-registerTakeRoutes(fastify, getProjectContextNullable);
-registerBinRoutes(fastify, getProjectContextNullable);
-registerSceneRoutes(fastify, getProjectContextNullable);
-registerCardRoutes(fastify, getProjectContextNullable);
-registerPublishRoutes(fastify, getProjectContextNullable);
-registerReviewRoutes(fastify, getProjectContextNullable);
-registerDefaultsRoutes(fastify, getProjectContextNullable);
-registerProviderRoutes(fastify, getProjectContextNullable);
-registerGenerationRoutes(fastify, getProjectContextNullable);
-registerHistoryRoutes(fastify, getProjectContextNullable);
-registerSnapshotRoutes(fastify, getProjectContextNullable);
-registerBatchRoutes(fastify, getProjectContextNullable);
-fastify.register(llmRoutes);
-fastify.register(projectRoutes);
+    if (!fs.existsSync(filePath)) {
+      reply.code(404);
+      return 'Not found';
+    }
 
-async function start() {
+    // Basic content type handling based on extension
+    if (filePath.endsWith('.wav')) {
+      reply.type('audio/wav');
+    } else if (filePath.endsWith('.mp3')) {
+      reply.type('audio/mpeg');
+    } else if (filePath.endsWith('.mp4')) {
+      reply.type('video/mp4');
+    } else if (filePath.endsWith('.png')) {
+      reply.type('image/png');
+    } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+      reply.type('image/jpeg');
+    }
+
+    const stream = fs.createReadStream(filePath);
+    return reply.send(stream);
+  });
+
+  // Register all API/media routes before the production static catch-all.
+  registerActorRoutes(app, getProjectContextNullable);
+  registerMediaRoutes(app, getProjectContextNullable);
+  registerTakeRoutes(app, getProjectContextNullable);
+  registerBinRoutes(app, getProjectContextNullable);
+  registerSceneRoutes(app, getProjectContextNullable);
+  registerCardRoutes(app, getProjectContextNullable);
+  registerPublishRoutes(app, getProjectContextNullable);
+  registerReviewRoutes(app, getProjectContextNullable);
+  registerDefaultsRoutes(app, getProjectContextNullable);
+  registerProviderRoutes(app, getProjectContextNullable);
+  registerGenerationRoutes(app, getProjectContextNullable);
+  registerHistoryRoutes(app, getProjectContextNullable);
+  registerSnapshotRoutes(app, getProjectContextNullable);
+  registerBatchRoutes(app, getProjectContextNullable);
+  app.register(llmRoutes);
+  app.register(projectRoutes);
+
+  const serveUi =
+    options.serveUi ??
+    shouldServeProductionUi(import.meta.url, process.env, process.argv[1]);
+  app.productionUi = registerProductionUi(app, {
+    enabled: serveUi,
+    moduleUrl: import.meta.url,
+    rootOverride: options.uiRoot ?? process.env.MOO_UI_ROOT,
+  });
+
+  return app;
+}
+
+const fastify = buildServer();
+
+async function start(app: FastifyInstance = fastify) {
   try {
     const port = 6000;
     const host = '127.0.0.1';
-    await fastify.listen({ port, host });
-    console.log(`MOO API server listening on http://${host}:${port}`);
+    await app.listen({ port, host });
+    const productionUi = (app as Partial<MooServer>).productionUi;
+    console.log(
+      productionUi?.available
+        ? `MOO server and UI listening on http://${host}:${port}`
+        : `MOO API server listening on http://${host}:${port}`,
+    );
   } catch (err) {
-    fastify.log.error(err);
+    app.log.error(err);
     process.exit(1);
   }
 }
 
-// When this module is executed directly (e.g. via `tsx src/server.ts` or `pnpm dev`),
-// start the Fastify server immediately.
-void start();
+function isDirectExecution(moduleUrl: string): boolean {
+  const entryPath = process.argv[1];
+  return !!entryPath && resolve(entryPath) === fileURLToPath(moduleUrl);
+}
 
-export { fastify, start };
+// Importing this module is side-effect free; direct source and compiled launches listen.
+if (isDirectExecution(import.meta.url)) {
+  void start();
+}
+
+export { fastify, resolveProductionUiRoot, start };

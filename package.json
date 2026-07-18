@@ -3,7 +3,7 @@
   "version": "0.11.0",
   "packageManager": "pnpm@11.7.0",
   "engines": {
-    "node": ">=22.13.0 <25",
+    "node": ">=20.20.2 <25",
     "pnpm": ">=11.7.0 <12"
   },
   "description": "Media Output Organizer",
@@ -13,7 +13,7 @@
     "moo": "./bin/vof"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-runtime-assets.mjs",
     "build:ui": "vite build --config vite.solid.config.mjs --configLoader runner",
     "build:all": "pnpm run build && pnpm run build:ui",
     "test": "vitest run",
@@ -23,6 +23,7 @@
     "verify:runtime": "pnpm run build && pnpm run test",
     "verify": "pnpm run lint && pnpm run verify:runtime",
     "verify:release": "node scripts/verify-release-readiness.mjs",
+    "start": "node dist/server.js",
     "dev:api": "tsx src/server.ts",
     "dev:ui": "vite --config vite.solid.config.mjs",
     "dev": "pnpm run dev:api",

@@ -13,7 +13,7 @@ inside the MOO working directory and does not need access to a game repository.
 Requirements:
 
 - macOS or Linux
-- Node `24.14.0` (pinned in `.nvmrc`; `package.json` accepts Node 22.13–24)
+- Node `20.20.2` (pinned in `.nvmrc`; `package.json` accepts Node 20.20.2–24)
 - pnpm `11.7.0` (the declared engine accepts `>=11.7.0 <12`)
 - `ffmpeg` and `ffprobe` on `PATH`
 - `rembg` on `PATH` only when transparent output needs background removal
@@ -31,9 +31,23 @@ Open [http://localhost:6001](http://localhost:6001). The Solid UI runs on port
 `6001` and proxies API/media requests to the local Fastify server on
 `127.0.0.1:6000`.
 
-Run MOO from its checkout directory. The current implementation resolves global
-settings and its managed `projects/` directory from the process working
-directory.
+For a source-built single-process production launch:
+
+```sh
+pnpm run build:all
+node dist/server.js
+```
+
+Open [http://127.0.0.1:6000](http://127.0.0.1:6000). The compiled server locates
+`dist-ui-solid/` relative to its own ESM module, serves the built UI and API on
+the same loopback origin, and preserves `/api/*` and `/media/*` route
+precedence. `MOO_SERVE_UI=1` explicitly enables that host in other launch modes;
+`MOO_SERVE_UI=0` disables it.
+
+Source development keeps settings and managed projects in the checkout. A
+packaged launcher sets `MOO_PACKAGED=1` to use the platform’s user-data
+directory (`~/Library/Application Support/MOO` on macOS); `MOO_DATA_DIR`
+provides an explicit override.
 
 ## Credentials
 
@@ -46,9 +60,10 @@ Configure credentials in the in-app Settings dialog:
 | Google AI  | Gemini image or Veo video generation                   |
 | Groq       | Optional prompt generation and prompt improvement only |
 
-MOO does not currently load credentials from `.env`. Settings are written to
-the local `<MOO checkout>/.moo-config.json` file, and the trusted single-user UI
-intentionally displays saved keys in full. Do not commit that ignored file.
+MOO does not currently load credentials from `.env`. Source development writes
+settings to `<MOO checkout>/.moo-config.json`; packaged mode writes beneath the
+user-data directory. The trusted single-user UI intentionally displays saved
+keys in full. Do not commit that ignored file.
 
 ## Authoring loop
 
@@ -75,9 +90,9 @@ pnpm run verify:release
 ```
 
 `verify:release` is a packaging-readiness gate. It currently reports the known
-production-hosting blocker: Fastify does not yet serve the built Solid assets,
-so MOO is supported as a two-process development launch and is not yet a
-single-executable distribution.
+distribution blockers. It runtime-probes the compiled Fastify server and built
+Solid UI from outside the checkout; single-process source-built hosting works,
+but MOO is not yet a signed, self-contained executable distribution.
 
 See the [operator guide](docs/operator-guide.md), [development guide](docs/development.md),
 and [macOS packaging and release checklist](docs/packaging-and-release.md).

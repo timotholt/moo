@@ -6,6 +6,34 @@
 // Debug flag for this module
 const DEBUG_LLM = false;
 
+interface LLMProviderConfig {
+  name: string;
+  baseUrl: string;
+  defaultModel: string;
+  models: Array<{ id: string; name: string }>;
+  signupUrl: string;
+}
+
+interface PromptGenerationInput {
+  provider: string;
+  apiKey: string;
+  model?: string;
+  systemPrompt?: string;
+  mediaName: string;
+  ownerName?: string;
+  mediaType?: string;
+}
+
+interface PromptImprovementInput {
+  provider: string;
+  apiKey: string;
+  model?: string;
+  systemPrompt?: string;
+  currentPrompt: string;
+  mediaName: string;
+  mediaType?: string;
+}
+
 // Default system prompts optimized for ElevenLabs Eleven v3
 // Based on: https://elevenlabs.io/docs/best-practices/prompting/eleven-v3
 export const DEFAULT_SYSTEM_PROMPTS = {
@@ -39,7 +67,7 @@ Output ONLY the improved text. No explanations.`
 };
 
 // Provider configurations
-const PROVIDERS = {
+const PROVIDERS: Record<string, LLMProviderConfig> = {
   groq: {
     name: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1',
@@ -69,7 +97,7 @@ export function getProviders() {
 /**
  * Test connection to LLM provider
  */
-export async function testConnection(provider, apiKey) {
+export async function testConnection(provider: string, apiKey: string) {
   const config = PROVIDERS[provider];
   if (!config) {
     throw new Error(`Unknown provider: ${provider}`);
@@ -88,22 +116,28 @@ export async function testConnection(provider, apiKey) {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || `HTTP ${response.status}`);
+      throw new Error(apiErrorMessage(error) || `HTTP ${response.status}`);
     }
 
     return { success: true, message: 'Connection successful' };
-  } catch (err) {
+  } catch (err: unknown) {
     if (DEBUG_LLM) {
       console.error('[LLM] Connection test failed:', err);
     }
-    throw new Error(`Connection failed: ${err.message}`);
+    throw new Error(`Connection failed: ${errorMessage(err)}`);
   }
 }
 
 /**
  * Call LLM API
  */
-async function callLLM(provider, apiKey, model, systemPrompt, userPrompt) {
+async function callLLM(
+  provider: string,
+  apiKey: string,
+  model: string | undefined,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
   const config = PROVIDERS[provider];
   if (!config) {
     throw new Error(`Unknown provider: ${provider}`);
@@ -138,11 +172,12 @@ async function callLLM(provider, apiKey, model, systemPrompt, userPrompt) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error?.message || `HTTP ${response.status}`);
+    throw new Error(apiErrorMessage(error) || `HTTP ${response.status}`);
   }
 
-  const data = await response.json();
-  const result = data.choices?.[0]?.message?.content?.trim();
+  const data: unknown = await response.json();
+  const result = completionText(data);
+  if (!result) throw new Error('LLM provider returned no prompt text');
 
   if (DEBUG_LLM) {
     console.log('[LLM] Response:', result);
@@ -154,7 +189,15 @@ async function callLLM(provider, apiKey, model, systemPrompt, userPrompt) {
 /**
  * Generate a prompt from media context
  */
-export async function generatePrompt({ provider, apiKey, model, systemPrompt, mediaName, ownerName, mediaType }) {
+export async function generatePrompt({
+  provider,
+  apiKey,
+  model,
+  systemPrompt,
+  mediaName,
+  ownerName,
+  mediaType,
+}: PromptGenerationInput) {
   const system = systemPrompt || DEFAULT_SYSTEM_PROMPTS.generate;
   
   const userPrompt = `Generate a voice-over prompt for:
@@ -168,7 +211,15 @@ export async function generatePrompt({ provider, apiKey, model, systemPrompt, me
 /**
  * Improve an existing prompt
  */
-export async function improvePrompt({ provider, apiKey, model, systemPrompt, currentPrompt, mediaName, mediaType }) {
+export async function improvePrompt({
+  provider,
+  apiKey,
+  model,
+  systemPrompt,
+  currentPrompt,
+  mediaName,
+  mediaType,
+}: PromptImprovementInput) {
   const system = systemPrompt || DEFAULT_SYSTEM_PROMPTS.improve;
   
   const userPrompt = `Improve this voice-over prompt for ${mediaType || 'dialogue'} item "${mediaName}":
@@ -176,4 +227,26 @@ export async function improvePrompt({ provider, apiKey, model, systemPrompt, cur
 "${currentPrompt}"`;
 
   return callLLM(provider, apiKey, model, system, userPrompt);
+}
+
+function apiErrorMessage(value: unknown): string | undefined {
+  if (!isRecord(value) || !isRecord(value.error)) return undefined;
+  return typeof value.error.message === 'string' ? value.error.message : undefined;
+}
+
+function completionText(value: unknown): string | undefined {
+  if (!isRecord(value) || !Array.isArray(value.choices)) return undefined;
+  const first = value.choices[0];
+  if (!isRecord(first) || !isRecord(first.message) || typeof first.message.content !== 'string') {
+    return undefined;
+  }
+  return first.message.content.trim() || undefined;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }

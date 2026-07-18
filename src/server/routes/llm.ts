@@ -1,5 +1,4 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-// @ts-expect-error - JavaScript module without type declarations
 import { getProviders, testConnection, generatePrompt, improvePrompt, DEFAULT_SYSTEM_PROMPTS } from '../services/llm.js';
 import { getLLMSettings, setLLMSettings } from '../../services/global-config.js';
 
