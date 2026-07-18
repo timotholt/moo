@@ -14,12 +14,20 @@ const voicePreviewCache = new Map<string, string>();
 
 type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
 
+function validProviderId(value: string): string | null {
+  const normalized = value.trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9_-]{0,79}$/.test(normalized) ? normalized : null;
+}
+
 function validateProviderSettingsBody(body: unknown): { settings?: GenerationProviderSettings; error?: string } {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'Settings body must be an object' };
   }
 
   const value = body as Record<string, unknown>;
+  if (Object.keys(value).length === 0) {
+    return { error: 'At least one provider setting is required' };
+  }
   const allowedKeys = new Set(['api_key', 'enabled', 'model', 'config']);
   const unknownKeys = Object.keys(value).filter((key) => !allowedKeys.has(key));
   if (unknownKeys.length > 0) {
@@ -49,20 +57,20 @@ export function registerProviderRoutes(fastify: FastifyInstance, getProjectConte
   }));
 
   fastify.get('/api/generation/providers/:providerId/settings', async (request: FastifyRequest<{ Params: { providerId: string } }>, reply: FastifyReply) => {
-    const providerId = request.params.providerId.trim();
+    const providerId = validProviderId(request.params.providerId);
     if (!providerId) {
       reply.code(400);
-      return { error: 'Provider ID is required' };
+      return { error: 'Provider ID must use letters, numbers, underscores, or hyphens' };
     }
 
     return { providerId, settings: await getGenerationProviderSettings(providerId) || {} };
   });
 
   fastify.put('/api/generation/providers/:providerId/settings', async (request: FastifyRequest<{ Params: { providerId: string }; Body: unknown }>, reply: FastifyReply) => {
-    const providerId = request.params.providerId.trim();
+    const providerId = validProviderId(request.params.providerId);
     if (!providerId) {
       reply.code(400);
-      return { error: 'Provider ID is required' };
+      return { error: 'Provider ID must use letters, numbers, underscores, or hyphens' };
     }
 
     const validation = validateProviderSettingsBody(request.body);

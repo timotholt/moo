@@ -70,13 +70,16 @@ describe('generation provider settings routes', () => {
     const blank = await app.inject({ method: 'PUT', url: '/api/generation/providers/%20/settings', payload: { enabled: true } });
     const malformed = await app.inject({ method: 'PUT', url: '/api/generation/providers/openai/settings', payload: { enabled: 'yes' } });
     const unsupported = await app.inject({ method: 'PUT', url: '/api/generation/providers/openai/settings', payload: { unexpected: true } });
+    const empty = await app.inject({ method: 'PUT', url: '/api/generation/providers/openai/settings', payload: {} });
     await app.close();
 
     expect(blank).toMatchObject({ statusCode: 400 });
-    expect(blank.json()).toEqual({ error: 'Provider ID is required' });
+    expect(blank.json()).toEqual({ error: 'Provider ID must use letters, numbers, underscores, or hyphens' });
     expect(malformed).toMatchObject({ statusCode: 400 });
     expect(malformed.json()).toEqual({ error: 'enabled must be a boolean' });
     expect(unsupported).toMatchObject({ statusCode: 400 });
     expect(unsupported.json()).toEqual({ error: 'Unsupported settings field: unexpected' });
+    expect(empty).toMatchObject({ statusCode: 400 });
+    expect(empty.json()).toEqual({ error: 'At least one provider setting is required' });
   });
 });
