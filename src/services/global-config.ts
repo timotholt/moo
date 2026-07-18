@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { join } from 'path';
+import { dirname, join } from 'path';
 
 // Global config stored in app root (not per-project)
 const DEFAULT_GLOBAL_CONFIG_PATH = join(process.cwd(), '.moo-config.json');
@@ -25,6 +25,7 @@ export interface GlobalConfig {
 
 let cachedConfig: GlobalConfig | null = null;
 let globalConfigPath = DEFAULT_GLOBAL_CONFIG_PATH;
+let saveQueue = Promise.resolve();
 
 function cloneConfig(config: GlobalConfig): GlobalConfig {
   return structuredClone(config);
@@ -47,14 +48,34 @@ export async function loadGlobalConfig(): Promise<GlobalConfig> {
   return {};
 }
 
-export async function saveGlobalConfig(config: Partial<GlobalConfig>): Promise<void> {
-  const existing = await loadGlobalConfig();
-  const merged: GlobalConfig = { ...existing, ...config };
-  const tempPath = `${globalConfigPath}.tmp`;
-  await fs.ensureDir(join(globalConfigPath, '..'));
-  await fs.writeJson(tempPath, merged, { spaces: 2 });
-  await fs.move(tempPath, globalConfigPath, { overwrite: true });
-  cachedConfig = merged;
+export function saveGlobalConfig(config: Partial<GlobalConfig>): Promise<void> {
+  const write = saveQueue.then(async () => {
+    const existing = await loadGlobalConfig();
+    const merged: GlobalConfig = {
+      ...existing,
+      ...config,
+      ...(config.generation_providers
+        ? {
+            generation_providers: {
+              ...existing.generation_providers,
+              ...config.generation_providers,
+            },
+          }
+        : {}),
+    };
+    const tempPath = `${globalConfigPath}.${process.pid}.${Date.now()}.tmp`;
+    await fs.ensureDir(dirname(globalConfigPath));
+    try {
+      await fs.writeJson(tempPath, merged, { spaces: 2 });
+      await fs.move(tempPath, globalConfigPath, { overwrite: true });
+      cachedConfig = merged;
+    } catch (error) {
+      await fs.remove(tempPath);
+      throw error;
+    }
+  });
+  saveQueue = write.catch(() => undefined);
+  return write;
 }
 
 export async function getElevenLabsApiKey(): Promise<string | undefined> {

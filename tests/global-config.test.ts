@@ -63,6 +63,18 @@ describe('global generator credentials', () => {
     await expect(getLLMSettings()).resolves.toEqual(llm);
   });
 
+  it('serializes concurrent settings writes without losing either provider', async () => {
+    await Promise.all([
+      setGenerationProviderSettings('openai', { api_key: 'openai-key' }),
+      setGenerationProviderSettings('google', { api_key: 'google-key' }),
+    ]);
+
+    await expect(listGenerationProviderSettings()).resolves.toEqual({
+      openai: { api_key: 'openai-key' },
+      google: { api_key: 'google-key' },
+    });
+  });
+
   it('resets cache when the test config path changes', async () => {
     await setElevenLabsApiKey('first-key');
     const secondPath = join(testDirectory, 'second-config.json');

@@ -59,6 +59,10 @@ function isPositive(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value) && value > 0;
 }
 
+function isNonNegative(value: number | undefined): value is number {
+  return value !== undefined && Number.isFinite(value) && value >= 0;
+}
+
 function needsFfprobe(kind: AssetKind): boolean {
   return kind === 'dialogue' || kind === 'music' || kind === 'sfx' || kind === 'video';
 }
@@ -136,14 +140,17 @@ export function evaluateMultimediaPreflight(input: MultimediaPreflightInput): Mu
     checks.push(check('ffmpeg-unavailable', 'blocked', 'FFmpeg is required to process generated video.'));
   }
 
-  const estimateKnown = isPositive(input.perOperationCost) && Boolean(input.currency);
+  const providerRequests = Number.isInteger(input.candidateCount) && input.candidateCount > 0
+    ? input.candidateCount
+    : 0;
+  const estimateKnown = isNonNegative(input.perOperationCost) && Boolean(input.currency);
   const estimate: CostEstimate = {
-    providerRequests: Math.max(0, Number.isInteger(input.candidateCount) ? input.candidateCount : 0),
+    providerRequests,
     known: estimateKnown,
     ...(estimateKnown
       ? {
           perOperation: input.perOperationCost,
-          maximumExposure: input.perOperationCost! * input.candidateCount,
+          maximumExposure: input.perOperationCost! * providerRequests,
           currency: input.currency,
         }
       : {}),

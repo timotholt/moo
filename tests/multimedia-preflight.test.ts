@@ -64,6 +64,13 @@ describe('multimedia preflight', () => {
     expect(result.checks).toContainEqual(expect.objectContaining({ code: 'cost-estimate-unknown', status: 'warning' }));
   });
 
+  it('treats a zero-cost operation as a known estimate', () => {
+    expect(evaluate({ perOperationCost: 0 })).toMatchObject({
+      status: 'ready',
+      estimate: { known: true, perOperation: 0, maximumExposure: 0 },
+    });
+  });
+
   it('blocks when the maximum exposure exceeds the budget', () => {
     expect(evaluate({ jobBudget: 0.2 })).toMatchObject({ status: 'blocked' });
     expect(evaluate({ jobBudget: 0.2 }).checks).toContainEqual(expect.objectContaining({ code: 'budget-exceeded' }));
