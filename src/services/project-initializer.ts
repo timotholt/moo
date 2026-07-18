@@ -9,6 +9,7 @@ const CATALOG_FILES = [
   'media.jsonl',
   'takes.jsonl',
   'generation-jobs.jsonl',
+  'generation-operations.jsonl',
   'releases.jsonl',
   'snapshots.jsonl',
   'redo-snapshots.jsonl',
