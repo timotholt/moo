@@ -237,7 +237,7 @@ export function registerGenerationRoutes(fastify: FastifyInstance, getProjectCon
     const { projectRoot } = ctx;
     const body = request.body as {
       actorId?: string;
-      contentType?: 'dialogue' | 'music' | 'sfx';
+      contentType?: AssetKind;
       dryRun?: boolean;
     } | undefined;
 

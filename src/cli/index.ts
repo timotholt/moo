@@ -123,8 +123,8 @@ audioCommand
 
 program.addCommand(audioCommand);
 
-// Generation commands (M2.5)
-const generateCommand = new Command('generate').description('Audio generation commands');
+// Generation commands
+const generateCommand = new Command('generate').description('Media generation commands');
 
 generateCommand
     .command('quota')
@@ -143,9 +143,9 @@ generateCommand
 
 generateCommand
     .command('batch')
-    .description('Run batch generation for incomplete content (dialogue only for now)')
+    .description('Run batch generation for incomplete media')
     .option('--actor-id <actorId>', 'Limit to a specific actor id')
-    .option('--type <contentType>', 'Content type to generate (dialogue|music|sfx)', 'dialogue')
+    .option('--type <contentType>', 'Media type to generate (dialogue|music|sfx|image|video)', 'dialogue')
     .option('--dry-run', 'Show what would be generated without calling the provider')
     .action(async (options) => {
         try {
