@@ -5,6 +5,7 @@ import type {
   ProviderCapabilities,
   ProviderOperation,
 } from './types.js';
+import { ProviderOutputStore } from '../provider-output-store.js';
 
 const GOOGLE_GENERATIVE_LANGUAGE_URL = 'https://generativelanguage.googleapis.com/v1/models';
 const DEFAULT_MODEL = 'gemini-3.1-flash-image';
@@ -60,13 +61,13 @@ interface LocatedImage {
 
 /**
  * Synchronous Gemini image generation presented through MOO's provider-neutral
- * operation contract. Completed image bytes remain private to this adapter and
- * are retrieved with download().
+ * operation contract. Bytes are atomically staged inside the project before a
+ * completed operation is returned.
  */
 export class GoogleImageGenerator implements AssetGenerator {
   readonly providerId = 'google-image';
 
-  private readonly completedAssets = new Map<string, GeneratedAsset>();
+  private readonly outputStore: ProviderOutputStore;
   private readonly completedOperations = new Map<string, ProviderOperation>();
   private readonly inFlightSubmissions = new Map<string, Promise<ProviderOperation>>();
 
@@ -74,6 +75,7 @@ export class GoogleImageGenerator implements AssetGenerator {
     private readonly apiKey: string,
     private readonly model = DEFAULT_MODEL,
     private readonly fetchImpl: FetchImplementation = globalThis.fetch,
+    outputStore?: ProviderOutputStore,
   ) {
     if (!apiKey.trim()) {
       throw new Error('Google Gemini image generation requires an API key');
@@ -81,6 +83,10 @@ export class GoogleImageGenerator implements AssetGenerator {
     if (!model.trim()) {
       throw new Error('Google Gemini image generation requires a model');
     }
+    if (!outputStore) {
+      throw new Error('Google Gemini image generation requires project output storage');
+    }
+    this.outputStore = outputStore;
   }
 
   capabilities(): ProviderCapabilities {
@@ -129,15 +135,12 @@ export class GoogleImageGenerator implements AssetGenerator {
       throw new Error(`Cannot download ${operation.status} operation ${operation.operationId}`);
     }
 
-    const asset = this.completedAssets.get(operation.operationId);
-    if (!asset) {
-      throw new Error(`No generated asset is available for ${operation.operationId}`);
-    }
+    const asset = await this.outputStore.download(operation.providerMetadata);
 
     return {
       bytes: Buffer.from(asset.bytes),
       mimeType: asset.mimeType,
-      providerMetadata: { ...asset.providerMetadata },
+      providerMetadata: { ...operation.providerMetadata },
     };
   }
 
@@ -179,13 +182,22 @@ export class GoogleImageGenerator implements AssetGenerator {
       assertNotSafetyBlocked(payload);
       const locatedImage = locateImage(payload);
       const bytes = decodeBase64Image(locatedImage.data);
-      const providerMetadata = buildProviderMetadata(
-        request,
-        payload,
-        locatedImage,
-        aspectRatio,
-        imageSize,
-        this.model,
+      const reference = await this.outputStore.stage({
+        providerId: this.providerId,
+        operationId,
+        bytes,
+        mimeType: locatedImage.mimeType,
+      });
+      const providerMetadata = this.outputStore.attach(
+        buildProviderMetadata(
+          request,
+          payload,
+          locatedImage,
+          aspectRatio,
+          imageSize,
+          this.model,
+        ),
+        reference,
       );
       const operation: ProviderOperation = {
         providerId: this.providerId,
@@ -195,11 +207,6 @@ export class GoogleImageGenerator implements AssetGenerator {
         providerMetadata,
       };
 
-      this.completedAssets.set(operationId, {
-        bytes,
-        mimeType: locatedImage.mimeType,
-        providerMetadata,
-      });
       this.completedOperations.set(operationId, operation);
       return operation;
     } catch (error) {

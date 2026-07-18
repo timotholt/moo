@@ -1,5 +1,23 @@
-import { describe, expect, it, vi } from 'vitest';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import fs from 'fs-extra';
+
 import { GoogleImageGenerator } from '../src/services/generators/google-image.js';
+import { ProviderOutputStore } from '../src/services/provider-output-store.js';
+
+const roots: string[] = [];
+
+afterAll(async () => {
+  await Promise.all(roots.map(root => fs.remove(root)));
+});
+
+function outputStore(): ProviderOutputStore {
+  const root = join(tmpdir(), `moo-google-image-${process.pid}-${roots.length}`);
+  roots.push(root);
+  return new ProviderOutputStore(root);
+}
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -27,7 +45,7 @@ describe('GoogleImageGenerator', () => {
       modelVersion: 'gemini-3.1-flash-image-001',
       usageMetadata: { promptTokenCount: 7, totalTokenCount: 136 },
     }));
-    const generator = new GoogleImageGenerator('google-secret', undefined, fetchImpl);
+    const generator = new GoogleImageGenerator('google-secret', undefined, fetchImpl, outputStore());
 
     const operation = await generator.submit({
       id: 'image-001',
@@ -109,7 +127,7 @@ describe('GoogleImageGenerator', () => {
         },
       }],
     }));
-    const generator = new GoogleImageGenerator('key', 'gemini-custom', fetchImpl);
+    const generator = new GoogleImageGenerator('key', 'gemini-custom', fetchImpl, outputStore());
 
     await expect(generator.submit({
       id: `ratio-${expectedRatio}`,
@@ -128,7 +146,7 @@ describe('GoogleImageGenerator', () => {
 
   it('rejects unsupported dimensions and transparency before making an API call', async () => {
     const fetchImpl = vi.fn<typeof fetch>();
-    const generator = new GoogleImageGenerator('key', undefined, fetchImpl);
+    const generator = new GoogleImageGenerator('key', undefined, fetchImpl, outputStore());
 
     await expect(generator.submit({
       id: 'transparent',
@@ -156,7 +174,7 @@ describe('GoogleImageGenerator', () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({
       error: { status: 'RESOURCE_EXHAUSTED', message: 'Quota exceeded.' },
     }, { status: 429, statusText: 'Too Many Requests' }));
-    const generator = new GoogleImageGenerator('key', undefined, fetchImpl);
+    const generator = new GoogleImageGenerator('key', undefined, fetchImpl, outputStore());
 
     const operation = await generator.submit({
       id: 'quota',
@@ -176,7 +194,7 @@ describe('GoogleImageGenerator', () => {
     const malformedFetch = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({
       candidates: [{ content: { parts: [{ text: 'No image was returned.' }] } }],
     }));
-    const malformed = new GoogleImageGenerator('key', undefined, malformedFetch);
+    const malformed = new GoogleImageGenerator('key', undefined, malformedFetch, outputStore());
     const malformedOperation = await malformed.submit({
       id: 'malformed',
       assetKind: 'image',
@@ -194,7 +212,7 @@ describe('GoogleImageGenerator', () => {
       },
       candidates: [],
     }));
-    const safety = new GoogleImageGenerator('key', undefined, safetyFetch);
+    const safety = new GoogleImageGenerator('key', undefined, safetyFetch, outputStore());
     const safetyOperation = await safety.submit({
       id: 'safety',
       assetKind: 'image',
@@ -207,5 +225,46 @@ describe('GoogleImageGenerator', () => {
     await expect(safety.download(safetyOperation)).rejects.toThrow(
       'Cannot download failed operation',
     );
+  });
+
+  it('downloads completed bytes after the adapter is recreated', async () => {
+    const bytes = Buffer.from('restart-safe-google-image');
+    const store = outputStore();
+    const firstProcess = new GoogleImageGenerator(
+      'key',
+      undefined,
+      vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({
+        candidates: [{
+          content: {
+            parts: [{ inlineData: { mimeType: 'image/png', data: bytes.toString('base64') } }],
+          },
+        }],
+      })),
+      store,
+    );
+    const operation = await firstProcess.submit({
+      id: 'restart-google',
+      assetKind: 'image',
+      prompt: 'Durable image',
+    });
+
+    expect(operation.providerMetadata?.moo_provider_output).toMatchObject({
+      version: 1,
+      mimeType: 'image/png',
+      sizeBytes: bytes.length,
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      path: expect.stringMatching(/^\.moo\/provider-output-staging\/google-image-/),
+    });
+
+    const restarted = new GoogleImageGenerator(
+      'key',
+      undefined,
+      vi.fn<typeof fetch>().mockRejectedValue(new Error('must not fetch')),
+      store,
+    );
+    await expect(restarted.download(operation)).resolves.toMatchObject({
+      bytes,
+      mimeType: 'image/png',
+    });
   });
 });

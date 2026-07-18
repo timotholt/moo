@@ -6,8 +6,10 @@ import fs from 'fs-extra';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GenerationOperationStore } from '../src/services/generation-operation-store.js';
+import { OpenAIImageGenerator } from '../src/services/generators/openai-image.js';
 import { GeneratorRegistry } from '../src/services/generators/registry.js';
 import type { AssetGenerator } from '../src/services/generators/types.js';
+import { ProviderOutputStore } from '../src/services/provider-output-store.js';
 import { initializeProject } from '../src/services/project-initializer.js';
 import { reconcileProjectGeneration } from '../src/services/project-generation-recovery.js';
 import { appendJsonl, readJsonl } from '../src/utils/jsonl.js';
@@ -107,5 +109,59 @@ describe('reconcileProjectGeneration', () => {
     const [persisted] = await store.list();
     expect(persisted).toMatchObject({ id: operation.id, status: 'completed' });
     expect(persisted).not.toHaveProperty('downloaded_take_id');
+  });
+
+  it('harvests a synchronous image from durable staging after provider restart', async () => {
+    const { root, paths, store } = await createProject();
+    const providerOutputStore = new ProviderOutputStore(root);
+    const firstProcess = new OpenAIImageGenerator({
+      apiKey: 'key',
+      outputStore: providerOutputStore,
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+        data: [{ b64_json: transparentPng().toString('base64') }],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })),
+    });
+    const providerOperation = await firstProcess.submit({
+      id: 'request-restart',
+      assetKind: 'image',
+      prompt: 'restart-safe image',
+    });
+    await store.create({
+      generation_job_id: 'job-restart',
+      media_id: 'media-1',
+      asset_kind: 'image',
+      request_id: providerOperation.requestId,
+      provider: providerOperation.providerId,
+      provider_operation_id: providerOperation.operationId,
+      provider_metadata: providerOperation.providerMetadata,
+      status: providerOperation.status,
+      requested_delivery_profile: { width: 2, height: 1, format: 'png' },
+    });
+
+    const restartedFetch = vi.fn<typeof fetch>().mockRejectedValue(new Error('must not fetch'));
+    const restarted = new OpenAIImageGenerator({
+      apiKey: 'key',
+      outputStore: providerOutputStore,
+      fetch: restartedFetch,
+    });
+    const registry = new GeneratorRegistry([restarted]);
+
+    await expect(reconcileProjectGeneration(root, registry)).resolves.toMatchObject({
+      eligible: 1,
+      harvested: 1,
+      errors: [],
+    });
+    await expect(reconcileProjectGeneration(root, registry)).resolves.toEqual({
+      eligible: 0,
+      polled: 0,
+      harvested: 0,
+      failed: 0,
+      errors: [],
+    });
+    await expect(readJsonl<Take>(paths.catalog.takes)).resolves.toHaveLength(1);
+    expect(restartedFetch).not.toHaveBeenCalled();
   });
 });

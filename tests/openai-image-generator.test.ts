@@ -1,5 +1,23 @@
-import { describe, expect, it, vi } from 'vitest';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import fs from 'fs-extra';
+
 import { OpenAIImageGenerator } from '../src/services/generators/openai-image.js';
+import { ProviderOutputStore } from '../src/services/provider-output-store.js';
+
+const roots: string[] = [];
+
+afterAll(async () => {
+  await Promise.all(roots.map(root => fs.remove(root)));
+});
+
+function outputStore(): ProviderOutputStore {
+  const root = join(tmpdir(), `moo-openai-image-${process.pid}-${roots.length}`);
+  roots.push(root);
+  return new ProviderOutputStore(root);
+}
 
 function response(
   body: unknown,
@@ -31,6 +49,7 @@ describe('OpenAIImageGenerator', () => {
     const generator = new OpenAIImageGenerator({
       apiKey: 'sk-test',
       fetch,
+      outputStore: outputStore(),
     });
 
     const operation = await generator.submit({
@@ -98,6 +117,7 @@ describe('OpenAIImageGenerator', () => {
     const generator = new OpenAIImageGenerator({
       apiKey: 'sk-test',
       fetch: vi.fn<typeof globalThis.fetch>(),
+      outputStore: outputStore(),
     });
 
     expect(generator.capabilities()).toEqual({
@@ -113,7 +133,7 @@ describe('OpenAIImageGenerator', () => {
 
   it('does not call OpenAI for unsupported media or transparent delivery', async () => {
     const fetch = vi.fn<typeof globalThis.fetch>();
-    const generator = new OpenAIImageGenerator({ apiKey: 'sk-test', fetch });
+    const generator = new OpenAIImageGenerator({ apiKey: 'sk-test', fetch, outputStore: outputStore() });
 
     await expect(generator.submit({
       id: 'video-1',
@@ -134,7 +154,7 @@ describe('OpenAIImageGenerator', () => {
     const fetch = vi.fn<typeof globalThis.fetch>()
       .mockResolvedValueOnce(response({ data: [] }))
       .mockResolvedValueOnce(response({ data: [{ b64_json: 'not base64' }] }));
-    const generator = new OpenAIImageGenerator({ apiKey: 'sk-test', fetch });
+    const generator = new OpenAIImageGenerator({ apiKey: 'sk-test', fetch, outputStore: outputStore() });
 
     const missing = await generator.submit({
       id: 'missing-data',
@@ -169,6 +189,7 @@ describe('OpenAIImageGenerator', () => {
       apiKey: 'sk-test',
       model: 'gpt-image-custom',
       fetch,
+      outputStore: outputStore(),
     });
 
     const apiFailure = await generator.submit({
@@ -201,5 +222,40 @@ describe('OpenAIImageGenerator', () => {
         }),
       }),
     );
+  });
+
+  it('downloads completed bytes after the adapter is recreated', async () => {
+    const bytes = Buffer.from('restart-safe-openai-image');
+    const store = outputStore();
+    const firstProcess = new OpenAIImageGenerator({
+      apiKey: 'sk-test',
+      outputStore: store,
+      fetch: vi.fn<typeof globalThis.fetch>().mockResolvedValue(response({
+        data: [{ b64_json: bytes.toString('base64') }],
+      })),
+    });
+    const operation = await firstProcess.submit({
+      id: 'restart-openai',
+      assetKind: 'image',
+      prompt: 'Durable image',
+    });
+
+    expect(operation.providerMetadata?.moo_provider_output).toMatchObject({
+      version: 1,
+      mimeType: 'image/png',
+      sizeBytes: bytes.length,
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+      path: expect.stringMatching(/^\.moo\/provider-output-staging\/openai-image-/),
+    });
+
+    const restarted = new OpenAIImageGenerator({
+      apiKey: 'sk-test',
+      outputStore: store,
+      fetch: vi.fn<typeof globalThis.fetch>().mockRejectedValue(new Error('must not fetch')),
+    });
+    await expect(restarted.download(operation)).resolves.toMatchObject({
+      bytes,
+      mimeType: 'image/png',
+    });
   });
 });

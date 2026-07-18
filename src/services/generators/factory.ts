@@ -11,6 +11,7 @@ import { OpenAIImageGenerator } from './openai-image.js';
 import { OpenAIVideoGenerator } from './openai-video.js';
 import { ProviderFamilyGenerator } from './provider-family.js';
 import { GeneratorRegistry } from './registry.js';
+import { ProviderOutputStore } from '../provider-output-store.js';
 
 export type AudioProviderLoader = (projectRoot: string) => Promise<AudioProvider>;
 export type GenerationProviderSettingsLoader = (
@@ -36,6 +37,7 @@ export async function createDefaultGeneratorRegistry(
   const loadAudioProvider = dependencies.loadAudioProvider ?? getAudioProvider;
   const loadProviderSettings = dependencies.loadProviderSettings ?? getGenerationProviderSettings;
   const registry = new GeneratorRegistry();
+  const providerOutputStore = new ProviderOutputStore(projectRoot);
   try {
     registry.register(new ElevenLabsGeneratorAdapter(await loadAudioProvider(projectRoot)));
   } catch {
@@ -53,7 +55,11 @@ export async function createDefaultGeneratorRegistry(
     const imageModel = configuredModel(openai, 'image_model', 'gpt-image');
     const videoModel = configuredModel(openai, 'video_model', 'sora');
     registry.register(new ProviderFamilyGenerator('openai', [
-      new OpenAIImageGenerator({ apiKey: openai.api_key!, ...(imageModel ? { model: imageModel } : {}) }),
+      new OpenAIImageGenerator({
+        apiKey: openai.api_key!,
+        outputStore: providerOutputStore,
+        ...(imageModel ? { model: imageModel } : {}),
+      }),
       new OpenAIVideoGenerator({ apiKey: openai.api_key!, ...(videoModel ? { model: videoModel } : {}) }),
     ]));
   }
@@ -62,7 +68,7 @@ export async function createDefaultGeneratorRegistry(
     const imageModel = configuredModel(google, 'image_model', 'gemini');
     const videoModel = configuredModel(google, 'video_model', 'veo');
     registry.register(new ProviderFamilyGenerator('google', [
-      new GoogleImageGenerator(google.api_key!, imageModel),
+      new GoogleImageGenerator(google.api_key!, imageModel, globalThis.fetch, providerOutputStore),
       new GoogleVideoGenerator(google.api_key!, videoModel ? { model: videoModel } : {}),
     ]));
   }

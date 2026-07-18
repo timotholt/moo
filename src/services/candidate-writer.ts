@@ -19,6 +19,11 @@ import { constructTakePath } from '../utils/pathConstruction.js';
 import type { getProjectPaths } from '../utils/paths.js';
 import { generateId } from '../utils/ids.js';
 import { appendJsonl, ensureJsonlFile, readJsonl } from '../utils/jsonl.js';
+import {
+  ProviderOutputStore,
+  providerOutputReferenceFromMetadata,
+  type ArchivedProviderSource,
+} from './provider-output-store.js';
 
 type ProjectPaths = ReturnType<typeof getProjectPaths>;
 type CandidateOwner = Actor | Scene | Card;
@@ -111,6 +116,7 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
 
     const { inspection, alpha, validated } = await inspectAndValidate(temporaryPath, input);
     const hash = await (input.dependencies?.hashFile ?? defaultHashFile)(temporaryPath);
+    const sourceArchive = await archivePostprocessedSource(input);
     await fs.move(temporaryPath, finalPath, { overwrite: false });
 
     const now = (input.dependencies?.now ?? (() => new Date()))().toISOString();
@@ -144,6 +150,7 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
           operation: input.providerOperation.providerMetadata,
           asset: input.generatedAsset.providerMetadata,
           delivery: input.delivery,
+          ...(sourceArchive ? { source: sourceArchive } : {}),
         },
       },
       created_at: now,
@@ -158,6 +165,20 @@ export async function writeCandidate(input: CandidateWriterInput): Promise<Candi
     await fs.remove(temporaryPath).catch(() => undefined);
     throw error;
   }
+}
+
+async function archivePostprocessedSource(
+  input: CandidateWriterInput,
+): Promise<ArchivedProviderSource | undefined> {
+  if (input.delivery?.transparency !== true) return undefined;
+  const reference = providerOutputReferenceFromMetadata(input.providerOperation.providerMetadata);
+  if (!reference) return undefined;
+
+  const finalSha256 = createHash('sha256').update(input.generatedAsset.bytes).digest('hex');
+  if (reference.sha256 === finalSha256) return undefined;
+
+  const store = new ProviderOutputStore(input.projectRoot);
+  return store.archivePostprocessedSource(reference, finalSha256);
 }
 
 async function inspectAndValidate(

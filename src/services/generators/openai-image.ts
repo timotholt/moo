@@ -5,6 +5,7 @@ import type {
   ProviderCapabilities,
   ProviderOperation,
 } from './types.js';
+import { ProviderOutputStore } from '../provider-output-store.js';
 
 const OPENAI_IMAGE_GENERATIONS_URL = 'https://api.openai.com/v1/images/generations';
 const DEFAULT_MODEL = 'gpt-image-2';
@@ -15,6 +16,7 @@ type FetchLike = typeof globalThis.fetch;
 
 export interface OpenAIImageGeneratorOptions {
   apiKey: string;
+  outputStore: ProviderOutputStore;
   model?: string;
   fetch?: FetchLike;
 }
@@ -25,16 +27,10 @@ interface OpenAIImageResponse {
   usage?: unknown;
 }
 
-interface CompletedImage {
-  bytes: Buffer;
-  mimeType: string;
-  providerMetadata: Record<string, unknown>;
-}
-
 /**
- * OpenAI's image generation endpoint is synchronous. The adapter retains the
- * returned bytes in memory and exposes them as an immediately-completed
- * provider operation.
+ * OpenAI's image generation endpoint is synchronous. Returned bytes are
+ * atomically staged inside the project before a completed operation is
+ * exposed, making download recoverable after a process restart.
  */
 export class OpenAIImageGenerator implements AssetGenerator {
   readonly providerId = 'openai-image';
@@ -42,7 +38,7 @@ export class OpenAIImageGenerator implements AssetGenerator {
   private readonly apiKey: string;
   private readonly model: string;
   private readonly fetch: FetchLike;
-  private readonly completedAssets = new Map<string, CompletedImage>();
+  private readonly outputStore: ProviderOutputStore;
 
   constructor(options: OpenAIImageGeneratorOptions) {
     const apiKey = options.apiKey.trim();
@@ -53,6 +49,7 @@ export class OpenAIImageGenerator implements AssetGenerator {
     this.apiKey = apiKey;
     this.model = model;
     this.fetch = options.fetch ?? globalThis.fetch;
+    this.outputStore = options.outputStore;
   }
 
   capabilities(): ProviderCapabilities {
@@ -89,13 +86,16 @@ export class OpenAIImageGenerator implements AssetGenerator {
 
       const payload = await this.readJson(response);
       const bytes = this.extractImageBytes(payload);
-      const providerMetadata = this.buildProviderMetadata(response, payload, request, outputFormat);
-
-      this.completedAssets.set(operationId, {
-        bytes: Buffer.from(bytes),
+      const reference = await this.outputStore.stage({
+        providerId: this.providerId,
+        operationId,
+        bytes,
         mimeType: mimeTypeFor(outputFormat),
-        providerMetadata: { ...providerMetadata },
       });
+      const providerMetadata = this.outputStore.attach(
+        this.buildProviderMetadata(response, payload, request, outputFormat),
+        reference,
+      );
 
       return {
         providerId: this.providerId,
@@ -105,7 +105,6 @@ export class OpenAIImageGenerator implements AssetGenerator {
         providerMetadata: { ...providerMetadata },
       };
     } catch (error) {
-      this.completedAssets.delete(operationId);
       return {
         providerId: this.providerId,
         operationId,
@@ -127,15 +126,12 @@ export class OpenAIImageGenerator implements AssetGenerator {
       throw new Error(`Cannot download ${operation.status} operation ${operation.operationId}`);
     }
 
-    const asset = this.completedAssets.get(operation.operationId);
-    if (!asset) {
-      throw new Error(`No generated asset is available for ${operation.operationId}`);
-    }
+    const asset = await this.outputStore.download(operation.providerMetadata);
 
     return {
       bytes: Buffer.from(asset.bytes),
       mimeType: asset.mimeType,
-      providerMetadata: { ...asset.providerMetadata },
+      providerMetadata: { ...operation.providerMetadata },
     };
   }
 

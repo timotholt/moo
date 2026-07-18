@@ -1,4 +1,5 @@
 import { deflateSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,6 +7,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { writeCandidate } from '../src/services/candidate-writer.js';
+import { ProviderOutputStore } from '../src/services/provider-output-store.js';
+import type { ProviderOperation } from '../src/services/generators/types.js';
 import { getProjectPaths } from '../src/utils/paths.js';
 
 const SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -23,10 +26,21 @@ function png(): Buffer {
   return Buffer.concat([SIGNATURE, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(Buffer.from([0, 0, 0, 0, 255, 0, 0, 0, 0]))), chunk('IEND', Buffer.alloc(0))]);
 }
 
+function opaquePng(): Buffer {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(2, 0); ihdr.writeUInt32BE(1, 4); ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([SIGNATURE, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(Buffer.from([0, 0, 0, 0, 255, 0, 0, 0, 255]))), chunk('IEND', Buffer.alloc(0))]);
+}
+
 function base(mediaType: 'dialogue' | 'image' | 'video' = 'dialogue') {
   const media = { id: 'media-1', owner_type: 'global' as const, owner_id: null, bin_id: 'bin-1', media_type: mediaType, name: 'Hero Asset', prompt: 'make it', created_at: now, updated_at: now };
   const bin = { id: 'bin-1', owner_type: 'global' as const, owner_id: null, media_type: mediaType, name: 'Main', default_blocks: {}, created_at: now, updated_at: now };
-  const operation = { providerId: 'provider', operationId: 'operation-1', requestId: 'request-1', status: 'completed' as const };
+  const operation: ProviderOperation = {
+    providerId: 'provider',
+    operationId: 'operation-1',
+    requestId: 'request-1',
+    status: 'completed',
+  };
   return { media, bin, operation, settings: { provider: 'provider' } };
 }
 
@@ -68,6 +82,37 @@ describe('writeCandidate', () => {
     const result = await writeCandidate(value);
     expect(result.take).toMatchObject({ format: 'png', width: 2, height: 1 });
     expect(result.facts.alpha).toMatchObject({ hasTransparentPixels: true, transparentPixels: 1 });
+  });
+
+  it('archives original provider bytes and links source to a postprocessed candidate', async () => {
+    const value = await input('image', png(), 'image/png');
+    const original = opaquePng();
+    const store = new ProviderOutputStore(value.projectRoot);
+    const reference = await store.stage({
+      providerId: 'provider',
+      operationId: 'operation-1',
+      bytes: original,
+      mimeType: 'image/png',
+    });
+    value.providerOperation.providerMetadata = store.attach({}, reference);
+    value.delivery = { width: 2, height: 1, transparency: true };
+
+    const result = await writeCandidate(value);
+    const source = result.take.generation_params?.provider_metadata?.source as Record<string, unknown>;
+    const finalSha256 = createHash('sha256').update(png()).digest('hex');
+    expect(source).toEqual({
+      path: `source-art/archive/${reference.sha256}.png`,
+      mimeType: 'image/png',
+      sizeBytes: original.length,
+      sha256: reference.sha256,
+      finalSha256,
+      relation: 'source-of-postprocessed-candidate',
+    });
+    await expect(readFile(join(value.projectRoot, String(source.path)))).resolves.toEqual(original);
+
+    const repeated = await writeCandidate(value);
+    expect(repeated).toMatchObject({ existing: true, take: { id: result.take.id } });
+    await expect(readFile(join(value.projectRoot, String(source.path)))).resolves.toEqual(original);
   });
 
   it('validates portrait video delivery', async () => {
