@@ -1,9 +1,9 @@
-import { join } from 'path';
 import fs from 'fs-extra';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Defaults } from '../../types/index.js';
 import { DefaultBlockSchema, MediaTypeSchema } from '../../shared/schemas/index.js';
 import { validate } from '../../utils/validation.js';
+import { getDefaultsTemplatePath } from '../../services/app-runtime-paths.js';
 
 type ProjectContext = { projectRoot: string; paths: ReturnType<typeof import('../../utils/paths.js').getProjectPaths> };
 
@@ -24,7 +24,7 @@ export function registerDefaultsRoutes(fastify: FastifyInstance, getProjectConte
         return { defaults };
       } else {
         // Return default template if no file
-        const templatePath = join(process.cwd(), 'src', 'templates', 'defaults.template.json');
+        const templatePath = getDefaultsTemplatePath();
         if (await fs.pathExists(templatePath)) {
           return { defaults: await fs.readJson(templatePath) };
         }

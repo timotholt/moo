@@ -1,8 +1,9 @@
 import fs from 'fs-extra';
-import { dirname, join } from 'path';
+import { dirname } from 'path';
+import { getMooRuntimePaths } from './app-runtime-paths.js';
 
-// Global config stored in app root (not per-project)
-const DEFAULT_GLOBAL_CONFIG_PATH = join(process.cwd(), '.moo-config.json');
+// Global config is repository-local in development and user-local in packaged mode.
+const DEFAULT_GLOBAL_CONFIG_PATH = getMooRuntimePaths().globalConfig;
 
 export interface GenerationProviderSettings {
   /** Stored locally and intentionally returned verbatim to the local authoring UI. */

@@ -4,9 +4,14 @@ import { join, basename } from 'path';
 import { initializeProject } from '../../services/project-initializer.js';
 import { createDefaultGeneratorRegistry } from '../../services/generators/factory.js';
 import { reconcileProjectGeneration } from '../../services/project-generation-recovery.js';
+import {
+  getDefaultsTemplatePath,
+  getMooRuntimePaths,
+  isPathInside,
+} from '../../services/app-runtime-paths.js';
 
-// Projects are stored relative to the app root
-const PROJECTS_DIR = join(process.cwd(), 'projects');
+// Repository-local in development; user-local when launched as a packaged app.
+export const PROJECTS_DIR = getMooRuntimePaths().projects;
 
 // Current active project path - mutable for dynamic switching. When null, no project is selected.
 let currentProjectPath: string | null = null;
@@ -101,10 +106,9 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         return { error: 'Project already exists' };
       }
 
-      const templatePath = join(process.cwd(), 'src', 'templates', 'defaults.template.json');
       await initializeProject(projectPath, {
         displayName: body.name.trim(),
-        defaultsTemplatePath: templatePath,
+        defaultsTemplatePath: getDefaultsTemplatePath(),
       });
 
       return {
@@ -133,7 +137,7 @@ export default async function projectRoutes(fastify: FastifyInstance) {
       }
 
       // Safety check - only delete if it's inside PROJECTS_DIR
-      if (!projectPath.startsWith(PROJECTS_DIR)) {
+      if (!isPathInside(PROJECTS_DIR, projectPath)) {
         reply.code(400);
         return { error: 'Invalid project path' };
       }
