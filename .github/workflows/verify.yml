@@ -25,3 +25,7 @@ jobs:
         run: pnpm run verify
       - name: Verify audio tooling
         run: pnpm run audio:preflight
+      - name: Build production application
+        run: pnpm run build:all
+      - name: Verify release runtime
+        run: pnpm run verify:release
