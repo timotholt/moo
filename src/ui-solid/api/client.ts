@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   ActorSchema,
   SceneSchema,
+  CardSchema,
   BinSchema,
   MediaSchema,
   TakeSchema,
@@ -109,6 +110,58 @@ export async function updateScene(id: string, payload: unknown) {
 export async function deleteScene(id: string) {
   const res = await fetch(`/api/scenes/${encodeURIComponent(id)}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 204) throw new Error(`Failed to delete scene`);
+}
+
+/**
+ * Cards
+ */
+export async function getCards() {
+  const data = await fetchJson('/api/cards');
+  return {
+    cards: z.array(CardSchema).parse(data.cards)
+  };
+}
+
+export async function createCard(payload: unknown) {
+  const res = await fetch('/api/cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload ?? {}),
+  });
+  if (!res.ok) throw new Error(`Failed to create card: ${await res.text()}`);
+  const data = asApiObject(await res.json());
+  return { card: CardSchema.parse(data.card) };
+}
+
+export async function updateCard(id: string, payload: unknown) {
+  const res = await fetch(`/api/cards/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Failed to update card: ${await res.text()}`);
+  const data = asApiObject(await res.json());
+  return { card: CardSchema.parse(data.card) };
+}
+
+export async function deleteCard(id: string) {
+  const res = await fetch(`/api/cards/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 204) throw new Error(`Failed to delete card: ${await res.text()}`);
+}
+
+export async function renderCard(id: string) {
+  const res = await fetch(`/api/cards/${encodeURIComponent(id)}/render`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to render card: ${await res.text()}`);
+  return z.object({
+    card_id: z.string(),
+    file: z.string(),
+    metadata_file: z.string(),
+    mime_type: z.string(),
+    width: z.number(),
+    height: z.number(),
+    hash_sha256: z.string(),
+    provenance: z.record(z.string(), z.unknown())
+  }).parse(await res.json());
 }
 
 /**

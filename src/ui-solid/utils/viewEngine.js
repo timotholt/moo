@@ -7,7 +7,7 @@ import { ASSET_TYPES, getAssetTypeForContent, getFileIcon } from './assetTypes.j
 // Available dimensions for custom views
 export const DIMENSIONS = [
   { id: 'owner_id', name: 'Owner', icon: 'person', displayField: 'owner_name' },
-  { id: 'owner_type', name: 'Owner Type', icon: 'folder', labelMap: { actor: 'Actors', scene: 'Scenes', global: 'Global' } },
+  { id: 'owner_type', name: 'Owner Type', icon: 'folder', labelMap: { actor: 'Actors', scene: 'Scenes', card: 'Cards', global: 'Global' } },
   { id: 'scene_id', name: 'Scene', icon: 'folder', displayField: 'scene_name' },
   { id: 'actor_id', name: 'Actor', icon: 'person', displayField: 'actor_name' },
   { id: 'bin_id', name: 'Media Bin', icon: 'folder', displayField: 'bin_name' },
@@ -73,10 +73,11 @@ export const PRESET_VIEWS = {
 // Asset Index Builder
 // ============================================================================
 
-export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
+export function buildAssetIndex(actors, bins, media, takes, scenes = [], cards = []) {
   const actorsById = new Map(actors.map(a => [a.id, a]));
   const binsById = new Map(bins.map(s => [s.id, s]));
   const scenesById = new Map(scenes.map(sc => [sc.id, sc]));
+  const cardsById = new Map(cards.map(card => [card.id, card]));
   
   const takesByMediaId = new Map();
   for (const take of takes) {
@@ -87,6 +88,7 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
   const index = [];
   const seenActorIds = new Set();
   const seenSceneIds = new Set();
+  const seenCardIds = new Set();
 
   // 1. Process Media
   for (const m of media) {
@@ -98,6 +100,8 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
     let actorName = null;
     let sceneId = null;
     let sceneName = null;
+    let cardId = null;
+    let cardName = null;
 
     if (m.owner_type === 'actor') {
         const a = actorsById.get(m.owner_id);
@@ -110,7 +114,13 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
         ownerName = sc?.name || 'Unknown Scene';
         sceneId = m.owner_id;
         sceneName = ownerName;
-        if (sceneId) seenSceneIds.add(sceneId);
+      if (sceneId) seenSceneIds.add(sceneId);
+    } else if (m.owner_type === 'card') {
+      const card = cardsById.get(m.owner_id);
+      ownerName = card?.name || 'Unknown Card';
+      cardId = m.owner_id;
+      cardName = ownerName;
+      if (cardId) seenCardIds.add(cardId);
     }
 
     if (!sceneId && b?.scene_id) {
@@ -136,6 +146,8 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
       scene_name: sceneName,
       actor_id: actorId,
       actor_name: actorName,
+      card_id: cardId,
+      card_name: cardName,
       asset_type: getAssetTypeForContent(m.media_type)?.id || 'audio',
       leaf_type: getAssetTypeForContent(m.media_type)?.leafType || 'take',
       _media: m,
@@ -173,6 +185,8 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
     let actorName = null;
     let sceneId = null;
     let sceneName = null;
+    let cardId = null;
+    let cardName = null;
 
     if (b.owner_type === 'actor') {
         const a = actorsById.get(b.owner_id);
@@ -185,7 +199,13 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
         ownerName = sc?.name || 'Unknown Scene';
         sceneId = b.owner_id;
         sceneName = ownerName;
-        if (sceneId) seenSceneIds.add(sceneId);
+      if (sceneId) seenSceneIds.add(sceneId);
+    } else if (b.owner_type === 'card') {
+        const card = cardsById.get(b.owner_id);
+        ownerName = card?.name || 'Unknown Card';
+        cardId = b.owner_id;
+        cardName = ownerName;
+        if (cardId) seenCardIds.add(cardId);
     }
 
     if (!sceneId && b.scene_id) {
@@ -210,6 +230,8 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
       scene_name: sceneName,
       actor_id: actorId,
       actor_name: actorName,
+      card_id: cardId,
+      card_name: cardName,
       status: '__empty__',
       asset_type: 'audio', // default
       // No media_id
@@ -261,7 +283,22 @@ export function buildAssetIndex(actors, bins, media, takes, scenes = []) {
       }
     }
   }
-  console.log(`[ViewEngine] Building Asset Index: ${actors.length} actors, ${bins.length} bins, ${media.length} media, ${takes.length} takes, ${scenes.length} scenes`);
+
+  // 4. Add Shell Entries for Empty Cards
+  for (const card of cards) {
+    if (!seenCardIds.has(card.id)) {
+      index.push({
+        owner_type: 'card',
+        owner_id: card.id,
+        owner_name: card.name,
+        card_id: card.id,
+        card_name: card.name,
+        status: '__empty__',
+        id: `shell-card-${card.id}`
+      });
+    }
+  }
+  console.log(`[ViewEngine] Building Asset Index: ${actors.length} actors, ${bins.length} bins, ${media.length} media, ${takes.length} takes, ${scenes.length} scenes, ${cards.length} cards`);
   
   // LOG: Show first few items for debugging
   if (index.length > 0) {
@@ -376,7 +413,7 @@ export function groupByLevels(items, levels, depth = 0, parentPath = '') {
   
   nodes.sort((a, b) => {
     if (level.field === 'owner_type') {
-        const order = { global: 0, actor: 1, scene: 2 };
+        const order = { global: 0, actor: 1, scene: 2, card: 3 };
         return (order[a.fieldValue] ?? 99) - (order[b.fieldValue] ?? 99);
     }
     if (level.field === 'status') {
@@ -442,8 +479,8 @@ export function applyFilters(asset, filter) {
 export function buildViewTree(viewId, data, customViews = []) {
   const view = getViewById(viewId, customViews);
   if (!view) return [];
-  const { actors = [], bins = [], media = [], takes = [], scenes = [] } = data;
-  let assets = buildAssetIndex(actors, bins, media, takes, scenes);
+  const { actors = [], bins = [], media = [], takes = [], scenes = [], cards = [] } = data;
+  let assets = buildAssetIndex(actors, bins, media, takes, scenes, cards);
 
   if (view.filter) {
     assets = assets.filter(a => applyFilters(a, view.filter));

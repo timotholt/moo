@@ -6,6 +6,7 @@ import MediaView from './MediaView.jsx';
 import ProviderDefaultsView from './ProviderDefaultsView.jsx';
 import ActorView from './views/ActorView.jsx';
 import SceneView from './views/SceneView.jsx';
+import CardView from './views/CardView.jsx';
 import RootView from './views/RootView.jsx';
 import DefaultsView from './views/DefaultsView.jsx';
 import HistoryView from './HistoryView.jsx';
@@ -68,11 +69,13 @@ export default function DetailPane(props) {
         switch (type) {
             case 'actor': return { actor: props.actors.find(a => a.id === id) };
             case 'scene': return { scene: props.scenes.find(s => s.id === id) };
+            case 'card': return { card: props.cards.find(card => card.id === id) };
             case 'bin': {
                 const bin = props.bins.find(b => b.id === id);
                 let owner = null;
                 if (bin?.owner_type === 'actor') owner = props.actors.find(a => a.id === bin.owner_id);
                 else if (bin?.owner_type === 'scene') owner = props.scenes.find(s => s.id === bin.owner_id);
+                else if (bin?.owner_type === 'card') owner = props.cards.find(card => card.id === bin.owner_id);
                 return { bin, owner };
             }
             case 'media': {
@@ -80,6 +83,7 @@ export default function DetailPane(props) {
                 let owner = null;
                 if (item?.owner_type === 'actor') owner = props.actors.find(a => a.id === item.owner_id);
                 else if (item?.owner_type === 'scene') owner = props.scenes.find(s => s.id === item.owner_id);
+                else if (item?.owner_type === 'card') owner = props.cards.find(card => card.id === item.owner_id);
                 const bin = item?.bin_id ? props.bins.find(b => b.id === item.bin_id) : null;
                 return { item, owner, bin };
             }
@@ -94,6 +98,8 @@ export default function DetailPane(props) {
                     if (actor) return { actor, typeOverride: 'actor' };
                     const scene = props.scenes.find(s => s.id === node.fieldValue);
                     if (scene) return { scene, typeOverride: 'scene' };
+                    const card = props.cards.find(candidate => candidate.id === node.fieldValue);
+                    if (card) return { card, typeOverride: 'card' };
                 }
                 if (node.field === 'scene_id') {
                     const scene = props.scenes.find(s => s.id === node.fieldValue);
@@ -105,6 +111,7 @@ export default function DetailPane(props) {
                         let owner = null;
                         if (bin.owner_type === 'actor') owner = props.actors.find(a => a.id === bin.owner_id);
                         else if (bin.owner_type === 'scene') owner = props.scenes.find(s => s.id === bin.owner_id);
+                        else if (bin.owner_type === 'card') owner = props.cards.find(card => card.id === bin.owner_id);
                         return { bin, owner, typeOverride: 'bin' };
                     }
                 }
@@ -114,6 +121,7 @@ export default function DetailPane(props) {
                         let owner = null;
                         if (item.owner_type === 'actor') owner = props.actors.find(a => a.id === item.owner_id);
                         else if (item.owner_type === 'scene') owner = props.scenes.find(s => s.id === item.owner_id);
+                        else if (item.owner_type === 'card') owner = props.cards.find(card => card.id === item.owner_id);
                         const bin = item.bin_id ? props.bins.find(b => b.id === item.bin_id) : null;
                         return { item, owner, bin, typeOverride: 'media' };
                     }
@@ -146,7 +154,13 @@ export default function DetailPane(props) {
                 </Match>
 
                 <Match when={activeType() === 'root'}>
-                    <RootView actorOps={actorOps} sceneOps={sceneOps} error={commonError()} />
+                    <RootView
+                        actorOps={actorOps}
+                        sceneOps={sceneOps}
+                        error={commonError()}
+                        onRefresh={props.onRefresh}
+                        onSelect={props.onSelect}
+                    />
                 </Match>
 
                 <Match when={activeType() === 'defaults'}>
@@ -221,6 +235,15 @@ export default function DetailPane(props) {
                     />
                 </Match>
 
+                <Match when={activeType() === 'card' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'card')}>
+                    <CardView
+                        card={resolvedData()?.card}
+                        media={props.media}
+                        onRefresh={props.onRefresh}
+                        onSelect={props.onSelect}
+                    />
+                </Match>
+
                 <Match when={activeType() === 'bin' || (activeType() === 'view-group' && resolvedData()?.typeOverride === 'bin')}>
                     <BinView
                         binData={resolvedData()?.bin}
@@ -282,6 +305,7 @@ export default function DetailPane(props) {
                             actors: props.actors,
                             bins: props.bins,
                             scenes: props.scenes || [],
+                            cards: props.cards || [],
                             media: props.media,
                             takes: props.takes
                         }}

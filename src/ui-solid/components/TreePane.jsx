@@ -23,6 +23,7 @@ import DescriptionIcon from '@suid/icons-material/Description';
 import FactCheckIcon from '@suid/icons-material/FactCheck';
 import PendingActionsIcon from '@suid/icons-material/PendingActions';
 import ArchiveIcon from '@suid/icons-material/Archive';
+import StyleIcon from '@suid/icons-material/Style';
 
 import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { TREE_INDENT } from '../constants.js';
@@ -118,7 +119,8 @@ function TreeItem(props) {
                                 bins: props.bins,
                                 media: props.media,
                                 takes: props.takes,
-                                scenes: props.scenes || []
+                                scenes: props.scenes || [],
+                                cards: props.cards || []
                             }, props.customViews)}
                             selectedNode={props.selectedNode}
                             onSelect={(node) => props.onSelect(node)}
@@ -148,6 +150,7 @@ function TreeItem(props) {
                                         media={props.media}
                                         takes={props.takes}
                                         scenes={props.scenes}
+                                        cards={props.cards}
                                         customViews={props.customViews}
                                         projectName={props.projectName}
                                     />
@@ -166,7 +169,7 @@ export default function TreePane(props) {
 
     // --- Persistence ---
     const [expanded, setExpanded] = createSignal((() => {
-        return storage.get(props.projectName, 'tree-expanded', { views: true, favorites: true, system: true });
+        return storage.get(props.projectName, 'tree-expanded', { cards: true, views: true, favorites: true, system: true });
     })());
 
     const [pinnedIds, setPinnedIds] = createSignal((() => {
@@ -220,6 +223,18 @@ export default function TreePane(props) {
     const summaryViews = createMemo(() => allViews().filter(v => v.category === 'summary' && !pinnedIds().includes(v.id)));
 
     const categories = createMemo(() => [
+        {
+            id: 'cards',
+            name: 'cards',
+            icon: <StyleIcon sx={{ fontSize: '0.875rem' }} />,
+            items: (props.cards || []).map(card => ({
+                id: `card-${card.id}`,
+                name: card.name,
+                nodeType: 'card',
+                nodeId: card.id,
+                icon: <StyleIcon sx={{ fontSize: '0.75rem' }} />
+            }))
+        },
         { id: 'favorites', name: 'favorites', icon: <StarIcon sx={{ fontSize: '0.875rem' }} />, items: pinnedViews() },
         { id: 'views', name: 'views', icon: <FolderIcon sx={{ fontSize: '0.875rem' }} />, items: workflowViews(), canAdd: true },
         { id: 'summaries', name: 'summaries', icon: <AssessmentIcon sx={{ fontSize: '0.875rem' }} />, items: summaryViews(), canAdd: true },
@@ -337,6 +352,7 @@ export default function TreePane(props) {
                                                 media={props.media}
                                                 takes={props.takes}
                                                 scenes={props.scenes}
+                                                cards={props.cards}
                                                 customViews={props.customViews}
                                                 projectName={props.projectName}
                                             />

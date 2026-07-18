@@ -2,7 +2,7 @@ import { createSignal, createEffect, onMount, onCleanup, Show } from 'solid-js';
 import { Box, Typography } from '@suid/material';
 import TreePane from './TreePane.jsx';
 import DetailPane from './DetailPane.jsx';
-import { getActors, getMedia, getBins, getTakes, getScenes } from '../api/client.js';
+import { getActors, getMedia, getBins, getTakes, getScenes, getCards } from '../api/client.js';
 import { useAppLog } from '../hooks/useAppLog.js';
 import { useUndoStack } from '../hooks/useUndoStack.js';
 import { useConsoleCapture } from '../hooks/useConsoleCapture.js';
@@ -16,6 +16,7 @@ export default function ProjectShell(props) {
     const [bins, setBins] = createSignal([]);
     const [takes, setTakes] = createSignal([]);
     const [scenes, setScenes] = createSignal([]);
+    const [cards, setCards] = createSignal([]);
     const [customViews, setCustomViews] = createSignal((() => {
         const key = 'custom-views';
         let saved = storage.get(props.currentProject.name, key);
@@ -59,6 +60,7 @@ export default function ProjectShell(props) {
         setActors(restoredState.actors);
         setBins(restoredState.bins);
         setMediaItems(restoredState.media);
+        if (restoredState.cards) setCards(restoredState.cards);
         logInfo(restoredState.message);
     };
 
@@ -121,18 +123,20 @@ export default function ProjectShell(props) {
         try {
             if (isInitialLoad()) setLoading(true);
             console.log('[Project] Reloading project data for:', props.currentProject?.name);
-            const [actorsRes, mediaRes, binsRes, takesRes, scenesRes] = await Promise.all([
+            const [actorsRes, mediaRes, binsRes, takesRes, scenesRes, cardsRes] = await Promise.all([
                 getActors(),
                 getMedia(),
                 getBins(),
                 getTakes(),
-                getScenes()
+                getScenes(),
+                getCards()
             ]);
             setActors(actorsRes.actors || []);
             setMediaItems(mediaRes.media || []);
             setBins(binsRes.bins || []);
             setTakes(takesRes.takes || []);
             setScenes(scenesRes.scenes || []);
+            setCards(cardsRes.cards || []);
             setDataVersion((version) => version + 1);
             setError(null);
             setIsInitialLoad(false);
@@ -142,7 +146,8 @@ export default function ProjectShell(props) {
             const mediaCount = mediaRes.media?.length || 0;
             const takeCount = takesRes.takes?.length || 0;
             const sceneCount = scenesRes.scenes?.length || 0;
-            console.log(`[Project] Loaded: ${actorCount} actors, ${binCount} bins, ${mediaCount} media items, ${takeCount} takes, ${sceneCount} scenes`);
+            const cardCount = cardsRes.cards?.length || 0;
+            console.log(`[Project] Loaded: ${actorCount} actors, ${binCount} bins, ${mediaCount} media items, ${takeCount} takes, ${sceneCount} scenes, ${cardCount} cards`);
 
             undoStack.refreshUndoState();
             appLog.reloadLogs();
@@ -194,6 +199,7 @@ export default function ProjectShell(props) {
                             bins={bins()}
                             takes={takes()}
                             scenes={scenes()}
+                            cards={cards()}
                             projectName={props.currentProject.name}
                             customViews={customViews()}
                             onCustomViewsChange={setCustomViews}
@@ -219,6 +225,7 @@ export default function ProjectShell(props) {
                             bins={bins()}
                             takes={takes()}
                             scenes={scenes()}
+                            cards={cards()}
                             selectedNode={selectedNode()}
                             expandNode={expandNode()}
                             logs={appLog.logs()}
