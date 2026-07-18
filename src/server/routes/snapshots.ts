@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readJsonl, ensureJsonlFile, writeJsonlAll } from '../../utils/jsonl.js';
-import type { Actor, Media, Bin, Scene, Take } from '../../types/index.js';
+import type { Actor, Card, Media, Bin, Scene, Take } from '../../types/index.js';
 import {
   buildBinPath,
   buildMediaPath,
@@ -10,6 +10,7 @@ import { describeChanges } from '../../utils/diffDescriber.js';
 import {
   ActorSchema,
   BinSchema,
+  CardSchema,
   MediaSchema,
   SceneSchema,
   TakeSchema,
@@ -22,6 +23,7 @@ interface Snapshot {
   timestamp: string;
   message: string;
   actors: Actor[];
+  cards: Card[];
   bins: Bin[];
   media: Media[];
   scenes: Scene[];
@@ -31,6 +33,7 @@ interface Snapshot {
 /** Cached catalog data to avoid redundant reads */
 export interface CatalogCache {
   actors: Actor[];
+  cards: Card[];
   bins: Bin[];
   media: Media[];
   scenes: Scene[];
@@ -46,14 +49,15 @@ const MAX_SNAPSHOTS = 50;
  * Read all catalog files and return cached data
  */
 export async function readCatalog(paths: ProjectPaths): Promise<CatalogCache> {
-  const [actors, bins, media, scenes, takes] = await Promise.all([
+  const [actors, cards, bins, media, scenes, takes] = await Promise.all([
     readJsonl<Actor>(paths.catalog.actors, ActorSchema).catch(() => [] as Actor[]),
+    readJsonl<Card>(paths.catalog.cards, CardSchema).catch(() => [] as Card[]),
     readJsonl<Bin>(paths.catalog.bins, BinSchema).catch(() => [] as Bin[]),
     readJsonl<Media>(paths.catalog.media, MediaSchema).catch(() => [] as Media[]),
     readJsonl<Scene>(paths.catalog.scenes, SceneSchema).catch(() => [] as Scene[]),
     readJsonl<Take>(paths.catalog.takes, TakeSchema).catch(() => [] as Take[]),
   ]);
-  return { actors, bins, media, scenes, takes };
+  return { actors, cards, bins, media, scenes, takes };
 }
 
 /**
@@ -194,6 +198,7 @@ export async function saveSnapshot(
       timestamp: new Date().toISOString(),
       message,
       actors: catalog.actors,
+      cards: catalog.cards,
       bins: catalog.bins,
       media: catalog.media,
       scenes: catalog.scenes,
@@ -268,6 +273,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
 
     // Restore catalog
     await writeJsonlAll(paths.catalog.actors, snapshot.actors, ActorSchema);
+    await writeJsonlAll(paths.catalog.cards, snapshot.cards ?? [], CardSchema);
     await writeJsonlAll(paths.catalog.bins, snapshot.bins, BinSchema);
     await writeJsonlAll(paths.catalog.media, snapshot.media, MediaSchema);
     await writeJsonlAll(paths.catalog.scenes, snapshot.scenes, SceneSchema);
@@ -316,6 +322,7 @@ export function registerSnapshotRoutes(fastify: FastifyInstance, getProjectConte
 
     // Restore from redo
     await writeJsonlAll(paths.catalog.actors, redoSnapshot.actors, ActorSchema);
+    await writeJsonlAll(paths.catalog.cards, redoSnapshot.cards ?? [], CardSchema);
     await writeJsonlAll(paths.catalog.bins, redoSnapshot.bins, BinSchema);
     await writeJsonlAll(paths.catalog.media, redoSnapshot.media, MediaSchema);
     await writeJsonlAll(paths.catalog.scenes, redoSnapshot.scenes, SceneSchema);

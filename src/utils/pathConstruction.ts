@@ -41,6 +41,8 @@ export function getOwnerFolder(
             return `actors/${ownerBaseFilename || ownerId || 'unknown'}`;
         case 'scene':
             return `scenes/${ownerId || 'unknown'}`;
+        case 'card':
+            return `cards/${ownerId || 'unknown'}`;
         case 'global':
             return 'global';
         default:

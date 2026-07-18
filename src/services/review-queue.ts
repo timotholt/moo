@@ -1,4 +1,4 @@
-import type { Actor, Bin, Defaults, Media, Scene, Take } from '../types/index.js';
+import type { Actor, Bin, Card, Defaults, Media, Scene, Take } from '../types/index.js';
 import { calculateCueLifecycle, type CueLifecycle } from './cue-lifecycle.js';
 import { resolveDefaultBlock } from '../utils/defaultBlockResolver.js';
 
@@ -14,6 +14,7 @@ export interface ReviewQueueItem {
 
 export interface ReviewQueueCatalog {
   actors: Actor[];
+  cards?: Card[];
   scenes: Scene[];
   bins: Bin[];
   media: Media[];
@@ -38,6 +39,8 @@ export function buildReviewQueue(
       ? catalog.actors.find((candidate) => candidate.id === media.owner_id) ?? null
       : media.owner_type === 'scene'
         ? catalog.scenes.find((candidate) => candidate.id === media.owner_id) ?? null
+        : media.owner_type === 'card'
+          ? catalog.cards?.find((candidate) => candidate.id === media.owner_id) ?? null
         : null;
     const settings = resolveDefaultBlock(media.media_type, media, bin, owner, defaults).settings;
     const lifecycle = calculateCueLifecycle(media, takes, settings.approval_count_default ?? 1);

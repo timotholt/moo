@@ -8,6 +8,7 @@ import type { Bin } from '../shared/schemas/bin.schema.js';
 import type { DefaultBlock } from '../shared/schemas/common.schema.js';
 import type { Media } from '../shared/schemas/media.schema.js';
 import type { Scene } from '../shared/schemas/scene.schema.js';
+import type { Card } from '../shared/schemas/card.schema.js';
 import { TakeSchema, type Take } from '../shared/schemas/take.schema.js';
 import type { GeneratedAsset, ProviderOperation, DeliveryRequirements } from './generators/types.js';
 import { inspectWithFFprobe, type FFprobeInspectionResult } from './inspection/ffprobe-inspector.js';
@@ -20,7 +21,7 @@ import { generateId } from '../utils/ids.js';
 import { appendJsonl, ensureJsonlFile, readJsonl } from '../utils/jsonl.js';
 
 type ProjectPaths = ReturnType<typeof getProjectPaths>;
-type CandidateOwner = Actor | Scene;
+type CandidateOwner = Actor | Scene | Card;
 type CandidateInspection = FFprobeInspectionResult | ImageInspectionResult;
 
 export interface CandidateWriterDependencies {

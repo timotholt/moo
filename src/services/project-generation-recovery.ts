@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 
 import { ActorSchema, type Actor } from '../shared/schemas/actor.schema.js';
 import { BinSchema, type Bin } from '../shared/schemas/bin.schema.js';
+import { CardSchema, type Card } from '../shared/schemas/card.schema.js';
 import { DefaultsSchema, type Defaults } from '../shared/schemas/defaults.schema.js';
 import type { RequestedDeliveryProfile } from '../shared/schemas/generation-operation.schema.js';
 import { MediaSchema, type Media } from '../shared/schemas/media.schema.js';
@@ -17,7 +18,7 @@ import { GenerationOperationStore } from './generation-operation-store.js';
 import { GeneratorRegistry } from './generators/registry.js';
 import type { DeliveryRequirements } from './generators/types.js';
 
-type CandidateOwner = Actor | Scene;
+type CandidateOwner = Actor | Scene | Card;
 
 /** Convert a durable provider-operation delivery profile into the writer contract. */
 export function requestedProfileToDeliveryRequirements(
@@ -42,8 +43,9 @@ export function requestedProfileToDeliveryRequirements(
 export function createProjectDownloadedTake(projectRoot: string): CreateDownloadedTake {
   return async (input: ReconciliationTakeInput): Promise<string> => {
     const paths = getProjectPaths(projectRoot);
-    const [actors, scenes, bins, mediaItems, takes, defaults] = await Promise.all([
+    const [actors, cards, scenes, bins, mediaItems, takes, defaults] = await Promise.all([
       readJsonl<Actor>(paths.catalog.actors, ActorSchema),
+      readJsonl<Card>(paths.catalog.cards, CardSchema),
       readJsonl<Scene>(paths.catalog.scenes, SceneSchema),
       readJsonl<Bin>(paths.catalog.bins, BinSchema),
       readJsonl<Media>(paths.catalog.media, MediaSchema),
@@ -63,7 +65,7 @@ export function createProjectDownloadedTake(projectRoot: string): CreateDownload
       throw new Error(`Bin "${bin.id}" does not match ${media.media_type} media "${media.id}"; completed provider work remains recoverable.`);
     }
 
-    const owner = resolveOwner(media, actors, scenes);
+    const owner = resolveOwner(media, actors, cards, scenes);
     const resolved = resolveDefaultBlock(media.media_type, media, bin, owner, defaults);
     const takeNumber = takes
       .filter((take) => take.media_id === media.id)
@@ -101,13 +103,16 @@ async function loadDefaults(defaultsPath: string): Promise<Defaults | null> {
   return DefaultsSchema.parse(await fs.readJson(defaultsPath));
 }
 
-function resolveOwner(media: Media, actors: Actor[], scenes: Scene[]): CandidateOwner | null {
+function resolveOwner(media: Media, actors: Actor[], cards: Card[], scenes: Scene[]): CandidateOwner | null {
   if (media.owner_type === 'global') return null;
   const owner = media.owner_type === 'actor'
     ? actors.find((actor) => actor.id === media.owner_id)
-    : scenes.find((scene) => scene.id === media.owner_id);
+    : media.owner_type === 'card'
+      ? cards.find((card) => card.id === media.owner_id)
+      : scenes.find((scene) => scene.id === media.owner_id);
   if (!owner) {
-    throw new Error(`${media.owner_type === 'actor' ? 'Actor' : 'Scene'} "${media.owner_id}" for media "${media.id}" is missing from the project catalog; completed provider work remains recoverable.`);
+    const ownerLabel = media.owner_type === 'actor' ? 'Actor' : media.owner_type === 'card' ? 'Card' : 'Scene';
+    throw new Error(`${ownerLabel} "${media.owner_id}" for media "${media.id}" is missing from the project catalog; completed provider work remains recoverable.`);
   }
   return owner;
 }

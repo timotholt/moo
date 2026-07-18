@@ -109,6 +109,8 @@ export function registerTakeRoutes(fastify: FastifyInstance, getProjectContext: 
         ? catalog.actors.find((item) => item.id === mediaItem.owner_id) ?? null
         : mediaItem.owner_type === 'scene'
           ? catalog.scenes.find((item) => item.id === mediaItem.owner_id) ?? null
+          : mediaItem.owner_type === 'card'
+            ? catalog.cards.find((item) => item.id === mediaItem.owner_id) ?? null
           : null;
       if (bin) {
         const defaults = await fs.pathExists(paths.moo.defaults) ? await fs.readJson(paths.moo.defaults) : null;

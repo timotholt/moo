@@ -39,6 +39,8 @@ export function registerGenerationRoutes(fastify: FastifyInstance, getProjectCon
       ? catalog.actors.find((item) => item.id === media.owner_id) ?? null
       : media.owner_type === 'scene'
         ? catalog.scenes.find((item) => item.id === media.owner_id) ?? null
+        : media.owner_type === 'card'
+          ? catalog.cards.find((item) => item.id === media.owner_id) ?? null
         : null;
     const defaults = await fs.pathExists(ctx.paths.moo.defaults) ? await fs.readJson(ctx.paths.moo.defaults) : null;
     const settings = resolveDefaultBlock(media.media_type, media, bin, owner, defaults).settings;

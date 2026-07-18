@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CardSchema } from '../src/shared/schemas/card.schema.js';
+import { getOwnerFolder } from '../src/utils/pathConstruction.js';
+import { validateReferences } from '../src/utils/validationRI.js';
 
 const timestamps = {
   created_at: '2026-07-17T12:00:00.000Z',
@@ -56,5 +58,24 @@ describe('CardSchema', () => {
     const incompatible = cardWithSlots();
     incompatible.asset_slots[1].delivery = { format: 'ogg', transparency: true };
     expect(CardSchema.safeParse(incompatible).success).toBe(false);
+  });
+
+  it('uses card-owned media paths and validates card owner references', () => {
+    expect(getOwnerFolder('card', 'card-ember-adept')).toBe('cards/card-ember-adept');
+    const catalog = {
+      actors: [],
+      cards: [{ id: 'card-ember-adept' }],
+      scenes: [],
+      bins: [],
+      media: [],
+    };
+    expect(validateReferences(
+      { owner_type: 'card', owner_id: 'card-ember-adept' },
+      catalog,
+    )).toEqual({ valid: true });
+    expect(validateReferences(
+      { owner_type: 'card', owner_id: 'missing-card' },
+      catalog,
+    )).toEqual({ valid: false, errors: ['Invalid owner_id (Card): missing-card'] });
   });
 });

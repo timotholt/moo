@@ -9,6 +9,7 @@ export interface ReferenceValidationResult {
 type IdRecord = { id: string };
 type ReferenceCatalog = {
     actors: IdRecord[];
+    cards: IdRecord[];
     scenes: IdRecord[];
     bins: IdRecord[];
     media: IdRecord[];
@@ -37,6 +38,7 @@ export function validateReferences(data: Record<string, unknown> | null | undefi
     const stringValue = (key: string) => typeof data[key] === 'string' ? data[key] : undefined;
     const actorId = stringValue('actor_id');
     const sceneId = stringValue('scene_id');
+    const cardId = stringValue('card_id');
     const binId = stringValue('bin_id');
     const mediaId = stringValue('media_id');
     const ownerId = stringValue('owner_id');
@@ -49,6 +51,10 @@ export function validateReferences(data: Record<string, unknown> | null | undefi
 
     if (sceneId && !catalog.scenes.some((scene) => scene.id === sceneId)) {
         errors.push(`Invalid scene_id: ${sceneId}`);
+    }
+
+    if (cardId && !catalog.cards.some((card) => card.id === cardId)) {
+        errors.push(`Invalid card_id: ${cardId}`);
     }
 
     if (Array.isArray(data.actor_ids)) {
@@ -76,6 +82,10 @@ export function validateReferences(data: Record<string, unknown> | null | undefi
         } else if (ownerType === 'scene') {
             if (!catalog.scenes.some((scene) => scene.id === ownerId)) {
                 errors.push(`Invalid owner_id (Scene): ${ownerId}`);
+            }
+        } else if (ownerType === 'card') {
+            if (!catalog.cards.some((card) => card.id === ownerId)) {
+                errors.push(`Invalid owner_id (Card): ${ownerId}`);
             }
         }
     }

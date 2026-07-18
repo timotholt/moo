@@ -8,6 +8,7 @@ import type { OwnerType } from '../shared/schemas/index.js';
 
 export interface PathContext {
   actors?: Array<{ id: string; display_name: string }>;
+  cards?: Array<{ id: string; name: string }>;
   scenes?: Array<{ id: string; name: string }>;
   bins?: Array<{ id: string; owner_id: string | null; owner_type: OwnerType; name?: string; media_type: string }>;
 }
@@ -26,6 +27,9 @@ export function getOwnerDisplayName(
   }
   if (ownerType === 'scene') {
     return ctx.scenes?.find(s => s.id === ownerId)?.name || 'unknown scene';
+  }
+  if (ownerType === 'card') {
+    return ctx.cards?.find(card => card.id === ownerId)?.name || 'unknown card';
   }
   return 'unknown';
 }

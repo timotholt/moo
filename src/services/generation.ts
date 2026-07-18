@@ -3,7 +3,7 @@ import { join } from 'path';
 import { getProjectPaths } from '../utils/paths.js';
 import { readJsonl, appendJsonl, ensureJsonlFile, writeJsonlAll } from '../utils/jsonl.js';
 import { generateId } from '../utils/ids.js';
-import type { Actor, Defaults, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
+import type { Actor, Card, Defaults, Media, Take, GenerationJob, GenerationJobItemSummary, Bin, Scene } from '../types/index.js';
 import { getExtensionForType } from '../utils/pathConstruction.js';
 import { calculateCueLifecycle } from './cue-lifecycle.js';
 import { createDefaultGeneratorRegistry } from './generators/factory.js';
@@ -136,8 +136,9 @@ async function executeBatchGeneration(
         ensureJsonlFile(paths.catalog.generationJobs),
     ]);
 
-    const [actors, scenes, mediaItems, existingTakes, bins] = await Promise.all([
+    const [actors, cards, scenes, mediaItems, existingTakes, bins] = await Promise.all([
         readJsonl<Actor>(paths.catalog.actors),
+        readJsonl<Card>(paths.catalog.cards),
         readJsonl<Scene>(paths.catalog.scenes),
         readJsonl<Media>(paths.catalog.media),
         readJsonl<Take>(paths.catalog.takes),
@@ -145,6 +146,7 @@ async function executeBatchGeneration(
     ]);
 
     const actorsById = new Map<string, Actor>(actors.map((a) => [a.id, a]));
+    const cardsById = new Map<string, Card>(cards.map((card) => [card.id, card]));
     const scenesById = new Map<string, Scene>(scenes.map((s) => [s.id, s]));
     const binsById = new Map<string, Bin>(bins.map((b) => [b.id, b]));
 
@@ -201,6 +203,8 @@ async function executeBatchGeneration(
             ? actorsById.get(media.owner_id || '') ?? null
             : media.owner_type === 'scene'
                 ? scenesById.get(media.owner_id || '') ?? null
+                : media.owner_type === 'card'
+                    ? cardsById.get(media.owner_id || '') ?? null
                 : null;
         if (!owner && media.owner_type !== 'global') {
             itemSummary.error = 'owner_not_found';

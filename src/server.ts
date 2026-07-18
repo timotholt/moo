@@ -72,7 +72,7 @@ fastify.get('/media/*', async (request, reply) => {
   const relPath = (request.params as { '*': string })['*'];
 
   // Security: Ensure path stays within allowed subfolders at project root
-  const allowedFolders = ['actors', 'scenes', 'global', 'exports'];
+  const allowedFolders = ['actors', 'cards', 'scenes', 'global', 'exports'];
   const firstPart = relPath.split(/[/\\]/)[0];
 
   if (!allowedFolders.includes(firstPart)) {

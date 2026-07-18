@@ -41,9 +41,9 @@ export function registerBinRoutes(fastify: FastifyInstance, getProjectContext: (
             return { error: 'owner_type and media_type are required' };
         }
 
-        if ((body.owner_type === 'actor' || body.owner_type === 'scene') && !body.owner_id) {
+        if ((body.owner_type === 'actor' || body.owner_type === 'scene' || body.owner_type === 'card') && !body.owner_id) {
             reply.code(400);
-            return { error: 'owner_id is required for actors and scenes' };
+            return { error: 'owner_id is required for actors, scenes, and cards' };
         }
 
         // Read catalog once and save snapshot

@@ -9,6 +9,7 @@ import type { MediaType, DefaultBlock, DefaultBlocks } from '../shared/schemas/i
 import type { Media } from '../shared/schemas/media.schema.js';
 import type { Actor } from '../shared/schemas/actor.schema.js';
 import type { Scene } from '../shared/schemas/scene.schema.js';
+import type { Card } from '../shared/schemas/card.schema.js';
 import type { Bin } from '../shared/schemas/bin.schema.js';
 import type { Defaults } from '../shared/schemas/defaults.schema.js';
 
@@ -94,7 +95,7 @@ export function resolveDefaultBlock(
     mediaType: MediaType,
     media?: Media | null,
     bin?: Bin | null,
-    owner?: Actor | Scene | null,
+    owner?: Actor | Scene | Card | null,
     globalDefaults?: Defaults | null
 ): ResolvedBlock {
     let settings = { ...HARDCODED_DEFAULTS[mediaType] };
