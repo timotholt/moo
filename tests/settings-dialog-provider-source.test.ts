@@ -9,8 +9,16 @@ describe('SettingsDialog generation provider settings', () => {
     expect(source).toContain("id: 'elevenlabs'");
     expect(source).toContain("id: 'openai'");
     expect(source).toContain("id: 'google'");
+    expect(source).toContain("id: 'background-removal'");
     expect(source).toContain("'/api/generation/providers/settings'");
     expect(source).toContain('`/api/generation/providers/${providerId}/settings`');
+  });
+
+  it('configures independent image/video models and local transparency tooling', () => {
+    expect(source).toContain("key: 'image_model'");
+    expect(source).toContain("key: 'video_model'");
+    expect(source).toContain("key: 'executable'");
+    expect(source).toContain('config: settings.config || {}');
   });
 
   it('keeps full local keys in the form, with intentional independent reveal controls', () => {

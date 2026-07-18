@@ -24,6 +24,7 @@ import { DESIGN_SYSTEM } from '../theme/designSystem.js';
 import { buildMediaPath } from '../utils/pathBuilder.js';
 import { useLog, usePlayback, useStatus, useCredits } from '../contexts/AppContext.jsx';
 import ProviderSettingsEditor from './ProviderSettingsEditor.jsx';
+import TakePreview from './TakePreview.jsx';
 import { getInheritedSettings } from '../utils/inheritance.js';
 
 // Helper to format date
@@ -157,6 +158,22 @@ export default function MediaView(props) {
         } else {
             if (playback.onPlayRequest) playback.onPlayRequest(props.item.id, take);
         }
+    };
+
+    const isVisualMedia = () => props.item.media_type === 'image' || props.item.media_type === 'video';
+
+    const handleTakeActivation = (take) => {
+        if (isVisualMedia()) {
+            setExpandedTakeId(expandedTakeId() === take.id ? null : take.id);
+            return;
+        }
+        handlePlayTake(take);
+    };
+
+    const handleTakeActivationKeyDown = (event, take) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        handleTakeActivation(take);
     };
 
     const handleTakeStatus = async (takeId, newStatus) => {
@@ -496,13 +513,37 @@ export default function MediaView(props) {
                                     }}
                                 >
                                     <ListItemIcon sx={{ minWidth: 28 }}>
-                                        <IconButton size="small" onClick={() => handlePlayTake(take)} sx={{ p: 0.25 }}>
-                                            <Show when={playback.playingTakeId === take.id} fallback={<PlayArrowIcon sx={{ fontSize: '1rem' }} />}>
-                                                <StopIcon sx={{ fontSize: '1rem' }} />
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleTakeActivation(take)}
+                                            aria-label={isVisualMedia()
+                                                ? `${expandedTakeId() === take.id ? 'Collapse' : 'Expand'} preview for ${take.filename || `take ${take.take_number}`}`
+                                                : `${playback.playingTakeId === take.id ? 'Stop' : 'Play'} ${take.filename || `take ${take.take_number}`}`}
+                                            sx={{ p: 0.25 }}
+                                        >
+                                            <Show
+                                                when={isVisualMedia()}
+                                                fallback={(
+                                                    <Show when={playback.playingTakeId === take.id} fallback={<PlayArrowIcon sx={{ fontSize: '1rem' }} />}>
+                                                        <StopIcon sx={{ fontSize: '1rem' }} />
+                                                    </Show>
+                                                )}
+                                            >
+                                                <Show when={expandedTakeId() === take.id} fallback={<ExpandMoreIcon sx={{ fontSize: '1rem' }} />}>
+                                                    <ExpandLessIcon sx={{ fontSize: '1rem' }} />
+                                                </Show>
                                             </Show>
                                         </IconButton>
                                     </ListItemIcon>
-                                    <Box sx={{ flexGrow: 1, cursor: 'pointer' }} onClick={() => handlePlayTake(take)}>
+                                    <Box
+                                        sx={{ flexGrow: 1, cursor: 'pointer' }}
+                                        onClick={() => handleTakeActivation(take)}
+                                        onKeyDown={(event) => handleTakeActivationKeyDown(event, take)}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-expanded={isVisualMedia() ? expandedTakeId() === take.id : undefined}
+                                        aria-label={`${isVisualMedia() ? 'Toggle preview for' : 'Play'} ${take.filename || `take ${take.take_number}`}`}
+                                    >
                                         <ListItemText
                                             primary={`${take.filename || `take_${take.take_number}`}${take.status === 'new' && !playback.playedTakes[take.id] ? ' (new)' : ''}`}
                                             secondary={
@@ -583,6 +624,9 @@ export default function MediaView(props) {
                                         fontFamily: 'monospace',
                                         color: 'text.secondary'
                                     }}>
+                                        <Show when={isVisualMedia()}>
+                                            <TakePreview take={take} mediaType={props.item.media_type} />
+                                        </Show>
                                         <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block' }}>
                                             <strong>Provider:</strong> {take.generation_params?.provider || take.generated_by || 'unknown'}
                                         </Typography>
@@ -607,9 +651,11 @@ export default function MediaView(props) {
                                         <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block' }}>
                                             <strong>Generated:</strong> {formatStatusDate(take.generation_params?.generated_at || take.created_at)}
                                         </Typography>
-                                        <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block' }}>
-                                            <strong>Format:</strong> {take.format} • {take.sample_rate}Hz • {take.bit_depth}bit • {take.channels}ch
-                                        </Typography>
+                                        <Show when={!isVisualMedia()}>
+                                            <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block' }}>
+                                                <strong>Format:</strong> {take.format} • {take.sample_rate}Hz • {take.bit_depth}bit • {take.channels}ch
+                                            </Typography>
+                                        </Show>
                                         <Typography variant="caption" sx={{ fontSize: '0.65rem', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
                                             <strong>Hash:</strong> {take.hash_sha256 || 'unknown'}
                                         </Typography>

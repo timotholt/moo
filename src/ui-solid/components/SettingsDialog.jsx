@@ -19,12 +19,32 @@ import TextInput from './TextInput.jsx';
 const DEFAULT_LLM_SETTINGS = { provider: 'groq', apiKey: '', model: 'llama-3.1-8b-instant', systemPrompts: { generate: '', improve: '' } };
 const GENERATION_PROVIDERS = [
     { id: 'elevenlabs', name: 'ElevenLabs', description: 'Voice and audio generation', keyPlaceholder: 'Enter your ElevenLabs API key', modelPlaceholder: 'eleven_multilingual_v2', keyUrl: 'https://elevenlabs.io/app/settings/api-keys' },
-    { id: 'openai', name: 'OpenAI', description: 'Image and video generation', keyPlaceholder: 'Enter your OpenAI API key', modelPlaceholder: 'Optional default image or video model', keyUrl: 'https://platform.openai.com/api-keys' },
-    { id: 'google', name: 'Google', description: 'Image and video generation', keyPlaceholder: 'Enter your Google AI API key', modelPlaceholder: 'Optional default image or video model', keyUrl: 'https://aistudio.google.com/app/apikey' },
+    {
+        id: 'openai', name: 'OpenAI', description: 'GPT Image and Sora generation', keyPlaceholder: 'Enter your OpenAI API key', keyUrl: 'https://platform.openai.com/api-keys',
+        modelFields: [
+            { key: 'image_model', label: 'Image model', placeholder: 'gpt-image-2' },
+            { key: 'video_model', label: 'Video model', placeholder: 'sora-2' },
+        ],
+    },
+    {
+        id: 'google', name: 'Google', description: 'Gemini image and Veo generation', keyPlaceholder: 'Enter your Google AI API key', keyUrl: 'https://aistudio.google.com/app/apikey',
+        modelFields: [
+            { key: 'image_model', label: 'Image model', placeholder: 'gemini-3.1-flash-image' },
+            { key: 'video_model', label: 'Video model', placeholder: 'veo-3.1-generate-preview' },
+        ],
+    },
+    {
+        id: 'background-removal', name: 'Background removal', description: 'Local transparent-PNG post-processing; no API key required', requiresKey: false,
+        configFields: [
+            { key: 'executable', label: 'Executable', placeholder: 'rembg' },
+            { key: 'version', label: 'Installed version (optional)', placeholder: '2.x' },
+            { key: 'config_label', label: 'Configuration label (optional)', placeholder: 'default-cutout' },
+        ],
+    },
 ];
 
 function defaultGenerationProviderSettings() {
-    return Object.fromEntries(GENERATION_PROVIDERS.map(({ id }) => [id, { api_key: '', enabled: false, model: '' }]));
+    return Object.fromEntries(GENERATION_PROVIDERS.map(({ id }) => [id, { api_key: '', enabled: false, model: '', config: {} }]));
 }
 
 export default function SettingsDialog(props) {
@@ -103,7 +123,7 @@ export default function SettingsDialog(props) {
         });
     };
 
-    const generationProvider = (providerId) => generationProviderSettings()[providerId] || { api_key: '', enabled: false, model: '' };
+    const generationProvider = (providerId) => generationProviderSettings()[providerId] || { api_key: '', enabled: false, model: '', config: {} };
 
     const updateGenerationProvider = (providerId, updates) => {
         setGenerationProviderSettings(current => ({
@@ -115,6 +135,15 @@ export default function SettingsDialog(props) {
         if (providerId === 'elevenlabs') setElevenLabsTestStatus(null);
     };
 
+    const updateGenerationProviderConfig = (providerId, key, value) => {
+        updateGenerationProvider(providerId, {
+            config: {
+                ...(generationProvider(providerId).config || {}),
+                [key]: value,
+            },
+        });
+    };
+
     const handleSaveGenerationProvider = async (providerId) => {
         const settings = generationProvider(providerId);
         setProviderSaveStatus(current => ({ ...current, [providerId]: 'saving' }));
@@ -124,7 +153,12 @@ export default function SettingsDialog(props) {
             const response = await fetch(`/api/generation/providers/${providerId}/settings`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ api_key: settings.api_key, enabled: settings.enabled, model: settings.model }),
+                body: JSON.stringify({
+                    ...(settings.api_key ? { api_key: settings.api_key } : {}),
+                    enabled: settings.enabled,
+                    ...(settings.model ? { model: settings.model } : {}),
+                    config: settings.config || {},
+                }),
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Unable to save settings');
@@ -272,44 +306,76 @@ export default function SettingsDialog(props) {
                                         </Button>
                                     </Box>
 
-                                    <TextInput
-                                        size="small"
-                                        fullWidth
-                                        label={`${provider.name} API Key`}
-                                        type={providerKeyVisibility()[provider.id] ? 'text' : 'password'}
-                                        value={generationProvider(provider.id).api_key || ''}
-                                        onValueChange={(value) => updateGenerationProvider(provider.id, { api_key: value })}
-                                        placeholder={provider.keyPlaceholder}
-                                        InputProps={{
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton
-                                                        size="small"
-                                                        aria-label={providerKeyVisibility()[provider.id] ? `Hide ${provider.name} API key` : `Show ${provider.name} API key`}
-                                                        onClick={() => setProviderKeyVisibility(current => ({ ...current, [provider.id]: !current[provider.id] }))}
-                                                        edge="end"
-                                                        sx={{ p: 0.5 }}
-                                                    >
-                                                        <Show when={providerKeyVisibility()[provider.id]} fallback={<VisibilityIcon fontSize="small" />}>
-                                                            <VisibilityOffIcon fontSize="small" />
-                                                        </Show>
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            ),
-                                            sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
-                                        }}
-                                        sx={DESIGN_SYSTEM.components.formControl}
-                                    />
+                                    <Show when={provider.requiresKey !== false}>
+                                        <TextInput
+                                            size="small"
+                                            fullWidth
+                                            label={`${provider.name} API Key`}
+                                            type={providerKeyVisibility()[provider.id] ? 'text' : 'password'}
+                                            value={generationProvider(provider.id).api_key || ''}
+                                            onValueChange={(value) => updateGenerationProvider(provider.id, { api_key: value })}
+                                            placeholder={provider.keyPlaceholder}
+                                            InputProps={{
+                                                endAdornment: (
+                                                    <InputAdornment position="end">
+                                                        <IconButton
+                                                            size="small"
+                                                            aria-label={providerKeyVisibility()[provider.id] ? `Hide ${provider.name} API key` : `Show ${provider.name} API key`}
+                                                            onClick={() => setProviderKeyVisibility(current => ({ ...current, [provider.id]: !current[provider.id] }))}
+                                                            edge="end"
+                                                            sx={{ p: 0.5 }}
+                                                        >
+                                                            <Show when={providerKeyVisibility()[provider.id]} fallback={<VisibilityIcon fontSize="small" />}>
+                                                                <VisibilityOffIcon fontSize="small" />
+                                                            </Show>
+                                                        </IconButton>
+                                                    </InputAdornment>
+                                                ),
+                                                sx: { fontFamily: 'monospace', fontSize: '0.75rem' },
+                                            }}
+                                            sx={DESIGN_SYSTEM.components.formControl}
+                                        />
+                                    </Show>
 
-                                    <TextInput
-                                        size="small"
-                                        fullWidth
-                                        label="Default model (optional)"
-                                        value={generationProvider(provider.id).model || ''}
-                                        onValueChange={(value) => updateGenerationProvider(provider.id, { model: value })}
-                                        placeholder={provider.modelPlaceholder}
-                                        sx={DESIGN_SYSTEM.components.formControl}
-                                    />
+                                    <Show when={!provider.modelFields && provider.modelPlaceholder}>
+                                        <TextInput
+                                            size="small"
+                                            fullWidth
+                                            label="Default model (optional)"
+                                            value={generationProvider(provider.id).model || ''}
+                                            onValueChange={(value) => updateGenerationProvider(provider.id, { model: value })}
+                                            placeholder={provider.modelPlaceholder}
+                                            sx={DESIGN_SYSTEM.components.formControl}
+                                        />
+                                    </Show>
+
+                                    <For each={provider.modelFields || []}>
+                                        {(field) => (
+                                            <TextInput
+                                                size="small"
+                                                fullWidth
+                                                label={field.label}
+                                                value={generationProvider(provider.id).config?.[field.key] || ''}
+                                                onValueChange={(value) => updateGenerationProviderConfig(provider.id, field.key, value)}
+                                                placeholder={field.placeholder}
+                                                sx={DESIGN_SYSTEM.components.formControl}
+                                            />
+                                        )}
+                                    </For>
+
+                                    <For each={provider.configFields || []}>
+                                        {(field) => (
+                                            <TextInput
+                                                size="small"
+                                                fullWidth
+                                                label={field.label}
+                                                value={generationProvider(provider.id).config?.[field.key] || ''}
+                                                onValueChange={(value) => updateGenerationProviderConfig(provider.id, field.key, value)}
+                                                placeholder={field.placeholder}
+                                                sx={DESIGN_SYSTEM.components.formControl}
+                                            />
+                                        )}
+                                    </For>
 
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
                                         <Button
@@ -337,17 +403,19 @@ export default function SettingsDialog(props) {
                                             </Button>
                                         </Show>
 
-                                        <Button
-                                            size="small"
-                                            variant="text"
-                                            component="a"
-                                            href={provider.keyUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            endIcon={<OpenInNewIcon fontSize="small" />}
-                                        >
-                                            Get API Key
-                                        </Button>
+                                        <Show when={provider.keyUrl}>
+                                            <Button
+                                                size="small"
+                                                variant="text"
+                                                component="a"
+                                                href={provider.keyUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                endIcon={<OpenInNewIcon fontSize="small" />}
+                                            >
+                                                Get API Key
+                                            </Button>
+                                        </Show>
 
                                         <Show when={providerSaveStatus()[provider.id] === 'success'}>
                                             <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
